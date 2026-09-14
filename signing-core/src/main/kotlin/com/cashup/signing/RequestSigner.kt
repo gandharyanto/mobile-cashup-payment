@@ -8,18 +8,26 @@ import java.util.Base64
 
 /**
  * Canonicalizes an outgoing request and produces an ECDSA signature over it.
- * The canonical form is deliberately simple and stable: method, path,
- * timestamp, nonce and a hash of the body, newline-separated. Byte-for-byte
- * stability matters here — reordering fields later invalidates every
- * signature already accepted by the backend.
+ * The canonical form is deliberately simple and stable: method, request
+ * target (encoded path + query string, if any), timestamp, nonce and a hash
+ * of the body, newline-separated. Byte-for-byte stability matters here —
+ * reordering fields later invalidates every signature already accepted by
+ * the backend.
+ *
+ * `requestTarget` MUST include the query string when the request has one
+ * (e.g. `/cdcp/status?txnId=1`) — omitting it lets two requests that only
+ * differ by query string produce identical canonical bytes, which defeats
+ * the signature as a protection for the query string. This does NOT bind
+ * the signature to a host; that is a deliberate scope limit, not an
+ * oversight.
  */
 class RequestSigner {
 
-    fun canonicalize(method: String, path: String, timestampMillis: Long, nonce: String, body: ByteArray): ByteArray {
+    fun canonicalize(method: String, requestTarget: String, timestampMillis: Long, nonce: String, body: ByteArray): ByteArray {
         val bodyHash = sha256(body)
         return listOf(
             method.uppercase(),
-            path,
+            requestTarget,
             timestampMillis.toString(),
             nonce,
             Base64.getEncoder().encodeToString(bodyHash),

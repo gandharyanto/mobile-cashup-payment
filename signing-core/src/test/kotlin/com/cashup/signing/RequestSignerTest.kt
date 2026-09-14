@@ -1,5 +1,6 @@
 package com.cashup.signing
 
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -20,7 +21,7 @@ class RequestSignerTest {
         val keyPair = generateKeyPair()
         val canonical = signer.canonicalize(
             method = "POST",
-            path = "/cdcp/sale",
+            requestTarget = "/cdcp/sale",
             timestampMillis = 1_726_300_000_000,
             nonce = "abc123",
             body = """{"amount":"10000"}""".toByteArray(),
@@ -50,5 +51,33 @@ class RequestSignerTest {
         val signature = signer.sign(canonical, keyPair.private)
 
         assertFalse(signer.verify(canonical, signature, otherKeyPair.public))
+    }
+
+    @Test
+    fun `same path with different query strings produces different canonical bytes and signatures`() {
+        val keyPair = generateKeyPair()
+        val canonicalOne = signer.canonicalize("GET", "/cdcp/status?txnId=1", 1_726_300_000_000, "xyz", ByteArray(0))
+        val canonicalTwo = signer.canonicalize("GET", "/cdcp/status?txnId=999", 1_726_300_000_000, "xyz", ByteArray(0))
+
+        assertFalse(canonicalOne.contentEquals(canonicalTwo))
+
+        val signatureOne = signer.sign(canonicalOne, keyPair.private)
+        assertFalse(signer.verify(canonicalTwo, signatureOne, keyPair.public))
+    }
+
+    @Test
+    fun `canonical form is byte-stable for a known input`() {
+        val canonical = signer.canonicalize(
+            method = "post",
+            requestTarget = "/cdcp/sale",
+            timestampMillis = 1_726_300_000_000,
+            nonce = "abc123",
+            body = """{"amount":"10000"}""".toByteArray(),
+        )
+        val expectedBodyHash = java.util.Base64.getEncoder().encodeToString(
+            java.security.MessageDigest.getInstance("SHA-256").digest("""{"amount":"10000"}""".toByteArray())
+        )
+        val expected = "POST\n/cdcp/sale\n1726300000000\nabc123\n$expectedBodyHash"
+        assertEquals(expected, String(canonical, Charsets.UTF_8))
     }
 }
