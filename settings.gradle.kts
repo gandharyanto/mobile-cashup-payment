@@ -16,3 +16,4 @@ rootProject.name = "mobile-cashup-payment"
 
 include(":common-core")
 include(":device-sdk-api")
+include(":signing-core")
