@@ -6,7 +6,7 @@ interface PaymentLogger {
     fun error(tag: String, message: String, throwable: Throwable? = null)
 }
 
-class NoOpPaymentLogger : PaymentLogger {
+object NoOpPaymentLogger : PaymentLogger {
     override fun debug(tag: String, message: String) = Unit
     override fun warn(tag: String, message: String, throwable: Throwable?) = Unit
     override fun error(tag: String, message: String, throwable: Throwable?) = Unit
