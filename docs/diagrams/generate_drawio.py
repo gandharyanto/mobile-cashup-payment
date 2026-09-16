@@ -102,7 +102,9 @@ MQTT_PAYLOAD = """topic:  cashup/edc/{tid}/events        // satu topic, dua jeni
   "configVersion": 8,
   "occurredAt": "2026-09-15T11:03:00.000+07:00" }
 
-Device menerima CONFIG_CHANGED -> panggil POST /v1/provisioning/refresh."""
+Device menerima CONFIG_CHANGED -> mekanisme ambil-ulang config: TBD backend.
+// (Endpoint POST /v1/provisioning/refresh yang dulu disebut di sini tidak
+//  pernah ada di kontrak mana pun; lihat catatan di halaman provisioning.)"""
 
 
 # ===========================================================================
@@ -417,8 +419,10 @@ def page_reprov(doc: Document) -> None:
         "<code>POST /v1/provisioning/refresh</code> dan "
         "<code>POST /v1/provisioning/deactivate</code> — <b>keduanya tidak "
         "pernah ada di kontrak nyata manapun</b> dan sudah dibuang dari halaman "
-        "ini. Menunggu backend menyediakan endpoint (spec provisioning §10) "
-        "sebelum diagram ini diisi ulang.",
+        "ini. Hal yang sama berlaku untuk penanganan event <code>CONFIG_CHANGED</code> "
+        "di halaman MQTT: mekanisme ambil-ulang config masih <b>TBD backend</b>, "
+        "bukan endpoint refresh yang dikarang. Menunggu backend menyediakan "
+        "endpoint (spec provisioning §10) sebelum diagram ini diisi ulang.",
         800, 130, 480, 260, "note",
     )
 

@@ -3845,7 +3845,7 @@ checklist."
 
 Ditulis sekarang, selagi alasannya masih segar, supaya pencabutannya tidak jadi pekerjaan arkeologi.
 
-- [ ] Hapus `provisioning-core/src/main/kotlin/com/cashup/provisioning/audit/` seluruhnya
+- [ ] Hapus `provisioning-core/src/main/kotlin/com/cashup/provisioning/data/audit/` seluruhnya
 - [ ] Hapus `provisioning-core/src/test/kotlin/com/cashup/provisioning/audit/` seluruhnya
 - [ ] Hapus parameter `journal` dari konstruktor `ProvisionDeviceUseCase` (Task 11) beserta setiap pemanggilan `journal.start/ok/failed` di dalamnya
 - [ ] Hapus `journalText` dari `ProvisioningUiState.Success` dan `ProvisioningUiState.Failure` (Task 12), beserta panel yang menampilkannya di layar Result

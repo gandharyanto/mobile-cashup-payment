@@ -207,6 +207,8 @@ Memperbaikinya butuh `BaseSystemKey` diperluas dengan parameter slot dan diimple
 
 Sementara, `TerminalKeyInstaller.wipe()` menghapus file `SharedPreferences` vault langsung berdasarkan nama (`duktp.vault`). Ini **kopling rapuh** ke detail internal `edc-sdk` dan dicatat sebagai utang: begitu `edc-sdk` menyediakan API hapus resmi, ganti ke API itu.
 
+Lebih dari itu: **modul aman vendor tidak punya jalur hapus sama sekali.** `BaseSystemKey` hanya mengekspos `writeIPEK`, tanpa erase/delete dalam bentuk apa pun, jadi `wipe()` tidak bisa mencabut IPEK yang sudah masuk hardware. Konsekuensinya nyata: kegagalan di `ACTIVATE` bisa meninggalkan key hidup di modul vendor yang backend tidak tahu keberadaannya, dan yang memulihkannya hanya provisioning berikutnya yang berhasil menimpa slot itu. Rollback atomic (§7.1) karena itu berlaku penuh untuk vault, state lokal, dan keypair device — tapi hanya sebagian untuk modul vendor. Menutup celah ini menuntut `BaseSystemKey` diperluas dengan kemampuan hapus di repo `edc-sdk`, **di luar scope plan ini** (§10); dicatat di sini sebagai utang yang diketahui, bukan masalah yang sudah selesai.
+
 ### 4.4 Jendela IPEK di RAM
 
 Antara unwrap (§2 langkah 13) dan injeksi (§2 langkah 14) IPEK plaintext berada di memori app — tidak terhindarkan, karena KCV harus dihitung dari IPEK plaintext dan itu satu-satunya jendelanya. `edc-mobile` punya keterbatasan yang sama.

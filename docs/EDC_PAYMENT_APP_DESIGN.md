@@ -16,7 +16,7 @@ Tiga jalur pemicu transaksi:
 2. **App-to-app / deep link** — aplikasi kasir eksternal memanggil device ini (pola `cashlez://` yang sudah ada, dipertahankan).
 3. **ECR/POSH bridge** — controller device eksternal memanggil & menerima notifikasi status via bridge.
 
-Tidak ada login username/password untuk **operasional harian** — transaksi (sale/void/settlement/dst) berjalan tanpa cashier login sama sekali, device diautentikasi ke Front-facing API via **digital signature request-signing**. Proses **bootstrap** (provisioning, re-provisioning, deactivation) tetap butuh login: teknisi login pakai kredensial admin Cashup **langsung di device**, baru lanjut scan QR. App ini **fully stateless** — tidak ada local database; semua histori/reprint/settlement query live ke Front-facing API (CDCP+QRIS).
+Tidak ada login username/password untuk **operasional harian** — transaksi (sale/void/settlement/dst) berjalan tanpa cashier login sama sekali, device diautentikasi ke Front-facing API via **digital signature request-signing**. Proses **bootstrap** (provisioning, re-provisioning, deactivation) juga **tidak** butuh login di device: otorisasinya sepenuhnya datang dari `challengeCode` hasil scan QR yang diterbitkan Cashup backoffice, dan admin login di backoffice itu — sistem terpisah — bukan di terminal (lihat §2 dan §4). App ini **fully stateless** — tidak ada local database; semua histori/reprint/settlement query live ke Front-facing API (CDCP+QRIS).
 
 > **Konfirmasi**: ketiga jalur pemicu di atas (Standalone/manual-entry, App-to-app, ECR) sudah dikonfirmasi masuk scope v1.
 
