@@ -124,11 +124,11 @@ sha256hex(body)      string kosong → hash dari byte array kosong
 
 | Key | Algoritma | Disimpan di | Alasan |
 |---|---|---|---|
-| Identitas unwrap | RSA-2048 | **AndroidKeyStore**, non-extractable, `PURPOSE_DECRYPT`, StrongBox oportunistik | Unwrap IPEK terjadi di dalam TEE; private key tidak pernah ada di RAM |
+| Identitas unwrap | RSA-2048 | **AndroidKeyStore** kalau memungkinkan, non-extractable, `PURPOSE_DECRYPT`, StrongBox oportunistik — **fallback software**, lihat §4.5 | Unwrap IPEK terjadi di dalam TEE; private key tidak pernah ada di RAM |
 | Penandatangan request | Ed25519 | BouncyCastle + `EncryptedSharedPreferences` | Tidak ada pilihan lain — lihat §4.2 |
 | DUKPT (IPEK/KSN) | TDES | **Modul vendor dulu**, vault TEE sebagai cermin | Lihat §4.3 |
 
-Ini lebih kuat dari `edc-mobile`, yang menyimpan RSA sebagai blob PKCS8 di `EncryptedSharedPreferences`.
+Kalau jalur TEE terpakai, ini lebih kuat dari `edc-mobile`, yang menyimpan RSA sebagai blob PKCS8 di `EncryptedSharedPreferences`.
 
 ### 4.2 Kenapa Ed25519 tidak bisa di TEE
 
@@ -183,6 +183,37 @@ Antara unwrap (§2 langkah 13) dan injeksi (§2 langkah 14) IPEK plaintext berad
 Mitigasi: array key di-`fill(0)` segera setelah dipakai, tidak pernah disalin ke `String`, tidak pernah masuk log.
 
 Beberapa SDK vendor (mis. PAX `writeKey` dengan key terenkripsi di bawah TMK) memungkinkan injeksi key terbungkus tanpa plaintext pernah muncul di RAM. Itu perbaikan nyata tapi **di luar scope plan ini** — dicatat supaya tidak hilang.
+
+### 4.5 Batas OAEP di AndroidKeyStore — kenapa TEE-RSA butuh fallback
+
+`edc-mobile` (`TerminalKeyProvisioner.unwrapPackageKey`) mencoba **dua kombinasi OAEP**, MGF1-SHA1 dulu lalu MGF1-SHA256, karena `corepayment` membungkus dengan string pintasan `"RSA/ECB/OAEPWithSHA-256AndMGF1Padding"` tanpa `OAEPParameterSpec` eksplisit — dan sebagian provider diam-diam memakai MGF1-SHA1 untuk string itu meski digest utamanya SHA-256.
+
+Key di AndroidKeyStore tidak bisa "mencoba dua kombinasi": digest MGF1-nya ditetapkan saat key dibuat. Diverifikasi terhadap `android.jar` di mesin pengembangan:
+
+```
+API 33:         setDigests(...)       ADA
+                setMgf1Digests(...)   TIDAK ADA
+API 35, 36, 37: setMgf1Digests(...)   ADA
+```
+
+`KeyGenParameterSpec.Builder.setMgf1Digests` baru muncul di **API 35 (Android 15)**. Di terminal EDC target (Android 7–11, API 24–30) MGF1 di AndroidKeyStore **terkunci SHA-1 dan tidak dapat dikonfigurasi**.
+
+Konsekuensinya:
+
+- Kalau backend membungkus dengan **MGF1-SHA1** → key TEE bekerja di semua device target. Ini yang dianggap paling mungkin: `edc-mobile` mencoba SHA-1 lebih dulu dan menyebutnya kombinasi yang dicurigai cocok dengan server. Tapi itu dugaan mereka, bukan konfirmasi.
+- Kalau backend membungkus dengan **MGF1-SHA256** → key TEE **tidak bisa mendekripsi sama sekali** di device-device itu, dan tidak ada jalan keluar seperti yang dipakai `edc-mobile`.
+
+**Keputusan:** TEE tetap jadi target, dengan jalur mundur yang ditentukan **sekali, saat keypair dibuat** — sebelum `qr-redeem`, karena public key yang didaftarkan ke backend harus milik key yang nantinya benar-benar dipakai untuk unwrap. Tidak boleh berpindah jalur setelah provisioning berjalan.
+
+```
+generateRsaKeyPair():
+  kalau setMgf1Digests tersedia (API 35+)     → AndroidKeyStore, MGF1 sesuai konfirmasi backend
+  kalau backend dikonfirmasi MGF1-SHA1        → AndroidKeyStore (MGF1-SHA1 default)
+  selain itu                                  → BouncyCastle + EncryptedSharedPreferences
+  laporkan jalur yang dipakai ke UI & log     (jangan didiamkan)
+```
+
+Ini menjadikan §8 item 1 bukan sekadar pertanyaan kapasitas, melainkan **penentu apakah TEE bisa dipakai sama sekali**.
 
 ---
 
@@ -367,13 +398,53 @@ Daftar definitif untuk Front-facing API belum ada (§8). Kode yang tidak dikenal
 
 Gap hardware ini sama sifatnya dengan yang sudah diakui plan vendor-adapters sebelumnya: binder vendor menyentuh framework Android dan binder nyata, tidak bisa diuji tanpa terminal fisik atau Robolectric yang jauh lebih berat.
 
+### 7.5 Jebakan yang sudah dibayar `edc-mobile` — jangan diulang
+
+Semuanya terdokumentasi di KDoc `edc-mobile` sebagai hasil investigasi nyata, bukan kehati-hatian teoretis. Implementasi wajib membawa semuanya.
+
+**1. Provider BouncyCastle harus dicopot dulu, dan dipasang di prioritas terendah.**
+
+Android sudah menyertakan provider bernama `"BC"` bawaan OS, tapi versi yang sengaja dipotong Google. Akibatnya `Security.getProvider("BC") == null` **selalu false**, sehingga pola `if (provider == null) addProvider(...)` tidak pernah benar-benar memasang BC lengkap — app diam-diam memakai versi terpotong dan gagal dengan `NoSuchAlgorithmException`. Provider bawaan wajib `removeProvider` dulu.
+
+Jebakan kedua di tempat yang sama: `insertProviderAt(bc, 1)` merusak jalur lain. Panggilan `Cipher.getInstance(...)` yang tidak menyebut provider secara eksplisit ikut dialihkan ke BC, dan RSA-OAEP gagal dengan `InvalidCipherTextException: unable to decrypt block` — pesan khas BC, bukan error algoritma, jadi menyesatkan saat didiagnosis. Wajib `addProvider` (prioritas terendah): tersedia untuk dipanggil eksplisit lewat nama `"BC"`, tidak mengambil alih resolusi siapa pun.
+
+Ini langsung mengenai kita: Ed25519 lewat BC, RSA-OAEP lewat provider lain.
+
+**2. Timeout jalur provisioning jauh lebih panjang dari default.**
+
+`edc-mobile` memakai `readTimeout` **65 detik** karena `/package` menyentuh Payment HSM dan General Purpose HSM. `RetrofitFactory.DEFAULT_TIMEOUT_SECONDS` di `common-core` bernilai **15 detik** — akan timeout. Client provisioning harus meneruskan timeout-nya sendiri; **jangan** menaikkan default `RetrofitFactory` untuk semua pemakai.
+
+**3. Scanner QR butuh guard re-entrancy di ViewModel, bukan hanya disable tombol.**
+
+Scanner mendeteksi frame yang sama berkali-kali dalam sepersekian detik, sebelum hasil redeem pertama sempat masuk state. Tanpa guard, `qr-redeem` ditembak berulang dengan `challengeCode` yang sama: percobaan pertama **berhasil**, percobaan kedua ditolak karena kode sekali-pakai sudah terpakai — dan pesan gagal itulah yang dilihat teknisi. Guard berupa flag `inFlight` di ViewModel, bukan mengandalkan `isLoading` di UI (baru berlaku setelah render berikutnya).
+
+**4. Jangan pernah `HttpLoggingInterceptor.Level.BODY` di build rilis.**
+
+`edc-mobile` memasangnya tanpa syarat — wajar untuk alat dev. Untuk kita itu berarti `wrappedPackageKey` dan seluruh `keyCheckValues` masuk logcat. Level `BODY` hanya di `debug`; rilis maksimal `BASIC`, dan header `X-Signature` di-redact.
+
+**5. Normalisasi `challengeCode` sebelum dikirim.**
+
+`rawToken.filter(Char::isLetterOrDigit)` — dinormalisasi dengan cara yang sama di sisi server, sehingga input manual dengan tanda hubung atau spasi tetap cocok dengan hasil scan.
+
+**6. Store yang isinya tidak cocok skema dibuang, bukan didiamkan.**
+
+Setiap store terenkripsi membaca dengan `runCatching`; kalau JSON tersimpan tidak lagi cocok skema saat ini, entri dihapus dan dianggap kosong — supaya percobaan baca berikutnya tidak mengulang error yang sama selamanya.
+
+**7. Urutan interceptor mengikat.**
+
+`RequestHeadersInterceptor` (menambah `X-Timestamp`) harus berjalan **sebelum** interceptor signing, karena canonical string memakai timestamp itu. Logging paling akhir.
+
 ---
 
 ## 8. Yang harus dikonfirmasi ke tim backend
 
 Delapan hal. Tiga pertama bisa memblokir integrasi kalau tebakannya salah.
 
-1. **Kapasitas RSA-2048 OAEP-SHA256 hanya 190 byte.** Empat pasang (IPEK 16B + KSN 10B) = 104 byte kalau dikirim biner padat — muat. Tapi kalau dibungkus JSON + base64 seperti lazimnya (~280 byte), **tidak muat**. `edc-mobile` memakai skema hibrida (RSA membungkus kunci AES, payload di AES-GCM) justru karena batasan ini. Diagram menulis `wrappedPackageKey` tunggal — perlu dipastikan backend mengirim apa persisnya.
+1. **Bentuk bungkusan RSA — dua pertanyaan dalam satu, dan ini yang paling menentukan.**
+
+   **(a) Kapasitas.** RSA-2048 OAEP-SHA256 hanya memuat 190 byte. Empat pasang (IPEK 16B + KSN 10B) = 104 byte kalau dikirim biner padat — muat. Tapi kalau dibungkus JSON + base64 seperti lazimnya (~280 byte), **tidak muat**. `edc-mobile` memakai skema hibrida (RSA membungkus kunci AES, payload di AES-GCM) justru karena batasan ini. Diagram menulis `wrappedPackageKey` tunggal — perlu dipastikan backend mengirim apa persisnya.
+
+   **(b) Digest MGF1.** SHA-1 atau SHA-256? Ini menentukan **apakah TEE bisa dipakai sama sekali** di terminal Android 7–11 (§4.5). `edc-mobile` menebak SHA-1 dengan mencoba dua kombinasi; kita tidak bisa menebak karena key TEE terkunci di satu kombinasi sejak dibuat. Jawaban yang dibutuhkan bukan "pakai string `OAEPWithSHA-256AndMGF1Padding`" melainkan digest MGF1 efektif yang benar-benar dipakai provider di sisi server.
 2. **Nama dan jumlah purpose DUKPT.** Diagram menulis "#4 DUKPT"; `edc-mobile` memakai tiga (TRACK/AMOUNT/PIN). Implementasi data-driven jadi tidak terblokir, tapi KCV harus dilaporkan dengan nama purpose yang backend harapkan.
 3. **Bentuk request `activate`.** Diagram hanya menulis "Send KCV". Spec ini memakai bentuk `edc-mobile` (`activationToken` + `keyCheckValues`), tanpa `deviceSignature` di body karena sudah ada di header. Perlu dikonfirmasi.
 4. **`serialNumber` sebagai `X-Device-Id`.** Diagram tim tidak punya `deviceId` di response redeem. Perlu dipastikan backend memang mengenali device lewat serial number, bukan UUID terbitannya sendiri.
