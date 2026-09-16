@@ -73,6 +73,13 @@ class AppContainer(context: Context) {
             keys = AndroidProvisioningKeys(rsa, ed25519),
             installer = EdcSdkTerminalKeyInstaller(appContext),
             state = stateStore,
+            // Instance StoredDeviceSigner yang SAMA dengan yang dipakai
+            // ProvisioningHttp di atas. Harus sama: use case mengumumkan nomor
+            // seri lewat sink ini di langkah 1, dan SigningInterceptor membacanya
+            // kembali lewat deviceId() saat menandatangani `/package` dan
+            // `/activate`. Dua instance berbeda akan gagal diam-diam sebagai
+            // DeviceNotProvisionedException di DOWNLOAD_PACKAGE.
+            deviceIdentity = deviceSigner,
             // SEMENTARA -- jurnal hanya diisi di build debug. Dicabut bersama
             // package audit/ sebelum produksi; lihat Task 10.
             journal = ProvisioningJournal(if (BuildConfig.PROVISIONING_JOURNAL) logger else NoOpPaymentLogger),

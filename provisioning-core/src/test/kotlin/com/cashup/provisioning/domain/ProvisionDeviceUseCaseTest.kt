@@ -50,7 +50,11 @@ class ProvisionDeviceUseCaseTest {
 
     private class FakeKeys : ProvisioningKeys {
         var clearCount = 0
-        override fun ensureRsaKeyPair() = RsaKeyInfo("rsa-spki", RsaKeyLocation.ANDROID_KEYSTORE)
+        var ensureCount = 0
+        override fun ensureRsaKeyPair(): RsaKeyInfo {
+            ensureCount++
+            return RsaKeyInfo("rsa-spki", RsaKeyLocation.ANDROID_KEYSTORE)
+        }
         override fun ensureEd25519KeyPair() = "eddsa-raw"
         override fun unwrapper() = RsaUnwrapper { it }
         override fun clearAll() { clearCount++ }
@@ -276,6 +280,100 @@ class ProvisionDeviceUseCaseTest {
         assertEquals(1, installer.wipeCount)
         assertEquals(1, keys.clearCount)
         assertNull(state.saved)
+    }
+
+    /**
+     * Sama seperti [ThrowingInstaller] tapi melempar [Error], bukan
+     * [Exception]. `catch (e: Exception)` tidak menangkap ini.
+     */
+    private class ErrorThrowingInstaller(private val delegate: FakeTerminalKeyInstaller) : TerminalKeyInstaller {
+        override suspend fun install(materials: List<TerminalKeyMaterial>): TerminalKeyInstallResult {
+            throw AssertionError("simulated NoClassDefFoundError / OutOfMemoryError")
+        }
+
+        override suspend fun wipe() = delegate.wipe()
+    }
+
+    @Test
+    fun `an Error from the installer still rolls back and returns a Failure`() = runTest {
+        val delegate = FakeTerminalKeyInstaller()
+        val keys = FakeKeys()
+        val state = FakeState()
+
+        val outcome = ProvisionDeviceUseCase(
+            gateway = FakeGateway(),
+            serialNumbers = FakeSerialNumberProvider("PAX-A920-0012938"),
+            keys = keys,
+            installer = ErrorThrowingInstaller(delegate),
+            state = state,
+            unwrapperFactory = {
+                object : PackageUnwrapper(RsaUnwrapper { it }) {
+                    override fun unwrap(wrappedPackageKeyBase64: String) = materials()
+                }
+            },
+        )("ABCD-1234")
+
+        // NoClassDefFoundError bukan skenario hipotetis di codebase ini: branch
+        // ini sudah mengirim tiga class API di atas 23 ke runtime minSdk 23.
+        // Terminal 1 GB juga bisa melempar OutOfMemoryError. Sebuah Error yang
+        // lolos dari invoke() meninggalkan device memegang key yang backend
+        // tidak tahu -- persis keadaan yang aturan atomic ini cegah.
+        assertTrue(outcome.toString(), outcome is ProvisioningOutcome.Failure)
+        assertEquals("UNEXPECTED_ERROR", (outcome as ProvisioningOutcome.Failure).code)
+        assertEquals(1, delegate.wipeCount)
+        assertEquals(1, keys.clearCount)
+        assertNull(state.saved)
+    }
+
+    /**
+     * Kode kosong divalidasi SEBELUM keypair dibuat, jadi jalur gagal ini
+     * satu-satunya yang tidak melewati rollback tanpa meninggalkan key material
+     * apa pun. Kalau urutan itu terbalik lagi, tes ini gagal.
+     */
+    @Test
+    fun `an empty challenge code fails before any key is generated`() = runTest {
+        val keys = FakeKeys()
+        val gateway = FakeGateway()
+
+        val outcome = useCase(gateway = gateway, keys = keys)("   ---   ")
+
+        assertEquals("CHALLENGE_EMPTY", (outcome as ProvisioningOutcome.Failure).code)
+        assertEquals(0, keys.ensureCount)
+        assertNull(gateway.redeemRequest)
+    }
+
+    /**
+     * Regresi untuk temuan Critical 1 di level use case: nomor seri harus
+     * diumumkan ke penandatangan segera setelah terdeteksi (langkah 1), jauh
+     * sebelum `state.save` di langkah terakhir -- kalau tidak, `/package` dan
+     * `/activate` tidak punya `X-Device-Id` untuk ditandatangani.
+     */
+    @Test
+    fun `the serial number is announced before the first signed call and cleared on rollback`() = runTest {
+        val announced = mutableListOf<String?>()
+        val sink = DeviceIdentitySink { announced += it }
+
+        val outcome = ProvisionDeviceUseCase(
+            gateway = FakeGateway(
+                activateResult = ApiResult.Failure(ApiError("TERMINAL_INACTIVE", "Tidak aktif", 403))
+            ),
+            serialNumbers = FakeSerialNumberProvider("PAX-A920-0012938"),
+            keys = FakeKeys(),
+            installer = FakeTerminalKeyInstaller(),
+            state = FakeState(),
+            deviceIdentity = sink,
+            unwrapperFactory = {
+                object : PackageUnwrapper(RsaUnwrapper { it }) {
+                    override fun unwrap(wrappedPackageKeyBase64: String) = materials()
+                }
+            },
+        )("ABCD-1234")
+
+        assertEquals("TERMINAL_INACTIVE", (outcome as ProvisioningOutcome.Failure).code)
+        assertEquals("PAX-A920-0012938", announced.first())
+        // Setelah rollback device TIDAK terprovisioning, jadi identitasnya
+        // harus kembali kosong.
+        assertNull(announced.last())
     }
 
     @Test
