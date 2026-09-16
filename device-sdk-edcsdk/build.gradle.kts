@@ -30,6 +30,7 @@ dependencies {
     api(project(":device-sdk-api"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("androidx.core:core-ktx:1.10.1")
+    implementation("androidx.appcompat:appcompat:1.6.1")
 
     // AAR vendor hasil build edc-sdk. Selalu implementation, tidak pernah api:
     // tipe vendor tidak boleh bocor melewati module ini.
