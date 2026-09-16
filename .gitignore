@@ -7,3 +7,4 @@ local.properties
 .DS_Store
 .superpowers/
 aarlib/*.aar
+.kotlin/
