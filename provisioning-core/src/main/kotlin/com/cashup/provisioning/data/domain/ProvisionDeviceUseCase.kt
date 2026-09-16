@@ -45,8 +45,29 @@ class ProvisionDeviceUseCase(
     suspend operator fun invoke(rawChallengeCode: String): ProvisioningOutcome {
         journal.clear()
 
+        var currentStep = ProvisioningStep.DETECT_DEVICE
+        try {
+            return invokeSteps(rawChallengeCode) { currentStep = it }
+        } catch (e: Exception) {
+            // Setiap kegagalan yang tak terduga -- MGF1 yang tidak cocok saat
+            // Cipher.doFinal, exception dari Android Keystore, IPEK yang
+            // malformed di keyCheckValue, binder vendor yang melempar
+            // RuntimeException, state.save yang gagal, dan lain-lain -- harus
+            // tetap melewati rollback dan tidak pernah lolos dari invoke()
+            // begitu saja (spec §4.5, §7.1).
+            journal.failed(currentStep, UNEXPECTED_ERROR, mapOf("message" to (e.message ?: "-")))
+            rollback()
+            return fail(UNEXPECTED_ERROR, e.message ?: "Kesalahan tak terduga: ${e::class.simpleName}")
+        }
+    }
+
+    private suspend fun invokeSteps(
+        rawChallengeCode: String,
+        onStep: (ProvisioningStep) -> Unit,
+    ): ProvisioningOutcome {
         // 1. Nomor seri. Tanpa ini backend tidak punya identitas untuk device
         //    ini, jadi jaringan tidak perlu disentuh sama sekali.
+        onStep(ProvisioningStep.DETECT_DEVICE)
         journal.start(ProvisioningStep.DETECT_DEVICE)
         val serialNumber = serialNumbers.serialNumber()
         if (serialNumber.isNullOrBlank()) {
@@ -57,6 +78,7 @@ class ProvisionDeviceUseCase(
 
         // 2. Keypair. Idempoten: percobaan ulang setelah gagal memakai key yang
         //    sama, sehingga public key yang didaftarkan tetap konsisten.
+        onStep(ProvisioningStep.GENERATE_KEYS)
         journal.start(ProvisioningStep.GENERATE_KEYS)
         val rsa = keys.ensureRsaKeyPair()
         val eddsaPublicKey = keys.ensureEd25519KeyPair()
@@ -85,6 +107,7 @@ class ProvisionDeviceUseCase(
         )
 
         // 4. Redeem. Satu-satunya panggilan yang tidak ditandatangani.
+        onStep(ProvisioningStep.REDEEM)
         journal.start(ProvisioningStep.REDEEM)
         val redeemed = when (
             val result = gateway.redeem(
@@ -119,6 +142,7 @@ class ProvisionDeviceUseCase(
 
         // Mulai di sini backend sudah menerbitkan order, jadi setiap kegagalan
         // harus melewati rollback.
+        onStep(ProvisioningStep.DOWNLOAD_PACKAGE)
         journal.start(ProvisioningStep.DOWNLOAD_PACKAGE)
         val keyPackage = when (
             val result = gateway.downloadKeyPackage(
@@ -153,6 +177,7 @@ class ProvisionDeviceUseCase(
         // 6-7. Buka paket dan verifikasi KCV tiap purpose. Ini satu-satunya
         //      kesempatan mendeteksi key rusak: setelah masuk modul vendor, IPEK
         //      tidak bisa dibaca kembali.
+        onStep(ProvisioningStep.UNWRAP_PACKAGE)
         journal.start(ProvisioningStep.UNWRAP_PACKAGE)
         val materials: List<TerminalKeyMaterial> = try {
             unwrapperFactory(keys.unwrapper()).unwrap(keyPackage.wrappedPackageKey)
@@ -174,24 +199,35 @@ class ProvisionDeviceUseCase(
 
         // 8. Pasang. Modul vendor dulu untuk purpose yang dinominasikan, sisanya
         //    ke vault.
+        onStep(ProvisioningStep.INSTALL_KEYS)
         journal.start(ProvisioningStep.INSTALL_KEYS)
-        val installed: List<KeyInstallOutcome> = when (val result = installer.install(materials)) {
-            is TerminalKeyInstallResult.Installed -> result.outcomes
+        val installResult = installer.install(materials)
+        // Zeroisasi tanpa syarat begitu vendor/vault selesai memproses --
+        // sukses atau gagal, plaintext IPEK/KSN tidak boleh tetap hidup di
+        // memori. KCV yang dibutuhkan untuk `activate` sudah dihitung di atas
+        // dari salinan, jadi zeroisasi di sini tidak memengaruhi nilai itu.
+        materials.forEach { it.zeroize() }
+        val installed: List<KeyInstallOutcome> = when (installResult) {
+            is TerminalKeyInstallResult.Installed -> installResult.outcomes
             is TerminalKeyInstallResult.Failed -> {
-                journal.failed(ProvisioningStep.INSTALL_KEYS, KEY_INSTALL_FAILED, mapOf("purpose" to result.purpose))
+                journal.failed(
+                    ProvisioningStep.INSTALL_KEYS,
+                    KEY_INSTALL_FAILED,
+                    mapOf("purpose" to installResult.purpose),
+                )
                 return rollbackAndFail(
                     KEY_INSTALL_FAILED,
-                    "Gagal memasang key untuk purpose ${result.purpose}: ${result.reason}",
+                    "Gagal memasang key untuk purpose ${installResult.purpose}: ${installResult.reason}",
                 )
             }
         }
-        materials.forEach { it.zeroize() }
         journal.ok(
             ProvisioningStep.INSTALL_KEYS,
             installed.associate { it.purpose to it.backing.name },
         )
 
         // 9. Activate. Mengirim KCV sebagai bukti ke backend.
+        onStep(ProvisioningStep.ACTIVATE)
         journal.start(ProvisioningStep.ACTIVATE)
         val activated = when (
             val result = gateway.activate(
@@ -215,6 +251,7 @@ class ProvisionDeviceUseCase(
         journal.ok(ProvisioningStep.ACTIVATE, mapOf("status" to activated.status))
 
         // 10. Simpan. Baru di sini device dianggap terprovisioning.
+        onStep(ProvisioningStep.PERSIST_STATE)
         journal.start(ProvisioningStep.PERSIST_STATE)
         state.save(
             ProvisioningState(
@@ -260,5 +297,6 @@ class ProvisionDeviceUseCase(
         const val CHALLENGE_EMPTY = "CHALLENGE_EMPTY"
         const val PACKAGE_INVALID = "PACKAGE_INVALID"
         const val KEY_INSTALL_FAILED = "KEY_INSTALL_FAILED"
+        const val UNEXPECTED_ERROR = "UNEXPECTED_ERROR"
     }
 }

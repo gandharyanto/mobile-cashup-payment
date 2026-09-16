@@ -3,6 +3,8 @@ package com.cashup.provisioning.domain
 import com.cashup.common.network.ApiError
 import com.cashup.common.network.ApiResult
 import com.cashup.devicesdk.KeyBacking
+import com.cashup.devicesdk.TerminalKeyInstallResult
+import com.cashup.devicesdk.TerminalKeyInstaller
 import com.cashup.devicesdk.TerminalKeyMaterial
 import com.cashup.devicesdk.fake.FakeSerialNumberProvider
 import com.cashup.devicesdk.fake.FakeTerminalKeyInstaller
@@ -206,6 +208,73 @@ class ProvisionDeviceUseCaseTest {
         assertEquals("KEY_INSTALL_FAILED", failure.code)
         assertTrue(failure.message, failure.message.contains("TRACK"))
         assertEquals(1, installer.wipeCount)
+        assertNull(state.saved)
+    }
+
+    /**
+     * Wraps a [FakeTerminalKeyInstaller] so `wipe()` still counts toward it
+     * (rollback verification), while `install()` throws a plain
+     * [RuntimeException] instead of returning [TerminalKeyInstallResult.Failed]
+     * -- simulating the vendor installer binder dying mid-call.
+     */
+    private class ThrowingInstaller(private val delegate: FakeTerminalKeyInstaller) : TerminalKeyInstaller {
+        override suspend fun install(materials: List<TerminalKeyMaterial>): TerminalKeyInstallResult {
+            throw RuntimeException("vendor binder died")
+        }
+
+        override suspend fun wipe() = delegate.wipe()
+    }
+
+    @Test
+    fun `an unexpected exception from the installer still rolls back and returns a Failure`() = runTest {
+        val delegate = FakeTerminalKeyInstaller()
+        val keys = FakeKeys()
+        val state = FakeState()
+        val gateway = FakeGateway()
+
+        val outcome = ProvisionDeviceUseCase(
+            gateway = gateway,
+            serialNumbers = FakeSerialNumberProvider("PAX-A920-0012938"),
+            keys = keys,
+            installer = ThrowingInstaller(delegate),
+            state = state,
+            unwrapperFactory = {
+                object : PackageUnwrapper(RsaUnwrapper { it }) {
+                    override fun unwrap(wrappedPackageKeyBase64: String) = materials()
+                }
+            },
+        )("ABCD-1234")
+
+        // Ini inti Temuan 1: exception yang bukan PackageIntegrityException
+        // tidak boleh lolos dari invoke() begitu saja -- ia harus tetap
+        // melewati rollback dan kembali sebagai Failure.
+        assertTrue(outcome.toString(), outcome is ProvisioningOutcome.Failure)
+        val failure = outcome as ProvisioningOutcome.Failure
+        assertEquals("UNEXPECTED_ERROR", failure.code)
+        assertEquals(1, delegate.wipeCount)
+        assertEquals(1, keys.clearCount)
+        assertNull(state.saved)
+    }
+
+    @Test
+    fun `an unexpected exception from the unwrapper still rolls back and returns a Failure`() = runTest {
+        val installer = FakeTerminalKeyInstaller()
+        val keys = FakeKeys()
+        val state = FakeState()
+
+        val outcome = useCase(
+            keys = keys,
+            state = state,
+            installer = installer,
+            unwrap = { throw RuntimeException("malformed IPEK, keyCheckValue blew up") },
+        )("ABCD-1234")
+
+        assertTrue(outcome.toString(), outcome is ProvisioningOutcome.Failure)
+        val failure = outcome as ProvisioningOutcome.Failure
+        assertEquals("UNEXPECTED_ERROR", failure.code)
+        assertTrue(installer.installedPurposes.isEmpty())
+        assertEquals(1, installer.wipeCount)
+        assertEquals(1, keys.clearCount)
         assertNull(state.saved)
     }
 

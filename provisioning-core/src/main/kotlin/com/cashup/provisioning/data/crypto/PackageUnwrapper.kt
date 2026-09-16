@@ -59,7 +59,11 @@ open class PackageUnwrapper(
             throw PackageIntegrityException("Paket key tidak memuat material DUKPT satu pun")
         }
 
-        return materials.map { (purpose, material) ->
+        // Dikumpulkan berjalan supaya, kalau satu purpose gagal KCV-nya,
+        // material milik purpose-purpose sebelumnya yang sudah didekode juga
+        // ikut di-zeroize -- bukan hanya purpose yang gagal itu sendiri.
+        val produced = mutableListOf<TerminalKeyMaterial>()
+        for ((purpose, material) in materials) {
             val ipek = decode(purpose, "ipek", material.ipek)
             val ksn = decode(purpose, "ksn", material.ksn)
 
@@ -69,11 +73,13 @@ open class PackageUnwrapper(
             if (!computed.equals(material.kcv, ignoreCase = true)) {
                 ipek.fill(0)
                 ksn.fill(0)
+                produced.forEach { it.zeroize() }
                 throw PackageIntegrityException("KCV tidak cocok untuk purpose $purpose")
             }
 
-            TerminalKeyMaterial(purpose = purpose, ipek = ipek, ksn = ksn)
+            produced += TerminalKeyMaterial(purpose = purpose, ipek = ipek, ksn = ksn)
         }
+        return produced
     }
 
     private fun decode(purpose: String, field: String, value: String): ByteArray = try {
