@@ -13,7 +13,7 @@ import java.security.KeyStore
 import java.security.PrivateKey
 import java.security.spec.MGF1ParameterSpec
 import java.security.spec.PKCS8EncodedKeySpec
-import java.util.Base64
+import android.util.Base64
 import java.util.Calendar
 import javax.crypto.Cipher
 import javax.crypto.spec.OAEPParameterSpec
@@ -137,17 +137,36 @@ class RsaKeyStore(
             .build()
 
         val generator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, "AndroidKeyStore")
-        val pair = try {
-            generator.initialize(spec(strongBox = true))
-            generator.generateKeyPair()
-        } catch (e: StrongBoxUnavailableException) {
-            // Banyak SoC EDC tidak punya StrongBox. TEE biasa tetap jauh lebih
-            // baik daripada blob software, jadi ini turun satu tingkat, bukan
-            // gagal.
+        val pair = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            generateWithStrongBoxFallback(generator) { spec(strongBox = true) } ?: run {
+                generator.initialize(spec(strongBox = false))
+                generator.generateKeyPair()
+            }
+        } else {
             generator.initialize(spec(strongBox = false))
             generator.generateKeyPair()
         }
         return pair.public.encoded.base64()
+    }
+
+    /**
+     * `StrongBoxUnavailableException` hanya ada di API 28+. Fungsi ini
+     * diisolasi dan diberi anotasi supaya lint tahu pemanggilnya sudah
+     * memastikan `Build.VERSION.SDK_INT >= P` -- referensinya di catch clause
+     * di bawah ini tidak akan pernah dieksekusi di API lebih rendah.
+     */
+    @android.annotation.TargetApi(Build.VERSION_CODES.P)
+    private fun generateWithStrongBoxFallback(
+        generator: KeyPairGenerator,
+        strongBoxSpec: () -> KeyGenParameterSpec,
+    ): java.security.KeyPair? = try {
+        generator.initialize(strongBoxSpec())
+        generator.generateKeyPair()
+    } catch (e: StrongBoxUnavailableException) {
+        // Banyak SoC EDC tidak punya StrongBox. TEE biasa tetap jauh lebih
+        // baik daripada blob software, jadi ini turun satu tingkat, bukan
+        // gagal.
+        null
     }
 
     private fun keystorePrivateKey(): PrivateKey =
@@ -168,10 +187,10 @@ class RsaKeyStore(
         val stored = prefs.getString(KEY_PRIVATE, null)
             ?: error("Keypair RSA belum dibuat")
         return KeyFactory.getInstance("RSA")
-            .generatePrivate(PKCS8EncodedKeySpec(Base64.getDecoder().decode(stored)))
+            .generatePrivate(PKCS8EncodedKeySpec(Base64.decode(stored, Base64.NO_WRAP)))
     }
 
-    private fun ByteArray.base64(): String = Base64.getEncoder().encodeToString(this)
+    private fun ByteArray.base64(): String = Base64.encodeToString(this, Base64.NO_WRAP)
 
     private companion object {
         const val ALIAS = "cashup_provisioning_rsa"

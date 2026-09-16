@@ -4,8 +4,17 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.util.Base64
 
+/**
+ * [PackageUnwrapper] memanggil `android.util.Base64` (bukan `java.util.Base64`,
+ * yang baru ada di API 26 -- lihat KDoc di [PackageUnwrapper]), jadi test ini
+ * perlu Robolectric supaya `android.util.Base64` benar-benar berfungsi, bukan
+ * stub yang mengembalikan null.
+ */
+@RunWith(RobolectricTestRunner::class)
 class PackageUnwrapperTest {
 
     private val ipek = ByteArray(16) { (it + 1).toByte() }

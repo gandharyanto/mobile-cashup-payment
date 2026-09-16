@@ -6,7 +6,7 @@ import java.security.KeyFactory
 import java.security.KeyPairGenerator
 import java.security.Signature
 import java.security.spec.PKCS8EncodedKeySpec
-import java.util.Base64
+import android.util.Base64
 
 /**
  * Keypair Ed25519 yang menandatangani setiap request setelah provisioning.
@@ -38,10 +38,10 @@ class Ed25519KeyStore(context: Context) {
         BcProvider.ensureInstalled()
         val pair = KeyPairGenerator.getInstance("Ed25519", BcProvider.NAME).generateKeyPair()
         val raw = rawFromX509(pair.public.encoded)
-        val rawBase64 = Base64.getEncoder().encodeToString(raw)
+        val rawBase64 = Base64.encodeToString(raw, Base64.NO_WRAP)
 
         prefs.edit()
-            .putString(KEY_PRIVATE, Base64.getEncoder().encodeToString(pair.private.encoded))
+            .putString(KEY_PRIVATE, Base64.encodeToString(pair.private.encoded, Base64.NO_WRAP))
             .putString(KEY_PUBLIC_RAW, rawBase64)
             .commit()
         return rawBase64
@@ -52,7 +52,7 @@ class Ed25519KeyStore(context: Context) {
             ?: error("Keypair Ed25519 belum dibuat")
         BcProvider.ensureInstalled()
         val privateKey = KeyFactory.getInstance("Ed25519", BcProvider.NAME)
-            .generatePrivate(PKCS8EncodedKeySpec(Base64.getDecoder().decode(stored)))
+            .generatePrivate(PKCS8EncodedKeySpec(Base64.decode(stored, Base64.NO_WRAP)))
         return Signature.getInstance("Ed25519", BcProvider.NAME).run {
             initSign(privateKey)
             update(bytes)

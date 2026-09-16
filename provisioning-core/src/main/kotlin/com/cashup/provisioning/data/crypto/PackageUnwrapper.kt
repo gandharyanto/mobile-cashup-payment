@@ -3,7 +3,7 @@ package com.cashup.provisioning.crypto
 import com.cashup.devicesdk.TerminalKeyMaterial
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
-import java.util.Base64
+import android.util.Base64
 
 class PackageIntegrityException(message: String) : Exception(message)
 
@@ -40,7 +40,7 @@ open class PackageUnwrapper(
 
     open fun unwrap(wrappedPackageKeyBase64: String): List<TerminalKeyMaterial> {
         val wrapped = try {
-            Base64.getDecoder().decode(wrappedPackageKeyBase64)
+            Base64.decode(wrappedPackageKeyBase64, Base64.NO_WRAP)
         } catch (e: IllegalArgumentException) {
             throw PackageIntegrityException("wrappedPackageKey bukan Base64 yang sah")
         }
@@ -83,7 +83,7 @@ open class PackageUnwrapper(
     }
 
     private fun decode(purpose: String, field: String, value: String): ByteArray = try {
-        Base64.getDecoder().decode(value)
+        Base64.decode(value, Base64.NO_WRAP)
     } catch (e: IllegalArgumentException) {
         throw PackageIntegrityException("Field $field untuk purpose $purpose bukan Base64 yang sah")
     }
