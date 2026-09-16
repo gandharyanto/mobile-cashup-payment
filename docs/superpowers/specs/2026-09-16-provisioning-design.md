@@ -176,6 +176,37 @@ Vault TEE (`DuktpVaultCompat` — AndroidKeyStore AES-256-GCM, StrongBox oportun
 
 **Di device tanpa modul vendor**, vault TEE jadi satu-satunya penyimpanan dan DUKPT berjalan di software. Ini degradasi nyata: transaction key melewati RAM, dan ini bukan jalur PCI-PTS. App harus **mencatat kondisi ini secara eksplisit**, bukan mendiamkannya.
 
+#### Batas slot: hanya satu IPEK yang bisa masuk modul vendor
+
+Diverifikasi dari isi `core-release_1.0.63.aar`:
+
+```java
+// BaseSystemKey — tidak ada parameter slot
+public abstract boolean writeIPEK(byte[] ipek, byte[] ksn);
+
+// KeyManager — varian multi-slot
+public final boolean writeIPEK(int keyIndex, byte[] ipek, byte[] ksn);
+```
+
+Varian 2-argumen menulis ke modul vendor lalu mencerminkannya ke vault. Varian 3-argumen **hanya menulis ke vault, melewati modul vendor sepenuhnya**. Tiap vendor punya satu `keyIndex` tetap (PAX 3, Sunmi 2), jadi modul vendor hanya menampung **satu** key set DUKPT.
+
+Kalau paket benar-benar membawa empat IPEK terpisah, konsekuensinya:
+
+| Purpose | Jalur | Perlindungan |
+|---|---|---|
+| **PIN** (atau purpose paling kritis yang tersedia) | `writeIPEK(ipek, ksn)` — modul vendor, dicerminkan ke vault | Hardware, key tidak pernah keluar |
+| Sisanya | `writeIPEK(slot, ipek, ksn)` — vault TEE saja | Terenkripsi di rest; key melewati RAM saat dipakai |
+
+Pemilihan purpose mana yang mendapat slot vendor ditentukan satu tempat di `device-sdk-edcsdk`, bukan tersebar. `TerminalKeyInstaller` melaporkan hasilnya per purpose sehingga UI dan log tahu persis mana yang hardware-backed dan mana yang tidak — degradasi ini **tidak boleh diam**.
+
+Memperbaikinya butuh `BaseSystemKey` diperluas dengan parameter slot dan diimplementasikan ulang di tujuh vendor — menyentuh repo `edc-sdk` dan menunggu AAR baru, karena itu **di luar scope plan ini** (§10).
+
+#### Tidak ada API hapus di vault
+
+`DuktpVaultCompat` hanya mengekspos `store*`/`load*`/`getCounterForSet`/`setCounterForSet` — tidak ada `clear()` atau `delete()`. Padahal rollback atomic (§7.1) menuntutnya.
+
+Sementara, `TerminalKeyInstaller.wipe()` menghapus file `SharedPreferences` vault langsung berdasarkan nama (`duktp.vault`). Ini **kopling rapuh** ke detail internal `edc-sdk` dan dicatat sebagai utang: begitu `edc-sdk` menyediakan API hapus resmi, ganti ke API itu.
+
 ### 4.4 Jendela IPEK di RAM
 
 Antara unwrap (§2 langkah 13) dan injeksi (§2 langkah 14) IPEK plaintext berada di memori app — tidak terhindarkan, karena KCV harus dihitung dari IPEK plaintext dan itu satu-satunya jendelanya. `edc-mobile` punya keterbatasan yang sama.
@@ -444,6 +475,8 @@ Delapan hal. Tiga pertama bisa memblokir integrasi kalau tebakannya salah.
 
    **(a) Kapasitas.** RSA-2048 OAEP-SHA256 hanya memuat 190 byte. Empat pasang (IPEK 16B + KSN 10B) = 104 byte kalau dikirim biner padat — muat. Tapi kalau dibungkus JSON + base64 seperti lazimnya (~280 byte), **tidak muat**. `edc-mobile` memakai skema hibrida (RSA membungkus kunci AES, payload di AES-GCM) justru karena batasan ini. Diagram menulis `wrappedPackageKey` tunggal — perlu dipastikan backend mengirim apa persisnya.
 
+   **(c) Empat IPEK terpisah, atau satu IPEK dengan empat purpose turunan?** Diagram menulis "#4 DUKPT". Kalau maksudnya satu IPEK dengan empat purpose turunan — pola DUKPT yang lazim — batas slot di §4.3 tidak berlaku sama sekali dan semuanya masuk modul vendor. Kalau benar empat IPEK terpisah, hanya satu yang dapat perlindungan hardware.
+
    **(b) Digest MGF1.** SHA-1 atau SHA-256? Ini menentukan **apakah TEE bisa dipakai sama sekali** di terminal Android 7–11 (§4.5). `edc-mobile` menebak SHA-1 dengan mencoba dua kombinasi; kita tidak bisa menebak karena key TEE terkunci di satu kombinasi sejak dibuat. Jawaban yang dibutuhkan bukan "pakai string `OAEPWithSHA-256AndMGF1Padding`" melainkan digest MGF1 efektif yang benar-benar dipakai provider di sisi server.
 2. **Nama dan jumlah purpose DUKPT.** Diagram menulis "#4 DUKPT"; `edc-mobile` memakai tiga (TRACK/AMOUNT/PIN). Implementasi data-driven jadi tidak terblokir, tapi KCV harus dilaporkan dengan nama purpose yang backend harapkan.
 3. **Bentuk request `activate`.** Diagram hanya menulis "Send KCV". Spec ini memakai bentuk `edc-mobile` (`activationToken` + `keyCheckValues`), tanpa `deviceSignature` di body karena sudah ada di header. Perlu dikonfirmasi.
@@ -475,5 +508,6 @@ Delapan hal. Tiga pertama bisa memblokir integrasi kalau tebakannya salah.
 - **J2 Re-Provisioning** dan **J3 Deactivation** — diagram tim tidak punya endpoint untuk keduanya; menebak kontraknya sekarang hampir pasti jadi kerja yang dibuang.
 - **`POST v1/cdcp/sales`** dan seluruh domain pembayaran — plan CDCP tersendiri.
 - **Injeksi key terbungkus** tanpa plaintext melewati RAM (§4.4).
+- **Memperluas `BaseSystemKey` dengan parameter slot** supaya lebih dari satu IPEK bisa masuk modul vendor (§4.3) — menyentuh repo `edc-sdk` dan menunggu AAR baru.
 - **Printer, card reader, EMV** — `edc-sdk` menyediakannya, tapi tidak ada yang dipakai di alur provisioning.
 - **Vendor di luar tujuh yang punya implementasi `edc-sdk`** (feitian, urovo, newland, tianyu tidak punya `SystemKey`).
