@@ -7,66 +7,74 @@ import java.io.IOException
 import java.util.UUID
 
 /**
- * Thrown when [SigningInterceptor] is invoked before the device has a
- * provisioned key pair. This is an [IOException] (not an [IllegalStateException])
- * deliberately: on OkHttp's async `enqueue` path — the normal path for
- * Retrofit `suspend` functions — a non-`IOException` thrown from an
- * interceptor is reported via `onFailure` and then rethrown, crashing the
- * process via the dispatcher thread's uncaught-exception handler. An
- * `IOException` instead surfaces cleanly as a call failure.
+ * Dilempar kalau [SigningInterceptor] dipanggil sebelum device terprovisioning.
+ *
+ * Sengaja [IOException], bukan [IllegalStateException]: di jalur async OkHttp
+ * (`enqueue`, yang dipakai fungsi `suspend` Retrofit) exception non-IOException
+ * dari sebuah interceptor dilaporkan lewat `onFailure` LALU dilempar ulang,
+ * sehingga proses mati lewat uncaught-exception handler milik thread
+ * dispatcher. IOException muncul rapi sebagai kegagalan pemanggilan biasa.
  */
 class DeviceNotProvisionedException :
-    IOException("SigningInterceptor invoked before the device is provisioned")
+    IOException("SigningInterceptor dipanggil sebelum device terprovisioning")
 
 /**
- * Signs every request that passes through it. Attach this only to clients
- * that talk to the Front-facing API after provisioning — provisioning's own
- * bootstrap call uses the temporary admin JWT instead (Provisioning plan),
- * never this interceptor.
+ * Dilempar kalau `X-Timestamp` belum ada saat request sampai ke sini — artinya
+ * `RequestHeadersInterceptor` tidak terpasang, atau terpasang setelah
+ * interceptor ini. IOException dengan alasan yang sama seperti di atas.
+ */
+class MissingTimestampException :
+    IOException("X-Timestamp tidak ada; RequestHeadersInterceptor harus terpasang lebih dulu")
+
+/**
+ * Menandatangani setiap request yang melewatinya dengan `X-Device-Id`,
+ * `X-Nonce`, dan `X-Signature`.
  *
- * Fails loudly (throws) rather than sending an unsigned request when no key
- * is available yet: an unsigned request reaching this interceptor is a
- * wiring bug, not a recoverable state.
+ * Pasang ini HANYA pada client yang bicara ke endpoint bertanda tangan.
+ * `qr-redeem` tidak boleh melewatinya: saat itu backend belum mengenal public
+ * key device, karena kunci itu justru baru dikirim di request tersebut.
+ *
+ * Gagal keras (melempar) alih-alih mengirim request tanpa tanda tangan —
+ * request tak bertanda tangan yang sampai ke sini adalah bug wiring, bukan
+ * keadaan yang bisa dipulihkan.
  */
 class SigningInterceptor(
-    private val keyProvider: SigningKeyProvider,
-    private val signer: RequestSigner = RequestSigner(),
-    private val clock: () -> Long = System::currentTimeMillis,
+    private val signer: DeviceSigner,
+    private val requestSigner: Ed25519RequestSigner = Ed25519RequestSigner(),
     private val nonceFactory: () -> String = { UUID.randomUUID().toString() },
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        val keyPair = keyProvider.currentKeyPair()
-            ?: throw DeviceNotProvisionedException()
-
         val request = chain.request()
-        // Known limitation: one-shot/duplex request bodies cannot be safely
-        // read twice (once here for signing, once when OkHttp writes it to
-        // the wire), so they are signed as an empty body while the real body
-        // is still sent to the wire unchanged. Regular (non-one-shot,
-        // non-duplex) bodies — the common case — are signed correctly.
-        val bodyBytes = request.body?.takeIf { !it.isOneShot() && !it.isDuplex() }?.let { body ->
-            Buffer().also { body.writeTo(it) }.readByteArray()
-        } ?: ByteArray(0)
+        val deviceId = signer.deviceId() ?: throw DeviceNotProvisionedException()
+        val timestamp = request.header("X-Timestamp") ?: throw MissingTimestampException()
 
-        val timestamp = clock()
+        // Body one-shot/duplex tidak bisa dibaca dua kali (sekali di sini untuk
+        // ditandatangani, sekali saat OkHttp menuliskannya ke wire), jadi
+        // ditandatangani sebagai body kosong sementara body aslinya tetap
+        // terkirim utuh. Body biasa -- yang berlaku untuk seluruh alur
+        // provisioning -- ditandatangani dengan benar.
+        val bodyBytes = request.body
+            ?.takeIf { !it.isOneShot() && !it.isDuplex() }
+            ?.let { body -> Buffer().also { body.writeTo(it) }.readByteArray() }
+            ?: ByteArray(0)
+
         val nonce = nonceFactory()
-        val requestTarget = request.url.encodedPath + (request.url.encodedQuery?.let { "?$it" } ?: "")
-        val canonical = signer.canonicalize(
+        val canonical = requestSigner.canonicalize(
             method = request.method,
-            requestTarget = requestTarget,
-            timestampMillis = timestamp,
+            path = request.url.encodedPath,
+            deviceId = deviceId,
+            timestamp = timestamp,
             nonce = nonce,
             body = bodyBytes,
         )
-        val signature = signer.sign(canonical, keyPair.private)
+        val signature = Ed25519RequestSigner.encodeSignature(signer.sign(canonical))
 
-        val signedRequest = request.newBuilder()
-            .addHeader("X-Signature", signature)
-            .addHeader("X-Timestamp", timestamp.toString())
-            .addHeader("X-Nonce", nonce)
+        val signed = request.newBuilder()
+            .header("X-Device-Id", deviceId)
+            .header("X-Nonce", nonce)
+            .header("X-Signature", signature)
             .build()
-
-        return chain.proceed(signedRequest)
+        return chain.proceed(signed)
     }
 }
