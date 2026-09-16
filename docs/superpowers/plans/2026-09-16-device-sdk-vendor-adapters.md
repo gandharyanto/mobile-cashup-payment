@@ -1,5 +1,23 @@
 # Device SDK Vendor Adapters Implementation Plan
 
+> # ⛔ DIBATALKAN — JANGAN DIJALANKAN
+>
+> **Digantikan oleh `docs/superpowers/specs/2026-09-16-provisioning-design.md` §5.**
+>
+> Plan ini hendak membangun ulang enam adapter vendor dari AAR mentah, dan hanya
+> sampai `connect()` + `serialNumber()`. Ternyata AAR yang mau disalin itu memang
+> **output build `edc-sdk`** (`D:\gandha_cashup\projects\edc-sdk`) — SDK vendor
+> internal yang sudah menyediakan deteksi device, serial number, injeksi key DUKPT,
+> printer, card reader, dan EMV untuk tujuh vendor lewat `SDKManager`,
+> `KeyManager`, dan `BaseSystemKey`. Sudah diverifikasi langsung dari isi
+> `core-release_1.0.63.aar`.
+>
+> Penggantinya: satu module tipis `device-sdk-edcsdk` di atas AAR itu.
+> `DeviceSdkRegistry` juga dihapus — `SDKManager.autoDetectDevice()` sudah
+> melakukan deteksi lewat `Build.BRAND`.
+>
+> Nol dari 67 step pernah dijalankan. Disimpan sebagai catatan keputusan saja.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give `device-sdk-api` a real, vendor-SDK-backed way to read a terminal's serial number, with working adapters for the 6 EDC vendors whose SDK binaries actually exist on this machine (PAX, Sunmi, Centerm, Nexgo, Topwise, Szanfu) — the prerequisite `provisioning-core` needs before it can send a real `serialNumber` in its QR-redeem request.
