@@ -685,7 +685,7 @@ Task kripto paling berisiko di plan ini — mengubah `unwrap(wrappedPackageKeyBa
 - Modify: `provisioning-core/src/test/kotlin/com/cashup/provisioning/crypto/PackageUnwrapperTest.kt`
 
 **Interfaces:**
-- Consumes: `KeyPackageResponse` (Task 1), `TerminalKeyMaterial`/`keyCheckValue` (sudah ada), `BcProvider` (sudah ada).
+- Consumes: `KeyPackageResponse`, `PlainKeyPackage`, `PlainKeyMaterial` (semua Task 1 — Task 4 TIDAK mendeklarasikan ulang dua yang terakhir, lihat ruling di ledger SDD soal duplikasi yang ditemukan review Task 1), `TerminalKeyMaterial`/`keyCheckValue` (sudah ada), `BcProvider` (sudah ada).
 - Produces:
   - `open class PackageUnwrapper(unwrapper: RsaUnwrapper, gson: Gson = Gson())` dengan `open fun unwrap(response: KeyPackageResponse): List<TerminalKeyMaterial>` — signature method BERUBAH dari `unwrap(wrappedPackageKeyBase64: String)`.
   - `class PackageIntegrityException(message: String) : Exception(message)` — tidak berubah.
@@ -904,6 +904,8 @@ package com.cashup.provisioning.data.crypto
 
 import com.cashup.devicesdk.TerminalKeyMaterial
 import com.cashup.provisioning.data.remote.KeyPackageResponse
+import com.cashup.provisioning.data.remote.PlainKeyMaterial
+import com.cashup.provisioning.data.remote.PlainKeyPackage
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import android.util.Base64
@@ -917,34 +919,13 @@ import javax.crypto.spec.SecretKeySpec
 class PackageIntegrityException(message: String) : Exception(message)
 
 /**
- * Bentuk plaintext di dalam bungkusan AES-GCM. TIDAK berubah dari kontrak
- * sebelumnya kecuali `deviceId`/`keySetVersion`/`algorithm` yang sekarang wajib
- * diperiksa terhadap envelope (spec 17 September §2 langkah 6b-f).
- */
-internal data class PlainKeyPackage(
-    val deviceId: String? = null,
-    val keySetVersion: Int? = null,
-    val algorithm: String? = null,
-    val materials: Map<String, PlainKeyMaterial>? = null,
-)
-
-/**
- * Ketiga field sengaja nullable meski paket yang sah selalu memuatnya.
+ * `PlainKeyPackage`/`PlainKeyMaterial` diimpor dari `data.remote.ProvisioningDtos`
+ * (Task 1), TIDAK dideklarasikan ulang di sini — keduanya sudah identik
+ * bentuknya di kedua task ini sebelum diperbaiki (temuan review Task 1),
+ * jadi satu definisi kanonik dipakai, bukan dua tipe `internal` dengan nama
+ * sama di package berbeda yang kebetulan tidak bentrok compile tapi tetap
+ * duplikasi murni.
  *
- * Gson membangun instance lewat `Unsafe`, melewati konstruktor Kotlin sepenuhnya
- * — field non-null yang hilang di JSON tetap terisi `null`, dan pengecekan
- * null-safety Kotlin tidak pernah berjalan. Dideklarasikan non-null, paket
- * malformed akan muncul sebagai NullPointerException tanpa konteks jauh di dalam
- * [PackageUnwrapper.decode]; dideklarasikan nullable, ia muncul sebagai
- * [PackageIntegrityException] yang menyebut purpose dan field-nya.
- */
-internal data class PlainKeyMaterial(
-    val ipek: String? = null,
-    val ksn: String? = null,
-    val kcv: String? = null,
-)
-
-/**
  * Membuka paket key hybrid dan memverifikasinya sebelum apa pun dipasang —
  * spec 17 September §2 langkah 6b, §4.3, §4.4.
  *
