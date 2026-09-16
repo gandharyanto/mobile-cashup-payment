@@ -28,8 +28,8 @@ Tidak ada login username/password untuk **operasional harian** — transaksi (sa
 |---|---|
 | Auth ke Front-facing API | Digital signature (bukan bearer token) — key didapat sekali saat provisioning |
 | Login user di device | **Tidak ada.** Admin login di Cashup backoffice (sistem terpisah), device di-provisioning via QR scan |
-| Provisioning bootstrap | Teknisi login di device pakai kredensial admin Cashup → dapat temp JWT → scan QR (dapat kode provisioning) → call provisioning endpoint pakai {JWT + kode} → terima key & config |
-| Signing key storage | Android Keystore, **TEE sebagai floor wajib**, StrongBox dipakai oportunistik kalau tersedia (`try setIsStrongBoxBacked(true)`, catch `StrongBoxUnavailableException` → fallback TEE-only) |
+| Provisioning bootstrap | Tidak ada login. Otorisasi provisioning sepenuhnya datang dari `challengeCode` hasil scan QR yang diterbitkan Cashup backoffice. |
+| Signing key storage | Signing key Ed25519 **TIDAK** hardware-backed — `KEY_ALGORITHM_ED25519` tidak ada di Android sampai API 37. Yang berada di TEE: key RSA pembuka paket (bila digest MGF1 backend memungkinkan, lihat spec provisioning §4.5) dan vault DUKPT. |
 | DUKPT key handling | **Tidak berubah dari spec saat ini** — key component di-inject ke secure crypto module vendor EDC via SDK vendor masing-masing, tidak pernah dipegang app sebagai raw key material |
 | Payment notif | MQTT push, topic terunifikasi untuk semua tipe pembayaran (CDCP+QRIS), fallback ke status-check polling kalau tidak ada push dalam 5 detik |
 | Storage transaksi | **Fully stateless** — tidak ada DB lokal. Reprint/histori/settlement selalu live-query ke Front-facing API. Recovery pasca-crash: tanya backend "ada transaksi pending untuk device ini?" |
@@ -47,12 +47,12 @@ Tidak ada login username/password untuk **operasional harian** — transaksi (sa
 | Module | Tanggung jawab |
 |---|---|
 | `app` | Shell: DI wiring, navigasi, entry activities (deeplink receiver, provisioning, payment, settlement/reprint) |
-| `provisioning-core` | QR scan → call provisioning API (temp admin JWT) → terima DUKPT/signing key+config → simpan signing key ke Keystore & inject DUKPT ke vendor SDK → re-provisioning & deactivation |
+| `provisioning-core` | QR scan → call provisioning API (otorisasi via `challengeCode`, tanpa login) → terima DUKPT/signing key+config → simpan signing key ke Keystore & inject DUKPT ke vendor SDK → re-provisioning & deactivation. Dipakai oleh `app`. |
 | `signing-core` | Interceptor cross-cutting yang menandatangani setiap outgoing request pakai signing key hasil provisioning |
 | `cdcp-core` | Domain kartu: sale, void, reversal, installment, settlement, reprint |
 | `qris-core` | Domain QRIS: generate dynamic + static, status, cancel |
 | `notification-core` | Client MQTT, topic payment-status terunifikasi (didesain baru), orchestrator fallback→poll 5 detik |
-| `device-sdk-api` + 9 module adapter vendor (`device-sdk-feitian`, `-pax`, `-sunmi`, `-urovo`, `-centerm`, `-newland`, `-nexgo`, `-topwise`, `-tianyu`) | Abstraksi hardware: card reader, printer, scanner — interface umum, implementasi terisolasi per vendor |
+| `device-sdk-api` + `device-sdk-edcsdk` | Abstraksi hardware. Kontrak umum di `device-sdk-api`; satu module adapter di atas AAR `edc-sdk`, yang sudah menyediakan deteksi device, serial number, injeksi key DUKPT, printer, card reader, dan EMV untuk tujuh vendor. Sembilan module adapter per vendor dibatalkan — lihat `docs/superpowers/plans/2026-09-16-device-sdk-vendor-adapters.md`. |
 | `bridge-api` | Client ECR/POSH bridge — dibangun ulang tanpa 2 lubang keamanan dari audit repo lama (AES key/IV hardcoded, trust-all TLS) |
 | `common-core` | Network client bersama, model error, logging (Graylog GELF — dipertahankan), helper template/print struk |
 
@@ -63,15 +63,20 @@ Tidak ada login username/password untuk **operasional harian** — transaksi (sa
 ### J1 — Provisioning (Setup Pertama Kali)
 **Actor**: Admin (Cashup backoffice, sistem terpisah) + Teknisi/Merchant yang pegang device.
 
-1. Device baru (state: **belum terprovisioning**) boot langsung ke screen **Provisioning – Login Teknisi** (tidak ada Home yang bisa diakses sebelum terprovisioning).
-2. Teknisi login pakai kredensial admin Cashup (username/password) langsung di device → app terima temp JWT scoped khusus untuk provisioning.
-3. Lanjut ke **Provisioning – Scan QR** → teknisi scan QR (dibuat/ditampilkan lewat Cashup backoffice, berisi kode provisioning untuk device/terminal/merchant target ini).
-4. App decode payload QR → dapat kode provisioning.
-5. App panggil provisioning endpoint pakai {temp JWT dari login} + {kode provisioning dari QR} → backend balas: DUKPT key components, signing key, config terminal (nama merchant, MID, TID, metode bayar yang di-support).
-6. App inject DUKPT key components ke secure module vendor via SDK vendor aktif.
-7. App simpan signing key ke Android Keystore (TEE floor, StrongBox oportunistik).
-8. Screen **Provisioning – Result (Sukses)** tampil info terminal → lanjut ke **Home**.
-9. **Error path**: login gagal → tetap di Login Teknisi dengan pesan error; QR invalid/expired (setelah login sukses) → **Provisioning – Result (Gagal)** dengan alasan + retry (kembali ke Scan QR, tidak perlu login ulang selama temp JWT belum expired). Kegagalan sebagian (DUKPT sukses tapi signing key gagal, atau sebaliknya) harus di-treat sebagai kegagalan total (atomic) — device tetap berstatus belum terprovisioning, tidak ada state "setengah jalan".
+**Tidak ada login teknisi.** Otorisasi datang sepenuhnya dari `challengeCode` hasil scan QR. Alur sepuluh langkah (App Provisioning · EDC · Backend · Payment HSM · General Purpose HSM):
+
+1. App generate QR berisi `challengeCode` (ditampilkan lewat Cashup backoffice).
+2. Device scan QR → decode `challengeCode`.
+3. Device generate keypair RSA (unwrap paket) dan EdDSA (signing request).
+4. Device → Backend: `QR Redeem` — `{ challengeCode, serialNumber, rsaPublicKey, eddsaPublicKey }`.
+5. Backend validasi QR & nonaktifkan challenge-code.
+6. Backend → Device: `{ orderId, activationToken }`.
+7. Device → Backend: `Get DUKPT` — `{ orderId, activationToken }`; backend generate `keyId` (KSN), ambil IPEK dari Payment HSM dan Ed25519 public key dari General Purpose HSM.
+8. Backend → Device: `Send IPEK` (dibungkus RSA) — `{ orderId, wrappedPackageKey, appEddsaPublicKey }`.
+9. Device unwrap paket di dalam TEE, inject DUKPT key ke secure module vendor (via SDK vendor aktif) dan simpan signing key Ed25519 (bukan hardware-backed — §2), lalu kirim KCV ke backend; backend balas OK/NOK.
+10. Sukses → screen **Provisioning – Result (Sukses)** tampil info terminal → lanjut ke **Home**. Gagal di langkah mana pun → **atomic**: semua key dihapus, device tetap berstatus belum terprovisioning, tidak ada state "setengah jalan".
+
+Kontrak HTTP lengkap, kripto, dan batasannya ada di `docs/superpowers/specs/2026-09-16-provisioning-design.md`.
 
 ### J2 — Re-Provisioning (Refresh Key)
 1. Dari **Home**, masuk menu **Device Settings** → **Re-Provisioning**.
@@ -208,8 +213,8 @@ Tidak ada login username/password untuk **operasional harian** — transaksi (sa
 
 Sesuai catatan di diagram arsitektur awal ("List API", "Detail JSON Body", "Auth", "Payment notif"):
 
-1. **Signature scheme detail** — algoritma (HMAC? RSA/ECDSA?), skema anti-replay (nonce+timestamp?), format header signature.
-2. **Provisioning API contract** — bentuk payload QR, format temp JWT, bentuk response (DUKPT components, signing key, config terminal).
+1. **Signature scheme detail** — Ed25519, sudah dikunci diagram provisioning tim. Yang tersisa: konfirmasi encoding signature (raw 64 byte, Base64 URL-safe tanpa padding).
+2. **Provisioning API contract** — Terjawab; lihat spec provisioning §3. Sisa yang belum pasti terdaftar di §8 spec itu.
 3. **MQTT topic & payload design** — skema topic unified yang baru (bukan warisan `payment/{userDevice}` lama), format payload terenkripsi/tidak.
 4. **List API definitif** — daftar lengkap endpoint di bawah Front-facing API (CDCP+QRIS) yang tersedia untuk EDC channel.
 5. **QRIS Static — status query harus session-scoped, bukan merchant-scoped**: implementasi existing mencocokkan status lewat "ambil transaksi terakhir milik merchant" lalu match client-side by invoice/id/timestamp — rawan race condition kalau >1 device merchant yang sama generate QRIS Static berdekatan waktu. Untuk Front-facing API baru, minta endpoint status **per invoice/session id** (bukan "last transaction milik merchant"), supaya device tidak perlu heuristic matching sendiri.

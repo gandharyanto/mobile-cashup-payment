@@ -1,0 +1,949 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" type="device" version="24.7.17">
+  <diagram id="page-1" name="1 · User Journey — Full App">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="&lt;b&gt;User Journey — mobile-cashup-payment (EDC)&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="900" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" value="Tiga jalur pemicu transaksi · app fully stateless · auth = digital signature, tanpa login harian" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="900" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" value="&lt;b&gt;Cashier&lt;/b&gt;&lt;br&gt;di device" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="150" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" value="&lt;b&gt;App kasir eksternal&lt;/b&gt;&lt;br&gt;deeplink cashlez://" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="230" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" value="&lt;b&gt;Controller ECR/POSH&lt;/b&gt;&lt;br&gt;via bridge-api" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="310" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n6" value="&lt;b&gt;Teknisi&lt;/b&gt;&lt;br&gt;kredensial admin Cashup" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="430" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n7" value="&lt;b&gt;Splash / Bootstrap&lt;/b&gt;&lt;br&gt;cek signing key di Keystore" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="290" y="150" width="230" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n8" value="Sudah&lt;br&gt;terprovisioning?" style="rhombus;whiteSpace=wrap;html=1;fontSize=11;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="290" y="250" width="230" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="n9" value="&lt;b&gt;Provisioning — Login Teknisi&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="290" y="430" width="230" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n10" value="&lt;b&gt;Provisioning — Scan QR&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="290" y="510" width="230" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n11" value="&lt;b&gt;Provisioning — Processing&lt;/b&gt;&lt;br&gt;inject DUKPT + simpan key (atomic)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="290" y="590" width="230" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n12" value="&lt;b&gt;Provisioning — Result&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="290" y="680" width="230" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n13" value="&lt;b&gt;Home / Standby&lt;/b&gt;&lt;br&gt;juga listening state untuk&lt;br&gt;trigger app-to-app &amp; ECR" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="620" y="250" width="230" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n7" target="n8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" value="belum (J1)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n8" target="n9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" value="sudah" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n8" target="n13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n9" target="n10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n10" target="n11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n11" target="n12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" value="sukses" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n12" target="n13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" value="gagal — retry (JWT masih hidup)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n12" target="n10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n22" value="&lt;b&gt;Sale Entry&lt;/b&gt;&lt;br&gt;nominal + metode, satu layar" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="620" y="400" width="230" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" value="J4/J5/J6 — Sale" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n13" target="n22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n24" value="&lt;b&gt;Card Payment Processing&lt;/b&gt;&lt;br&gt;tap/insert/swipe + PIN" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="950" y="370" width="230" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n25" value="&lt;b&gt;Installment Selection&lt;/b&gt;&lt;br&gt;tenor / bank" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="950" y="290" width="230" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="n26" value="&lt;b&gt;QRIS Generate&lt;/b&gt;&lt;br&gt;Dynamic (amount) / Static (tanpa)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="950" y="460" width="230" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e27" value="Card" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n22" target="n24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e28" value="QRIS" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n22" target="n26">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e29" value="eligible installment (J10)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n24" target="n25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e30" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n25" target="n24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n31" value="&lt;b&gt;Payment Result&lt;/b&gt;&lt;br&gt;approved / declined / expired" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1270" y="415" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e32" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n24" target="n31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e33" value="MQTT push, poll &gt;5s" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n26" target="n31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n34" value="Hasil → Print Receipt · Done · Void&lt;br&gt;App-to-app/ECR → countdown + callback" style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=#ffffff;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="1270" y="500" width="220" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n35" value="&lt;b&gt;Transaction History&lt;/b&gt;&lt;br&gt;live-query, tanpa cache lokal" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="620" y="500" width="230" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n36" value="&lt;b&gt;Transaction Detail&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="950" y="560" width="230" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="e37" value="J9/J12" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n13" target="n35">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e38" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n35" target="n36">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e39" value="Void (J9) / Reprint (J12)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n36" target="n31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n40" value="&lt;b&gt;Settlement&lt;/b&gt; → &lt;b&gt;Settlement Result&lt;/b&gt;&lt;br&gt;total trx, total amount, batch" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="620" y="580" width="230" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e41" value="J11" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n13" target="n40">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n42" value="&lt;b&gt;Device Settings&lt;/b&gt;&lt;br&gt;Re-Provisioning (J2) · Deactivate (J3)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="620" y="670" width="230" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e43" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n13" target="n42">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e44" value="keduanya lewat login teknisi" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n42" target="n9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n45" value="Cashier memulai di Home (J4–J6, J9, J11, J12)" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="230" y="155" width="0" height="0" as="geometry" />
+        </mxCell>
+        <mxCell id="n46" value="&lt;b&gt;App-to-App / Deeplink Router&lt;/b&gt;&lt;br&gt;komponen, bukan screen&lt;br&gt;validasi provisioned → langsung ke Processing" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="290" y="810" width="300" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="n47" value="&lt;b&gt;ECR Bridge Status Pusher&lt;/b&gt;&lt;br&gt;push tiap perubahan state → tunggu acknowledge" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="620" y="810" width="300" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="n48" value="&lt;b&gt;Reconciliation-on-launch&lt;/b&gt;&lt;br&gt;GET /v1/payments?status=PENDING&lt;br&gt;pengganti offline queue (app stateless)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="950" y="810" width="300" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e49" value="skip Home &amp; Sale Entry (J7)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n46" target="n24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e50" value="J8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n47" target="n31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e51" value="tiap app start (§7)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n7" target="n48">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n52" value="Header&amp;nbsp;tiap&amp;nbsp;request&amp;nbsp;ke&amp;nbsp;Front-facing&amp;nbsp;API&lt;br&gt;---------------------------------------&lt;br&gt;X-Key-Id&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;:&amp;nbsp;key_7f3a91&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;lt;-&amp;nbsp;NEW,&amp;nbsp;see&amp;nbsp;note&lt;br&gt;X-Signature&amp;nbsp;&amp;nbsp;&amp;nbsp;:&amp;nbsp;base64(ECDSA-SHA256&amp;nbsp;over&amp;nbsp;canonical)&lt;br&gt;X-Timestamp&amp;nbsp;&amp;nbsp;&amp;nbsp;:&amp;nbsp;1789456951482&lt;br&gt;X-Nonce&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;:&amp;nbsp;0f3c9a1e-4b2d-...&lt;br&gt;X-Request-Id&amp;nbsp;&amp;nbsp;:&amp;nbsp;0f3c9a1e-4b2d-...&amp;nbsp;&amp;nbsp;&amp;nbsp;(echoed&amp;nbsp;back&amp;nbsp;as&amp;nbsp;requestId)&lt;br&gt;&lt;br&gt;canonical&amp;nbsp;=&amp;nbsp;METHOD&amp;nbsp;\n&amp;nbsp;path+query&amp;nbsp;\n&amp;nbsp;timestamp&amp;nbsp;\n&amp;nbsp;nonce&amp;nbsp;\n&amp;nbsp;b64(sha256(body))" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="1270" y="150" width="430" height="142" as="geometry" />
+        </mxCell>
+        <mxCell id="n53" value="Envelope&amp;nbsp;response&amp;nbsp;—&amp;nbsp;seragam&amp;nbsp;untuk&amp;nbsp;16&amp;nbsp;endpoint&lt;br&gt;---------------------------------------------&lt;br&gt;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;status&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;SUCCESS&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;SUCCESS&amp;nbsp;|&amp;nbsp;ERROR&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;code&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;OK&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;string&amp;nbsp;enum,&amp;nbsp;never&amp;nbsp;a&amp;nbsp;number&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;message&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;...&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;log/debug&amp;nbsp;only&amp;nbsp;-&amp;nbsp;never&amp;nbsp;branch&amp;nbsp;on&amp;nbsp;it&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;requestId&quot;:&amp;nbsp;&amp;nbsp;&quot;0f3c9a1e-...&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;echoes&amp;nbsp;X-Request-Id,&amp;nbsp;ties&amp;nbsp;to&amp;nbsp;Graylog&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;serverTime&quot;:&amp;nbsp;&quot;2026-09-15T10:22:31.482+07:00&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;data&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{&amp;nbsp;...&amp;nbsp;}&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;null&amp;nbsp;for&amp;nbsp;operations&amp;nbsp;with&amp;nbsp;no&amp;nbsp;payload&lt;br&gt;}" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="1270" y="630" width="430" height="156" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-2" name="2 · Peta Navigasi Screen">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="&lt;b&gt;Peta Navigasi Screen&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="900" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" value="Sesuai inventaris screen spec §5 · Amount Entry + Method Selection sudah digabung jadi Sale Entry (§11)" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="900" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" value="&lt;b&gt;Splash / Bootstrap&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="620" y="130" width="220" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" value="&lt;b&gt;Provisioning — Login Teknisi&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="120" y="240" width="230" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" value="&lt;b&gt;Provisioning — Scan QR&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="120" y="320" width="230" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="n6" value="&lt;b&gt;Provisioning — Processing&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="120" y="400" width="230" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="n7" value="&lt;b&gt;Provisioning — Result&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="120" y="480" width="230" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="n8" value="&lt;b&gt;Deactivate Device&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="120" y="560" width="230" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="belum terprovisioning" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n3" target="n4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="alur J1/J2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n4" target="n5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="alur J3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n4" target="n8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n5" target="n6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n6" target="n7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n14" value="&lt;b&gt;Home / Standby&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="620" y="240" width="220" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" value="sudah terprovisioning" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n3" target="n14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" value="sukses" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n7" target="n14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" value="gagal" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n7" target="n5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" value="key &amp; config dihapus" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n8" target="n4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n19" value="&lt;b&gt;Sale Entry&lt;/b&gt;&lt;br&gt;keypad + Card / QRIS Dyn / QRIS Static" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="430" y="360" width="240" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n20" value="&lt;b&gt;Card Payment Processing&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="430" y="460" width="240" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="n21" value="&lt;b&gt;Installment Selection&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="430" y="540" width="240" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="n22" value="&lt;b&gt;Card Payment Result&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="430" y="620" width="240" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="n23" value="&lt;b&gt;QRIS Generate (Dynamic)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="760" y="460" width="240" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="n24" value="&lt;b&gt;QRIS Generate (Static)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="760" y="540" width="240" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="n25" value="&lt;b&gt;QRIS Payment Result&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="760" y="620" width="240" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="e26" value="Sale" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n14" target="n19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e27" value="Card" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n19" target="n20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e28" value="QRIS Dynamic" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n19" target="n23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e29" value="QRIS Static" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n19" target="n24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e30" value="eligible" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n20" target="n21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e31" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n21" target="n20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e32" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n20" target="n22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e33" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n23" target="n25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e34" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n24" target="n25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n35" value="&lt;b&gt;Transaction History&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="300" width="220" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="n36" value="&lt;b&gt;Transaction Detail&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="380" width="220" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="e37" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n14" target="n35">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e38" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n35" target="n36">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e39" value="Void" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n36" target="n22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n40" value="&lt;b&gt;Settlement&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="470" width="220" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="n41" value="&lt;b&gt;Settlement Result&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="545" width="220" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="e42" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n14" target="n40">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e43" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n40" target="n41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n44" value="&lt;b&gt;Receipt Preview / Print&lt;/b&gt;&lt;br&gt;dipanggil dari Result &amp; Detail" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="630" width="220" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e45" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n22" target="n44">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e46" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n25" target="n44">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e47" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n41" target="n44">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e48" value="Reprint" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n36" target="n44">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n49" value="&lt;b&gt;Device Settings&lt;/b&gt;&lt;br&gt;serial, TID/MID, versi, status MQTT" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="620" y="730" width="240" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e50" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n14" target="n49">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e51" value="Re-Provisioning / Deactivate" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n49" target="n4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n52" value="&lt;b&gt;Dihapus dari app lama&lt;/b&gt;&lt;br&gt;· Amount Entry terpisah → digabung ke Sale Entry&lt;br&gt;· Customer Signature (sale &amp; void) → tidak dipakai lagi&lt;br&gt;· Dual login (middleware + POS) → tidak ada login harian&lt;br&gt;· Offline queue / PENDING-SYNCED → app stateless" style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=#ffffff;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="120" y="680" width="300" height="110" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-3" name="3 · J1 Provisioning">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="&lt;b&gt;J1 — Provisioning (setup pertama kali)&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="900" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" value="Tidak ada login teknisi. Otorisasi datang dari challengeCode hasil scan QR. Atomic: gagal di langkah mana pun -&gt; semua key dihapus, device tetap belum terprovisioning. Lima lifeline (Provisioning.drawio): App Provisioning, EDC, Backend, Payment HSM, GP HSM." style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="900" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" value="&lt;b&gt;App Provisioning&lt;/b&gt;&lt;br&gt;generate QR -&gt; { challengeCode }" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="320" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" value="&lt;b&gt;EDC&lt;/b&gt;&lt;br&gt;scan QR -&gt; decode challengeCode" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="211" width="320" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" value="&lt;b&gt;EDC&lt;/b&gt;&lt;br&gt;generate RSA (unwrap) + Ed25519 (signing) keypair" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="60" y="292" width="320" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n6" value="&lt;b&gt;POST .../qr-redeem&lt;/b&gt;&lt;br&gt;TANPA signature (device belum terdaftar)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="373" width="320" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n7" value="&lt;b&gt;Backend&lt;/b&gt;&lt;br&gt;validasi QR &amp; nonaktifkan challenge-code" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="60" y="454" width="320" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n8" value="&lt;b&gt;POST .../orders/{orderId}/package&lt;/b&gt;&lt;br&gt;signed -&gt; wrappedPackageKey" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="535" width="320" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n9" value="&lt;b&gt;EDC&lt;/b&gt;&lt;br&gt;unwrap RSA di TEE, inject DUKPT (vendor dulu, vault TEE menyusul)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="60" y="616" width="320" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n10" value="&lt;b&gt;POST .../orders/{orderId}/activate&lt;/b&gt;&lt;br&gt;signed -&gt; kirim keyCheckValues" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="697" width="320" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n11" value="&lt;b&gt;Provisioning — Result (Sukses)&lt;/b&gt;&lt;br&gt;tampil serialNumber, orderId, backing" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="778" width="320" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n3" target="n4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n4" target="n5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n5" target="n6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n6" target="n7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n7" target="n8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n8" target="n9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n9" target="n10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n10" target="n11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n20" value="&lt;b&gt;Provisioning — Result (Gagal)&lt;/b&gt;&lt;br&gt;rollback total (wipe key + state), device tetap belum terprovisioning" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="60" y="900" width="320" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" value="gagal di langkah mana pun" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n10" target="n20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" value="retry, tanpa login (tidak ada login sama sekali)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n20" target="n4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n23" value="POST&amp;nbsp;v1/terminal-key-provisioning/qr-redeem&lt;br&gt;-------------------------------------------&lt;br&gt;REQ&amp;nbsp;&amp;nbsp;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;challengeCode&quot;:&amp;nbsp;&amp;nbsp;&quot;ABCD-1234&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;serialNumber&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;PAX-A920-0012938&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;rsaPublicKey&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;MIIBIjANBgkqhkiG9w0...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;eddsaPublicKey&quot;:&amp;nbsp;&quot;MCowBQYDK2VwAyEA...&quot;&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;}&lt;br&gt;&lt;br&gt;RESP&amp;nbsp;data&amp;nbsp;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;orderId&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;ord_7f3a91&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;activationToken&quot;:&amp;nbsp;&quot;eyJhbGciOi...&quot;&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;}&lt;br&gt;&lt;br&gt;Tanpa&amp;nbsp;X-Signature&amp;nbsp;-&amp;nbsp;backend&amp;nbsp;belum&amp;nbsp;mengenal&amp;nbsp;public&amp;nbsp;key&amp;nbsp;device;&lt;br&gt;kunci&amp;nbsp;itu&amp;nbsp;baru&amp;nbsp;dikirim&amp;nbsp;di&amp;nbsp;request&amp;nbsp;ini&amp;nbsp;sendiri." style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="450" y="130" width="520" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="n24" value="POST&amp;nbsp;v1/terminal-key-provisioning/orders/{orderId}/package&lt;br&gt;----------------------------------------------------------&lt;br&gt;REQ&amp;nbsp;&amp;nbsp;{&amp;nbsp;&quot;orderId&quot;:&amp;nbsp;&quot;ord_7f3a91&quot;,&amp;nbsp;&quot;activationToken&quot;:&amp;nbsp;&quot;eyJhbGciOi...&quot;&amp;nbsp;}&lt;br&gt;&lt;br&gt;RESP&amp;nbsp;data&amp;nbsp;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;orderId&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;ord_7f3a91&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;wrappedPackageKey&quot;:&amp;nbsp;&amp;nbsp;&quot;base64(RSA-OAEP(...))&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;#4&amp;nbsp;DUKPT&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;appEddsaPublicKey&quot;:&amp;nbsp;&amp;nbsp;&quot;MCowBQYDK2VwAyEA...&quot;&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;}&lt;br&gt;&lt;br&gt;Backend:&amp;nbsp;generate&amp;nbsp;keyId&amp;nbsp;(KSN)&amp;nbsp;-&amp;gt;&amp;nbsp;Get&amp;nbsp;IPEK&amp;nbsp;dari&amp;nbsp;Payment&amp;nbsp;HSM&amp;nbsp;-&amp;gt;&lt;br&gt;Get&amp;nbsp;ED25519&amp;nbsp;Public&amp;nbsp;Key&amp;nbsp;dari&amp;nbsp;General&amp;nbsp;Purpose&amp;nbsp;HSM&amp;nbsp;-&amp;gt;&amp;nbsp;kirim&amp;nbsp;IPEK&lt;br&gt;dibungkus&amp;nbsp;RSA.&amp;nbsp;Signed&amp;nbsp;(X-Signature&amp;nbsp;dst,&amp;nbsp;lihat&amp;nbsp;spec&amp;nbsp;§3.3)." style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="450" y="420" width="520" height="198" as="geometry" />
+        </mxCell>
+        <mxCell id="n25" value="POST&amp;nbsp;v1/terminal-key-provisioning/orders/{orderId}/activate&lt;br&gt;----------------------------------------------------------&lt;br&gt;REQ&amp;nbsp;&amp;nbsp;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;activationToken&quot;:&amp;nbsp;&amp;nbsp;&quot;eyJhbGciOi...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;keyCheckValues&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;{&amp;nbsp;&quot;&amp;lt;purpose&amp;gt;&quot;:&amp;nbsp;&quot;&amp;lt;kcv&amp;nbsp;hex&amp;gt;&quot;&amp;nbsp;}&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;}&lt;br&gt;&lt;br&gt;RESP&amp;nbsp;data&amp;nbsp;{&amp;nbsp;&quot;status&quot;:&amp;nbsp;&quot;OK&quot;&amp;nbsp;}&lt;br&gt;&lt;br&gt;Signed.&amp;nbsp;Langkah&amp;nbsp;16&amp;nbsp;diagram&amp;nbsp;tim&amp;nbsp;(&quot;Callback&amp;nbsp;Provisioning&amp;nbsp;Status&quot;&amp;nbsp;ke&lt;br&gt;App&amp;nbsp;Provisioning)&amp;nbsp;bukan&amp;nbsp;urusan&amp;nbsp;app&amp;nbsp;ini&amp;nbsp;-&amp;nbsp;backend&amp;nbsp;yang&amp;nbsp;memberitahu,&lt;br&gt;EDC&amp;nbsp;tidak&amp;nbsp;mengirim&amp;nbsp;apa&amp;nbsp;pun&amp;nbsp;ke&amp;nbsp;App&amp;nbsp;Provisioning." style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="450" y="700" width="520" height="184" as="geometry" />
+        </mxCell>
+        <mxCell id="n26" value="&lt;b&gt;Tiga key, tiga tempat (spec §4.1)&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;RSA-2048&lt;/b&gt; (unwrap identitas) — AndroidKeyStore kalau MGF1 backend memungkinkan (§4.5), fallback BouncyCastle + EncryptedSharedPreferences.&lt;br&gt;&lt;br&gt;&lt;b&gt;Ed25519&lt;/b&gt; (signing request) — BouncyCastle + EncryptedSharedPreferences. &lt;b&gt;TIDAK hardware-backed&lt;/b&gt;: &lt;code&gt;KEY_ALGORITHM_ED25519&lt;/code&gt; tidak ada di Android sampai API 37.&lt;br&gt;&lt;br&gt;&lt;b&gt;DUKPT (IPEK/KSN)&lt;/b&gt; — modul vendor dulu, vault TEE sebagai cermin (&lt;code&gt;DuktpVaultCompat&lt;/code&gt;), hanya ditulis kalau modul vendor konfirmasi sukses." style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=#ffffff;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="130" width="420" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="n27" value="Error&amp;nbsp;yang&amp;nbsp;khas&amp;nbsp;di&amp;nbsp;alur&amp;nbsp;ini&lt;br&gt;---------------------------&lt;br&gt;PROVISIONING_TOKEN_INVALID&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;token/QR&amp;nbsp;tidak&amp;nbsp;valid,&amp;nbsp;sudah&amp;nbsp;dipakai,&amp;nbsp;atau&amp;nbsp;kedaluwarsa&lt;br&gt;TERMINAL_KEY_ALREADY_PROVISIONED&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;device&amp;nbsp;sudah&amp;nbsp;pernah&amp;nbsp;diprovisioning&amp;nbsp;penuh&lt;br&gt;TERMINAL_NOT_REGISTERED&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;device&amp;nbsp;belum&amp;nbsp;terdaftar&amp;nbsp;di&amp;nbsp;backend&lt;br&gt;TERMINAL_INACTIVE&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;device&amp;nbsp;tidak&amp;nbsp;aktif&lt;br&gt;DEVICE_SIGNATURE_REQUIRED&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;signature&amp;nbsp;tidak&amp;nbsp;diterima&amp;nbsp;backend&lt;br&gt;&lt;br&gt;Selalu&amp;nbsp;branch&amp;nbsp;pada&amp;nbsp;error.code,&amp;nbsp;tidak&amp;nbsp;pernah&amp;nbsp;pada&amp;nbsp;error.message." style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="460" width="420" height="142" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-4" name="4 · J2 Re-Provisioning &amp; J3 Deactivation">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="&lt;b&gt;J2 — Re-Provisioning · J3 — Deactivation / Factory Reset&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="900" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" value="DI LUAR SCOPE plan provisioning (spec §10): diagram tim tidak punya endpoint untuk keduanya. Tidak ada login teknisi di J1 sehingga alur di bawah ini juga tidak melalui login — tapi bentuknya masih tebakan." style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="900" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" value="&lt;b&gt;Device Settings&lt;/b&gt; → Re-Provisioning" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" value="&lt;b&gt;Scan QR&lt;/b&gt; → challengeCode baru" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="206" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" value="&lt;b&gt;Generate keypair BARU&lt;/b&gt;&lt;br&gt;RSA + Ed25519" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="60" y="282" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n6" value="&lt;b&gt;Endpoint BELUM ADA&lt;/b&gt;&lt;br&gt;menebak kontraknya sekarang = kerja yang dibuang (spec §10)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="60" y="358" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n7" value="&lt;b&gt;Ganti DUKPT + key + config&lt;/b&gt;&lt;br&gt;key lama dibuang setelah sukses" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="60" y="434" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n8" value="&lt;b&gt;Result (Sukses)&lt;/b&gt; → Home" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="510" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n3" target="n4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n4" target="n5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n5" target="n6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n6" target="n7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n7" target="n8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n14" value="&lt;b&gt;Device Settings&lt;/b&gt; → Deactivate Device" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="430" y="130" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n15" value="&lt;b&gt;Konfirmasi deaktivasi&lt;/b&gt;" style="rhombus;whiteSpace=wrap;html=1;fontSize=11;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="430" y="206" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n16" value="&lt;b&gt;Endpoint BELUM ADA&lt;/b&gt;&lt;br&gt;menebak kontraknya sekarang = kerja yang dibuang (spec §10)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="430" y="282" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n17" value="&lt;b&gt;Hapus signing key + RSA key + state&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="430" y="358" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n18" value="&lt;b&gt;TerminalKeyInstaller.wipe()&lt;/b&gt;&lt;br&gt;hapus DUKPT dari vendor + vault" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="430" y="434" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n19" value="&lt;b&gt;Kembali ke Gate (belum terprovisioning)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="430" y="510" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n14" target="n15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n15" target="n16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n16" target="n17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n17" target="n18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e24" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n18" target="n19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n25" value="&lt;b&gt;Kenapa halaman ini tidak punya kontrak HTTP&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;code&gt;Provisioning.drawio&lt;/code&gt; tim (sumber kewenangan tertinggi untuk bentuk body, spec provisioning §1) hanya memuat J1. Tidak ada sequence diagram untuk refresh key atau deaktivasi.&lt;br&gt;&lt;br&gt;Path/body di bawah ini sebelumnya dikarang sebagai &lt;code&gt;POST /v1/provisioning/refresh&lt;/code&gt; dan &lt;code&gt;POST /v1/provisioning/deactivate&lt;/code&gt; — &lt;b&gt;keduanya tidak pernah ada di kontrak nyata manapun&lt;/b&gt; dan sudah dibuang dari halaman ini. Menunggu backend menyediakan endpoint (spec provisioning §10) sebelum diagram ini diisi ulang." style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=#ffffff;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="800" y="130" width="480" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="n26" value="Yang&amp;nbsp;sudah&amp;nbsp;pasti&amp;nbsp;dari&amp;nbsp;J1&amp;nbsp;(dapat&amp;nbsp;dipakai&amp;nbsp;ulang)&lt;br&gt;----------------------------------------------&lt;br&gt;Otorisasi:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;tidak&amp;nbsp;ada&amp;nbsp;login&amp;nbsp;-&amp;nbsp;challengeCode&amp;nbsp;QR&amp;nbsp;(spec&amp;nbsp;§2)&lt;br&gt;Signing:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;Ed25519,&amp;nbsp;canonical&amp;nbsp;string&amp;nbsp;sama&amp;nbsp;(spec&amp;nbsp;§3.3)&lt;br&gt;Envelope&amp;nbsp;resp:&amp;nbsp;&amp;nbsp;{&amp;nbsp;data,&amp;nbsp;error{code,message,details},&amp;nbsp;meta{correlationId}&amp;nbsp;}&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;(spec&amp;nbsp;§3.2)&amp;nbsp;-&amp;nbsp;branch&amp;nbsp;pada&amp;nbsp;error.code,&amp;nbsp;bukan&amp;nbsp;message&lt;br&gt;DUKPT&amp;nbsp;wipe:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;TerminalKeyInstaller.wipe()&amp;nbsp;-&amp;nbsp;tidak&amp;nbsp;ada&amp;nbsp;API&amp;nbsp;hapus&amp;nbsp;resmi&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;di&amp;nbsp;vault&amp;nbsp;(spec&amp;nbsp;§4.3),&amp;nbsp;kopling&amp;nbsp;ke&amp;nbsp;nama&amp;nbsp;file&amp;nbsp;internal&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;edc-sdk&amp;nbsp;sebagai&amp;nbsp;utang&amp;nbsp;sementara." style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="800" y="420" width="480" height="142" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-5" name="5 · J4 Card Sale &amp; J10 Installment">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="&lt;b&gt;J4 — Standalone Sale (Kartu / CDCP) · J10 — Installment&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="900" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" value="Menggantikan sale/sale_trx + sale/installment_trx + sale/is_debit_check (yang semuanya balas Call&lt;String&gt; mentah)" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="900" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" value="&lt;b&gt;Sale Entry&lt;/b&gt;&lt;br&gt;nominal + pilih Card" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" value="&lt;b&gt;Device buat merchantRefId (UUID)&lt;/b&gt;&lt;br&gt;sebelum kirim — kunci idempotency" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="60" y="213" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" value="&lt;b&gt;Card Payment Processing&lt;/b&gt;&lt;br&gt;tap/insert/swipe + PIN (UI vendor SDK)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="60" y="296" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n6" value="&lt;b&gt;Installment Selection&lt;/b&gt;&lt;br&gt;hanya bila kartu eligible (J10)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="379" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n7" value="&lt;b&gt;POST /v1/payments/card&lt;/b&gt;&lt;br&gt;ditandatangani SigningInterceptor" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="462" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n8" value="&lt;b&gt;Card Payment Result&lt;/b&gt;&lt;br&gt;approved / declined" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="545" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n9" value="&lt;b&gt;Print · Done · Void&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="628" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n3" target="n4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n4" target="n5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n5" target="n6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n6" target="n7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n7" target="n8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n8" target="n9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n16" value="POST&amp;nbsp;/v1/payments/card&amp;nbsp;&amp;nbsp;&amp;nbsp;—&amp;nbsp;request&lt;br&gt;----------------------------------&lt;br&gt;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;merchantRefId&quot;:&amp;nbsp;&quot;8f2a7c14-...&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;dibuat&amp;nbsp;device,&amp;nbsp;retry&amp;nbsp;aman&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;amount&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;150000,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;tipAmount&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;0,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;type&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;SALE&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;SALE&amp;nbsp;|&amp;nbsp;INSTALLMENT&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;installment&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;null,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;diisi&amp;nbsp;hanya&amp;nbsp;bila&amp;nbsp;type=INSTALLMENT&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;card&quot;:&amp;nbsp;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;entryMode&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;IC&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;IC&amp;nbsp;|&amp;nbsp;TAP&amp;nbsp;|&amp;nbsp;SWIPE&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;track2&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;4811...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;icData&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;9F2608...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;pinBlock&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;A1B2...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;isPinUsed&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;true,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;cardHolderName&quot;:&amp;nbsp;&quot;BUDI&amp;nbsp;SANTOSO&quot;&lt;br&gt;&amp;nbsp;&amp;nbsp;},&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;pointerId&quot;:&amp;nbsp;null,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;pass-through&amp;nbsp;app-to-app,&amp;nbsp;opaque&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;metadata&quot;:&amp;nbsp;&amp;nbsp;{}&lt;br&gt;}&lt;br&gt;&lt;br&gt;//&amp;nbsp;varian&amp;nbsp;J10&amp;nbsp;—&amp;nbsp;installment:&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;type&quot;:&amp;nbsp;&quot;INSTALLMENT&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;installment&quot;:&amp;nbsp;{&amp;nbsp;&quot;planCode&quot;:&amp;nbsp;&quot;BCA06&quot;,&amp;nbsp;&quot;tenor&quot;:&amp;nbsp;6&amp;nbsp;}" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="460" y="130" width="520" height="338" as="geometry" />
+        </mxCell>
+        <mxCell id="n17" value="RESP&amp;nbsp;200&amp;nbsp;—&amp;nbsp;data&amp;nbsp;(resource&amp;nbsp;Payment&amp;nbsp;seragam)&lt;br&gt;------------------------------------------&lt;br&gt;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;paymentId&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;pay_01J8Z3K...&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;backend-owned&amp;nbsp;primary&amp;nbsp;key&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;invoiceNumber&quot;:&amp;nbsp;&quot;000123&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;human-readable,&amp;nbsp;printed&amp;nbsp;on&amp;nbsp;receipt&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;merchantRefId&quot;:&amp;nbsp;&quot;8f2a...&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;caller-owned&amp;nbsp;idempotency&amp;nbsp;key&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;status&quot;:&amp;nbsp;&amp;nbsp;&quot;APPROVED&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;PENDING&amp;nbsp;|&amp;nbsp;APPROVED&amp;nbsp;|&amp;nbsp;DECLINED&amp;nbsp;|&amp;nbsp;CANCELLED&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;|&amp;nbsp;EXPIRED&amp;nbsp;|&amp;nbsp;VOIDED&amp;nbsp;|&amp;nbsp;REVERSED&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;instrument&quot;:&amp;nbsp;&quot;CARD&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;CARD&amp;nbsp;|&amp;nbsp;QRIS_DYNAMIC&amp;nbsp;|&amp;nbsp;QRIS_STATIC&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;type&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;SALE&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;SALE&amp;nbsp;|&amp;nbsp;INSTALLMENT&amp;nbsp;|&amp;nbsp;VOID&amp;nbsp;|&amp;nbsp;REVERSAL&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;amount&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;150000,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;Long,&amp;nbsp;rupiah&amp;nbsp;penuh&amp;nbsp;(bukan&amp;nbsp;Int&amp;nbsp;-&amp;nbsp;lihat&amp;nbsp;hal.&amp;nbsp;11)&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;tipAmount&quot;:&amp;nbsp;&amp;nbsp;0,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;currency&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;IDR&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;createdAt&quot;:&amp;nbsp;&amp;nbsp;&quot;2026-09-15T10:22:31.482+07:00&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;paidAt&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;2026-09-15T10:22:39.101+07:00&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;acquirerRrn&quot;:&amp;nbsp;&amp;nbsp;&quot;512834771902&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;approvalCode&quot;:&amp;nbsp;&quot;884213&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;batchNumber&quot;:&amp;nbsp;&amp;nbsp;&quot;000012&quot;,&lt;br&gt;&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;card&quot;:&amp;nbsp;{&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;hadir&amp;nbsp;hanya&amp;nbsp;bila&amp;nbsp;instrument&amp;nbsp;=&amp;nbsp;CARD&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;maskedPan&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;481111******1114&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;cardHolderName&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;BUDI&amp;nbsp;SANTOSO&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;entryMode&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;IC&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;IC&amp;nbsp;|&amp;nbsp;TAP&amp;nbsp;|&amp;nbsp;SWIPE&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;acquirerName&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;BCA&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;applicationLabel&quot;:&amp;nbsp;&quot;DEBIT&amp;nbsp;BCA&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;isDebit&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;true&lt;br&gt;&amp;nbsp;&amp;nbsp;},&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;qris&quot;:&amp;nbsp;{&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;hadir&amp;nbsp;hanya&amp;nbsp;bila&amp;nbsp;instrument&amp;nbsp;=&amp;nbsp;QRIS_*&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;qrPayload&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;00020101021226...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;wallet&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;GOPAY&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;customerPan&quot;:&amp;nbsp;&amp;nbsp;&quot;936000...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;customerName&quot;:&amp;nbsp;&quot;B***&amp;nbsp;S***&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;issuerName&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;Gopay&quot;&lt;br&gt;&amp;nbsp;&amp;nbsp;},&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;metadata&quot;:&amp;nbsp;{}&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;titipan&amp;nbsp;pemanggil,&amp;nbsp;tidak&amp;nbsp;ditafsirkan&lt;br&gt;}" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="130" width="520" height="520" as="geometry" />
+        </mxCell>
+        <mxCell id="n18" value="&lt;b&gt;is_debit_check &amp;amp; card_routing_check&lt;/b&gt;&lt;br&gt;&lt;br&gt;Dua endpoint terpisah di app lama. &lt;code&gt;isDebit&lt;/code&gt; sekarang jadi field di &lt;code&gt;data.card&lt;/code&gt; pada response yang sama — satu round-trip hilang dari setiap transaksi kartu.&lt;br&gt;&lt;br&gt;&lt;code&gt;card_routing_check&lt;/code&gt; ditunda dari v1 sesuai spec §2, bersama &lt;code&gt;loyalty_point_trx&lt;/code&gt;." style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=#ffffff;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="460" y="560" width="520" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="n19" value="&lt;b&gt;Kartu ditolak ≠ error HTTP&lt;/b&gt;&lt;br&gt;&lt;br&gt;Penolakan issuer adalah hasil bisnis, bukan kegagalan API: &lt;b&gt;HTTP 200&lt;/b&gt; dengan &lt;code&gt;data.status = &quot;DECLINED&quot;&lt;/code&gt; dan &lt;code&gt;data.approvalCode = null&lt;/code&gt;. Device menampilkan layar Declined, bukan layar error jaringan.&lt;br&gt;&lt;br&gt;Ini penting karena &lt;code&gt;safeApiCall&lt;/code&gt; memetakan non-2xx ke &lt;code&gt;ApiResult.Failure&lt;/code&gt; — kalau decline dikirim sebagai 4xx, device akan salah menyebutnya gangguan koneksi." style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=#ffffff;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="460" y="700" width="520" height="140" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-6" name="6 · J5 QRIS Dynamic">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="&lt;b&gt;J5 — Standalone Sale (QRIS Dynamic)&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="900" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" value="MQTT push sebagai jalur utama · poll fallback hanya dibuka setelah 5 detik tanpa push, lalu ditutup lagi" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="900" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" value="&lt;b&gt;Sale Entry&lt;/b&gt;&lt;br&gt;nominal + pilih QRIS Dynamic" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" value="&lt;b&gt;POST /v1/payments/qris&lt;/b&gt;&lt;br&gt;mode = DYNAMIC" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="215" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" value="&lt;b&gt;QRIS Generate (Dynamic)&lt;/b&gt;&lt;br&gt;render qrPayload, status = PENDING" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="300" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n6" value="Push MQTT&lt;br&gt;datang &amp;lt; 5 detik?" style="rhombus;whiteSpace=wrap;html=1;fontSize=11;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="60" y="385" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n7" value="&lt;b&gt;QRIS Payment Result&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="470" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n3" target="n4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n4" target="n5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n5" target="n6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n6" target="n7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n12" value="&lt;b&gt;Buka poll fallback&lt;/b&gt;&lt;br&gt;GET /v1/payments/{id} tiap 3 detik&lt;br&gt;berhenti saat final atau timeout" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="460" y="385" width="300" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="tidak" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n6" target="n12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="status final" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n12" target="n7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" value="ya" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n6" target="n7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n16" value="&lt;b&gt;Cancel / Timeout&lt;/b&gt;&lt;br&gt;POST /v1/payments/{id}/cancel" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="60" y="480" width="330" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" value="cashier batal" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n5" target="n16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n18" value="POST&amp;nbsp;/v1/payments/qris&amp;nbsp;&amp;nbsp;&amp;nbsp;—&amp;nbsp;request&lt;br&gt;----------------------------------&lt;br&gt;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;merchantRefId&quot;:&amp;nbsp;&quot;b41d9e02-...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;amount&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;150000,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;WAJIB&amp;nbsp;bila&amp;nbsp;mode&amp;nbsp;=&amp;nbsp;DYNAMIC&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;mode&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;DYNAMIC&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;DYNAMIC&amp;nbsp;|&amp;nbsp;STATIC&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;wallet&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;QRIS&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;pointerId&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;null,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;metadata&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{}&lt;br&gt;}" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="800" y="130" width="500" height="156" as="geometry" />
+        </mxCell>
+        <mxCell id="n19" value="RESP&amp;nbsp;201&amp;nbsp;—&amp;nbsp;data&amp;nbsp;(potongan&amp;nbsp;yang&amp;nbsp;relevan)&lt;br&gt;---------------------------------------&lt;br&gt;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;paymentId&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;pay_01J8Z3K...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;invoiceNumber&quot;:&amp;nbsp;&quot;000124&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;status&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;PENDING&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;instrument&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;QRIS_DYNAMIC&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;amount&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;150000,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;expiresAt&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;2026-09-15T10:27:31+07:00&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;qris&quot;:&amp;nbsp;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;qrPayload&quot;:&amp;nbsp;&quot;00020101021226610014COM.GO-JEK...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;wallet&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;QRIS&quot;&lt;br&gt;&amp;nbsp;&amp;nbsp;}&lt;br&gt;}&lt;br&gt;&lt;br&gt;Catatan:&amp;nbsp;qrPayload&amp;nbsp;dikirim&amp;nbsp;SIAP&amp;nbsp;PAKAI,&amp;nbsp;tidak&amp;nbsp;terenkripsi&amp;nbsp;DUKPT.&lt;br&gt;Enkripsi&amp;nbsp;hs_qr_string_enc&amp;nbsp;di&amp;nbsp;app&amp;nbsp;lama&amp;nbsp;ada&amp;nbsp;karena&amp;nbsp;QR&amp;nbsp;dibuat&amp;nbsp;di&lt;br&gt;host&amp;nbsp;tanpa&amp;nbsp;kanal&amp;nbsp;ter-otentikasi.&amp;nbsp;Sekarang&amp;nbsp;seluruh&amp;nbsp;response&amp;nbsp;sudah&lt;br&gt;lewat&amp;nbsp;kanal&amp;nbsp;yang&amp;nbsp;ditandatangani,&amp;nbsp;jadi&amp;nbsp;lapisan&amp;nbsp;itu&amp;nbsp;redundan." style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="800" y="300" width="500" height="282" as="geometry" />
+        </mxCell>
+        <mxCell id="n20" value="MQTT&amp;nbsp;—&amp;nbsp;satu&amp;nbsp;topic,&amp;nbsp;dua&amp;nbsp;jenis&amp;nbsp;pesan&lt;br&gt;----------------------------------&lt;br&gt;topic:&amp;nbsp;&amp;nbsp;cashup/edc/{tid}/events&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;satu&amp;nbsp;topic,&amp;nbsp;dua&amp;nbsp;jenis&amp;nbsp;pesan&lt;br&gt;&lt;br&gt;//&amp;nbsp;1&amp;nbsp;-&amp;nbsp;status&amp;nbsp;pembayaran&amp;nbsp;(menggantikan&amp;nbsp;payment/{userDevice}&amp;nbsp;lama)&lt;br&gt;{&amp;nbsp;&quot;eventType&quot;:&amp;nbsp;&quot;PAYMENT_STATUS&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;paymentId&quot;:&amp;nbsp;&quot;pay_01J8Z3K...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;status&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;APPROVED&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;occurredAt&quot;:&amp;nbsp;&quot;2026-09-15T10:22:39.101+07:00&quot;&amp;nbsp;}&lt;br&gt;&lt;br&gt;//&amp;nbsp;2&amp;nbsp;-&amp;nbsp;config&amp;nbsp;merchant&amp;nbsp;berubah&amp;nbsp;(menggantikan&amp;nbsp;get_app_config&amp;nbsp;saat&amp;nbsp;start)&lt;br&gt;{&amp;nbsp;&quot;eventType&quot;:&amp;nbsp;&quot;CONFIG_CHANGED&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;configVersion&quot;:&amp;nbsp;8,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;occurredAt&quot;:&amp;nbsp;&quot;2026-09-15T11:03:00.000+07:00&quot;&amp;nbsp;}&lt;br&gt;&lt;br&gt;Device&amp;nbsp;menerima&amp;nbsp;CONFIG_CHANGED&amp;nbsp;-&amp;gt;&amp;nbsp;panggil&amp;nbsp;POST&amp;nbsp;/v1/provisioning/refresh." style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="800" y="640" width="500" height="240" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-7" name="7 · J6 QRIS Static">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="&lt;b&gt;J6 — Standalone Sale (QRIS Static)&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="900" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" value="&quot;Static&quot; = tanpa amount ter-embed, BUKAN QR yang dipakai berulang · tetap generate ulang tiap sesi" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="900" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" value="&lt;b&gt;Sale Entry&lt;/b&gt;&lt;br&gt;pilih QRIS Static, tanpa isi nominal" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="340" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" value="&lt;b&gt;POST /v1/payments/qris&lt;/b&gt;&lt;br&gt;mode = STATIC, amount = null" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="220" width="340" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" value="&lt;b&gt;QRIS Generate (Static)&lt;/b&gt;&lt;br&gt;customer isi nominal di e-wallet" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="310" width="340" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n6" value="&lt;b&gt;Tunggu status&lt;/b&gt;&lt;br&gt;MQTT push (utama) + poll fallback" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="400" width="340" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n7" value="&lt;b&gt;QRIS Payment Result&lt;/b&gt;&lt;br&gt;tampilkan amount yang BENAR-BENAR dibayar" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="490" width="340" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n3" target="n4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n4" target="n5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n5" target="n6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n6" target="n7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n12" value="&lt;b&gt;Unattended payment&lt;/b&gt;&lt;br&gt;push datang saat tidak ada QR di layar&lt;br&gt;→ tetap diproses &amp; masuk history" style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=#ffffff;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="460" y="320" width="300" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="tanpa sesi aktif" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n6" target="n12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n14" value="&lt;b&gt;Perbaikan atas spec §9 item 5 — race condition hilang&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;App lama:&lt;/b&gt; status dicek dengan &quot;ambil transaksi TERAKHIR milik merchant&quot;, lalu device mencocokkan sendiri by invoice/id/timestamp. Kalau dua device di merchant yang sama menampilkan QRIS Static berdekatan waktu, device bisa mengklaim pembayaran milik device lain.&lt;br&gt;&lt;br&gt;&lt;b&gt;Kontrak baru:&lt;/b&gt; &lt;code&gt;GET /v1/payments/{paymentId}&lt;/code&gt; — session-scoped by construction. Device tidak pernah perlu menebak transaksi mana miliknya, karena ia menanyakan paymentId yang ia terima sendiri saat generate.&lt;br&gt;&lt;br&gt;Ini bukan tambalan; jalur yang memungkinkan bug itu tidak ada lagi." style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=#ffffff;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="800" y="130" width="520" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="n15" value="POST&amp;nbsp;/v1/payments/qris&amp;nbsp;&amp;nbsp;(STATIC)&amp;nbsp;&amp;nbsp;—&amp;nbsp;request&amp;nbsp;&amp;amp;&amp;nbsp;response&lt;br&gt;------------------------------------------------------&lt;br&gt;REQ&amp;nbsp;&amp;nbsp;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;merchantRefId&quot;:&amp;nbsp;&quot;c72f1a88-...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;amount&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;null,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;static&amp;nbsp;=&amp;nbsp;tanpa&amp;nbsp;amount&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;mode&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;STATIC&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;wallet&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;QRIS&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;metadata&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{}&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;}&lt;br&gt;&lt;br&gt;RESP&amp;nbsp;data&amp;nbsp;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;paymentId&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;pay_01J8Z4M...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;invoiceNumber&quot;:&amp;nbsp;&quot;000125&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;status&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;PENDING&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;instrument&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;QRIS_STATIC&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;amount&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;null,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;belum&amp;nbsp;diketahui&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;qris&quot;:&amp;nbsp;{&amp;nbsp;&quot;qrPayload&quot;:&amp;nbsp;&quot;00020101021126...&quot;&amp;nbsp;}&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;}&lt;br&gt;&lt;br&gt;Setelah&amp;nbsp;dibayar,&amp;nbsp;GET&amp;nbsp;/v1/payments/{id}&amp;nbsp;mengembalikan:&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;status&quot;:&amp;nbsp;&quot;APPROVED&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;amount&quot;:&amp;nbsp;87500,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;nominal&amp;nbsp;pilihan&amp;nbsp;customer&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;qris&quot;:&amp;nbsp;{&amp;nbsp;&quot;customerName&quot;:&amp;nbsp;&quot;B***&amp;nbsp;S***&quot;,&amp;nbsp;&quot;wallet&quot;:&amp;nbsp;&quot;GOPAY&quot;&amp;nbsp;}" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="800" y="380" width="520" height="338" as="geometry" />
+        </mxCell>
+        <mxCell id="n16" value="&lt;b&gt;Aturan dedupe yang dipertahankan dari app lama&lt;/b&gt;&lt;br&gt;Push MQTT untuk QRIS Static &lt;b&gt;tidak&lt;/b&gt; digating oleh ada/tidaknya sesi aktif. Dedupe hanya berdasarkan &lt;code&gt;paymentId&lt;/code&gt; yang sudah diproses. Pembayaran yang masuk saat device idle tetap dicatat dan muncul di history sebagai unattended — tidak dibuang diam-diam." style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=#ffffff;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="60" y="460" width="340" height="150" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-8" name="8 · J7 App-to-App &amp; J8 ECR Bridge">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="&lt;b&gt;J7 — App-to-App / Deeplink · J8 — ECR/POSH Bridge&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="900" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" value="Keduanya melewati Home &amp; Sale Entry · idempotency dijamin backend, bukan dicek device lebih dulu" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="900" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" value="&lt;b&gt;Intent / deeplink masuk&lt;/b&gt;&lt;br&gt;cashlez://pay?amount=&amp;type=&amp;callback=" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="340" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" value="&lt;b&gt;App-to-App Router&lt;/b&gt;&lt;br&gt;validasi device terprovisioning" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="211" width="340" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" value="&lt;b&gt;Langsung ke Processing / Generate&lt;/b&gt;&lt;br&gt;skip Home &amp; Sale Entry" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="292" width="340" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n6" value="&lt;b&gt;POST /v1/payments/{card|qris}&lt;/b&gt;&lt;br&gt;merchantRefId = id milik pemanggil" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="373" width="340" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n7" value="&lt;b&gt;Result + countdown auto-return&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="454" width="340" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n8" value="&lt;b&gt;Callback ke app pemanggil&lt;/b&gt;&lt;br&gt;status, tipe, data transaksi" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="535" width="340" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n3" target="n4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n4" target="n5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n5" target="n6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n6" target="n7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n7" target="n8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n14" value="&lt;b&gt;Tolak — callback error langsung&lt;/b&gt;&lt;br&gt;DEVICE_NOT_PROVISIONED" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="460" y="215" width="300" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" value="belum terprovisioning" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="n4" target="n14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n16" value="&lt;b&gt;Controller ECR/POSH trigger&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="520" width="340" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n17" value="&lt;b&gt;Proses sama seperti J7&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="601" width="340" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n18" value="&lt;b&gt;bridge-api push status&lt;/b&gt;&lt;br&gt;tiap perubahan state signifikan" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="682" width="340" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n19" value="&lt;b&gt;Tunggu acknowledge&lt;/b&gt;" style="rhombus;whiteSpace=wrap;html=1;fontSize=11;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="60" y="763" width="340" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n16" target="n17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n17" target="n18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n18" target="n19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n23" value="Idempotency&amp;nbsp;—&amp;nbsp;jaminan&amp;nbsp;pindah&amp;nbsp;ke&amp;nbsp;backend&lt;br&gt;---------------------------------------&lt;br&gt;App&amp;nbsp;lama&amp;nbsp;(device&amp;nbsp;yang&amp;nbsp;menanggung):&lt;br&gt;&amp;nbsp;&amp;nbsp;1.&amp;nbsp;device&amp;nbsp;cek&amp;nbsp;dulu:&amp;nbsp;adakah&amp;nbsp;transaksi&amp;nbsp;dgn&amp;nbsp;merchant_trx_id&amp;nbsp;ini?&lt;br&gt;&amp;nbsp;&amp;nbsp;2.&amp;nbsp;kalau&amp;nbsp;tidak&amp;nbsp;ada&amp;nbsp;-&amp;gt;&amp;nbsp;baru&amp;nbsp;generate&lt;br&gt;&amp;nbsp;&amp;nbsp;=&amp;gt;&amp;nbsp;dua&amp;nbsp;round-trip,&amp;nbsp;dan&amp;nbsp;tetap&amp;nbsp;ada&amp;nbsp;celah&amp;nbsp;balapan&amp;nbsp;di&amp;nbsp;antaranya&lt;br&gt;&lt;br&gt;Kontrak&amp;nbsp;baru&amp;nbsp;(backend&amp;nbsp;yang&amp;nbsp;menjamin):&lt;br&gt;&amp;nbsp;&amp;nbsp;POST&amp;nbsp;/v1/payments/card&amp;nbsp;&amp;nbsp;{&amp;nbsp;&quot;merchantRefId&quot;:&amp;nbsp;&quot;8f2a...&quot;&amp;nbsp;}&lt;br&gt;&lt;br&gt;&amp;nbsp;&amp;nbsp;Backend&amp;nbsp;memperlakukan&amp;nbsp;(deviceId,&amp;nbsp;merchantRefId)&amp;nbsp;sebagai&amp;nbsp;UNIK.&lt;br&gt;&amp;nbsp;&amp;nbsp;Request&amp;nbsp;kedua&amp;nbsp;dengan&amp;nbsp;pasangan&amp;nbsp;yang&amp;nbsp;sama&amp;nbsp;TIDAK&amp;nbsp;membuat&amp;nbsp;transaksi&lt;br&gt;&amp;nbsp;&amp;nbsp;baru&amp;nbsp;-&amp;nbsp;ia&amp;nbsp;mengembalikan&amp;nbsp;transaksi&amp;nbsp;yang&amp;nbsp;sudah&amp;nbsp;ada:&lt;br&gt;&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;HTTP&amp;nbsp;200&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{&amp;nbsp;&quot;status&quot;:&quot;SUCCESS&quot;,&amp;nbsp;&quot;code&quot;:&quot;OK&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;data&quot;:&amp;nbsp;{&amp;nbsp;...transaksi&amp;nbsp;ASLI,&amp;nbsp;bukan&amp;nbsp;yang&amp;nbsp;baru...&amp;nbsp;}&amp;nbsp;}&lt;br&gt;&lt;br&gt;&amp;nbsp;&amp;nbsp;=&amp;gt;&amp;nbsp;satu&amp;nbsp;round-trip,&amp;nbsp;tanpa&amp;nbsp;celah&amp;nbsp;balapan.&lt;br&gt;&lt;br&gt;Berlaku&amp;nbsp;juga&amp;nbsp;untuk&amp;nbsp;standalone:&amp;nbsp;device&amp;nbsp;membuat&amp;nbsp;merchantRefId&lt;br&gt;sendiri&amp;nbsp;SEBELUM&amp;nbsp;mengirim,&amp;nbsp;sehingga&amp;nbsp;kirim-ulang&amp;nbsp;setelah&amp;nbsp;koneksi&lt;br&gt;putus&amp;nbsp;(§7)&amp;nbsp;terbukti&amp;nbsp;aman&amp;nbsp;-&amp;nbsp;bukan&amp;nbsp;sekadar&amp;nbsp;diharapkan&amp;nbsp;aman." style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="800" y="130" width="540" height="338" as="geometry" />
+        </mxCell>
+        <mxCell id="n24" value="bridge-api&amp;nbsp;—&amp;nbsp;pesan&amp;nbsp;ke&amp;nbsp;controller&amp;nbsp;ECR&lt;br&gt;------------------------------------&lt;br&gt;POST&amp;nbsp;{controllerBaseUrl}/payment-status&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;satu&amp;nbsp;endpoint,&lt;br&gt;{&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;bukan&amp;nbsp;4&amp;nbsp;(-cdcp,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;eventType&quot;:&amp;nbsp;&amp;nbsp;&quot;PAYMENT_STATUS&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;-qris,&amp;nbsp;-va,&amp;nbsp;-bnpl)&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;paymentId&quot;:&amp;nbsp;&amp;nbsp;&quot;pay_01J8Z3K...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;instrument&quot;:&amp;nbsp;&quot;CARD&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;status&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;APPROVED&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;amount&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;150000,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;occurredAt&quot;:&amp;nbsp;&quot;2026-09-15T10:22:39+07:00&quot;&lt;br&gt;}&lt;br&gt;&lt;br&gt;POST&amp;nbsp;{controllerBaseUrl}/acknowledge&lt;br&gt;{&amp;nbsp;&quot;paymentId&quot;:&amp;nbsp;&quot;pay_01J8Z3K...&quot;,&amp;nbsp;&quot;receivedAt&quot;:&amp;nbsp;&quot;...&quot;&amp;nbsp;}" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="800" y="520" width="540" height="212" as="geometry" />
+        </mxCell>
+        <mxCell id="n25" value="&lt;b&gt;Dua lubang keamanan app lama yang TIDAK dibawa&lt;/b&gt;&lt;br&gt;Audit &lt;code&gt;bridge-api&lt;/code&gt; lama menemukan: (1) kunci &amp;amp; IV AES di-hardcode di source, (2) TLS trust-all (semua sertifikat diterima). Keduanya harus absen dari implementasi baru — dicatat di sini supaya muncul saat review, bukan ditemukan saat pentest." style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=#ffffff;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="800" y="760" width="540" height="110" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-9" name="9 · J9 Void &amp; Reversal">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="&lt;b&gt;J9 — Void · dan Reversal (teknis)&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="900" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" value="Sengaja TIDAK dilebur: void = pembatalan bisnis atas transaksi sukses, reversal = host tidak menjawab" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="900" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" value="&lt;b&gt;Transaction History&lt;/b&gt;&lt;br&gt;GET /v1/payments?from=&amp;amp;to=" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" value="&lt;b&gt;Transaction Detail&lt;/b&gt;&lt;br&gt;GET /v1/payments/{id}" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="223" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" value="&lt;b&gt;Konfirmasi Void&lt;/b&gt;" style="rhombus;whiteSpace=wrap;html=1;fontSize=11;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="60" y="306" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n6" value="&lt;b&gt;POST /v1/payments/{id}/void&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="389" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n7" value="&lt;b&gt;Result (varian void)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="472" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n3" target="n4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n4" target="n5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n5" target="n6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n6" target="n7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n12" value="&lt;b&gt;Transaksi kartu dikirim&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="460" y="140" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n13" value="&lt;b&gt;Host tidak menjawab / timeout&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="460" y="223" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n14" value="&lt;b&gt;POST /v1/payments/{id}/reversal&lt;/b&gt;&lt;br&gt;otomatis, tanpa interaksi cashier" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="460" y="306" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n15" value="&lt;b&gt;Transaksi dibatalkan di sisi host&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="460" y="389" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n12" target="n13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n13" target="n14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n14" target="n15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n19" value="POST&amp;nbsp;/v1/payments/{id}/void&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;(J9&amp;nbsp;—&amp;nbsp;bisnis)&lt;br&gt;---------------------------------------------&lt;br&gt;REQ&amp;nbsp;&amp;nbsp;{&amp;nbsp;&quot;reason&quot;:&amp;nbsp;&quot;CASHIER_REQUEST&quot;&amp;nbsp;}&lt;br&gt;&lt;br&gt;RESP&amp;nbsp;data&amp;nbsp;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;paymentId&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;pay_01J8Z3K...&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;transaksi&amp;nbsp;ASAL&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;status&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;VOIDED&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;voidPaymentId&quot;:&amp;nbsp;&quot;pay_01J8Z9Q...&quot;,&amp;nbsp;//&amp;nbsp;transaksi&amp;nbsp;void-nya&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;voidedAt&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;2026-09-15T10:41:02+07:00&quot;&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;}&lt;br&gt;&lt;br&gt;409&amp;nbsp;PAYMENT_STATE_CONFLICT&amp;nbsp;bila&amp;nbsp;sudah&amp;nbsp;ter-void&lt;br&gt;409&amp;nbsp;juga&amp;nbsp;bila&amp;nbsp;transaksi&amp;nbsp;sudah&amp;nbsp;masuk&amp;nbsp;batch&amp;nbsp;settlement" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="860" y="140" width="500" height="198" as="geometry" />
+        </mxCell>
+        <mxCell id="n20" value="POST&amp;nbsp;/v1/payments/{id}/reversal&amp;nbsp;&amp;nbsp;&amp;nbsp;(teknis)&lt;br&gt;------------------------------------------&lt;br&gt;REQ&amp;nbsp;&amp;nbsp;{&amp;nbsp;&quot;reason&quot;:&amp;nbsp;&quot;HOST_TIMEOUT&quot;&amp;nbsp;}&lt;br&gt;&lt;br&gt;RESP&amp;nbsp;data&amp;nbsp;{&amp;nbsp;&quot;paymentId&quot;:&amp;nbsp;&quot;...&quot;,&amp;nbsp;&quot;status&quot;:&amp;nbsp;&quot;REVERSED&quot;&amp;nbsp;}&lt;br&gt;&lt;br&gt;Dipicu&amp;nbsp;device&amp;nbsp;secara&amp;nbsp;otomatis,&amp;nbsp;tidak&amp;nbsp;pernah&amp;nbsp;oleh&amp;nbsp;cashier." style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="860" y="420" width="500" height="114" as="geometry" />
+        </mxCell>
+        <mxCell id="n21" value="&lt;b&gt;Kenapa void dan reversal tidak dilebur&lt;/b&gt;&lt;br&gt;&lt;br&gt;Keduanya &quot;membatalkan transaksi&quot;, tapi artinya berbeda saat rekonsiliasi:&lt;br&gt;&lt;br&gt;&lt;b&gt;Void&lt;/b&gt; — transaksi benar-benar terjadi, lalu dibatalkan atas permintaan. Muncul di laporan sebagai sale + void.&lt;br&gt;&lt;br&gt;&lt;b&gt;Reversal&lt;/b&gt; — device tidak pernah tahu apakah transaksi jadi atau tidak, karena host diam. Ini pernyataan &quot;anggap tidak pernah terjadi&quot;.&lt;br&gt;&lt;br&gt;Meleburnya akan membuat laporan settlement tidak bisa membedakan pembatalan yang disengaja dari kegagalan komunikasi." style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=#ffffff;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="860" y="560" width="500" height="220" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-10" name="10 · J11 Settlement &amp; J12 History/Reprint">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="&lt;b&gt;J11 — Settlement · J12 — Reprint / Lookup Histori&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="900" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" value="6 endpoint history + 5 endpoint receipt di app lama → masing-masing jadi 1" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="900" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" value="&lt;b&gt;Home&lt;/b&gt; → Settlement" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" value="&lt;b&gt;POST /v1/settlements&lt;/b&gt;&lt;br&gt;batch untuk terminal ini" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="225" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" value="&lt;b&gt;Settlement Result&lt;/b&gt;&lt;br&gt;total trx, total amount, batch number" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="310" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n6" value="&lt;b&gt;GET /v1/settlements/{id}/receipt&lt;/b&gt; → Print" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="60" y="395" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n3" target="n4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n4" target="n5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n5" target="n6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n10" value="&lt;b&gt;Home&lt;/b&gt; → Transaction History" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="460" y="140" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n11" value="&lt;b&gt;GET /v1/payments?from=&amp;amp;to=&amp;amp;status=&lt;/b&gt;&lt;br&gt;live-query, tanpa cache lokal" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="460" y="225" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n12" value="&lt;b&gt;Transaction Detail&lt;/b&gt;&lt;br&gt;GET /v1/payments/{id}" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="460" y="310" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n13" value="&lt;b&gt;GET /v1/payments/{id}/receipt&lt;/b&gt; → Reprint" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="460" y="395" width="330" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n10" target="n11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n11" target="n12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#555555;" edge="1" parent="1" source="n12" target="n13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n17" value="GET&amp;nbsp;/v1/payments&amp;nbsp;&amp;nbsp;—&amp;nbsp;satu&amp;nbsp;endpoint&amp;nbsp;menggantikan&amp;nbsp;enam&lt;br&gt;---------------------------------------------------&lt;br&gt;GET&amp;nbsp;/v1/payments?from=2026-09-01&amp;amp;to=2026-09-15&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;amp;status=APPROVED&amp;amp;instrument=CARD&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;amp;settlementId=stl_01J8&amp;amp;limit=50&amp;amp;cursor=...&lt;br&gt;&lt;br&gt;Menggantikan:&lt;br&gt;&amp;nbsp;&amp;nbsp;additional_service/get_all_success_sale_list&lt;br&gt;&amp;nbsp;&amp;nbsp;additional_service/get_all_success_void_list&lt;br&gt;&amp;nbsp;&amp;nbsp;trx_history/get_all_success_payment_list&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;(x5&amp;nbsp;modul)&lt;br&gt;&amp;nbsp;&amp;nbsp;trx_history/get_all_pending_payment_list&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;(x4&amp;nbsp;modul)&lt;br&gt;&amp;nbsp;&amp;nbsp;trx_history/get_all_refund_list&lt;br&gt;&amp;nbsp;&amp;nbsp;trx_history/get_last_trx_data&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;(x5&amp;nbsp;modul)&lt;br&gt;&lt;br&gt;RESP&amp;nbsp;data&amp;nbsp;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;items&quot;:&amp;nbsp;[&amp;nbsp;{&amp;nbsp;...resource&amp;nbsp;Payment...&amp;nbsp;}&amp;nbsp;],&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;nextCursor&quot;:&amp;nbsp;&quot;eyJvZmZzZXQiOjUwfQ&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&quot;totalCount&quot;:&amp;nbsp;137&lt;br&gt;}&lt;br&gt;&lt;br&gt;Rekonsiliasi&amp;nbsp;saat&amp;nbsp;launch&amp;nbsp;(§7)&amp;nbsp;tidak&amp;nbsp;butuh&amp;nbsp;endpoint&amp;nbsp;sendiri:&lt;br&gt;&amp;nbsp;&amp;nbsp;GET&amp;nbsp;/v1/payments?status=PENDING" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="860" y="140" width="520" height="324" as="geometry" />
+        </mxCell>
+        <mxCell id="n18" value="Settlement&lt;br&gt;----------&lt;br&gt;POST&amp;nbsp;/v1/settlements&lt;br&gt;REQ&amp;nbsp;&amp;nbsp;{}&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;//&amp;nbsp;terminal&amp;nbsp;sudah&amp;nbsp;diketahui&amp;nbsp;dari&amp;nbsp;X-Key-Id&lt;br&gt;RESP&amp;nbsp;data&amp;nbsp;{&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;settlementId&quot;:&amp;nbsp;&amp;nbsp;&quot;stl_01J8Z9...&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;batchNumber&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;000012&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;totalCount&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;37,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;totalAmount&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;4875000,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;settledAt&quot;:&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;2026-09-15T21:00:04+07:00&quot;,&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;breakdown&quot;:&amp;nbsp;[&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{&amp;nbsp;&quot;instrument&quot;:&quot;CARD&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;count&quot;:21,&amp;nbsp;&quot;amount&quot;:3120000&amp;nbsp;},&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{&amp;nbsp;&quot;instrument&quot;:&quot;QRIS_DYNAMIC&quot;,&amp;nbsp;&amp;nbsp;&quot;count&quot;:14,&amp;nbsp;&quot;amount&quot;:1655000&amp;nbsp;},&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{&amp;nbsp;&quot;instrument&quot;:&quot;QRIS_STATIC&quot;,&amp;nbsp;&amp;nbsp;&amp;nbsp;&quot;count&quot;:&amp;nbsp;2,&amp;nbsp;&quot;amount&quot;:&amp;nbsp;100000&amp;nbsp;}&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;]&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;}&lt;br&gt;&lt;br&gt;GET&amp;nbsp;/v1/settlements?from=&amp;amp;to=&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;-&amp;gt;&amp;nbsp;daftar&amp;nbsp;batch&lt;br&gt;GET&amp;nbsp;/v1/settlements/{id}&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;-&amp;gt;&amp;nbsp;detail&amp;nbsp;+&amp;nbsp;ringkasan&lt;br&gt;GET&amp;nbsp;/v1/settlements/{id}/receipt&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;-&amp;gt;&amp;nbsp;struk&amp;nbsp;batch&lt;br&gt;GET&amp;nbsp;/v1/payments?settlementId={id}&amp;nbsp;&amp;nbsp;&amp;nbsp;-&amp;gt;&amp;nbsp;transaksi&amp;nbsp;dalam&amp;nbsp;batch" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="860" y="520" width="520" height="310" as="geometry" />
+        </mxCell>
+        <mxCell id="n19" value="&lt;b&gt;5 endpoint receipt → 1&lt;/b&gt;&lt;br&gt;&lt;code&gt;sale/print_receipt&lt;/code&gt;, &lt;code&gt;void/print_receipt&lt;/code&gt;, &lt;code&gt;settlement/print_receipt&lt;/code&gt;, &lt;code&gt;reprint_trx_receipt_after_settlement&lt;/code&gt;, &lt;code&gt;reprint_last_settlement&lt;/code&gt;&lt;br&gt;&lt;br&gt;→ &lt;code&gt;GET /v1/payments/{id}/receipt&lt;/code&gt; dan &lt;code&gt;GET /v1/settlements/{id}/receipt&lt;/code&gt;.&lt;br&gt;&quot;Reprint&quot; bukan operasi terpisah — mengambil struk transaksi yang sudah lewat identik dengan mengambil struk transaksi baru." style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=#ffffff;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="60" y="420" width="730" height="130" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-11" name="11 · Kontrak API — 16 Endpoint">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n1" value="&lt;b&gt;Kontrak v1 — 16 endpoint menggantikan 43&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="900" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" value="150 endpoint di app lama → 91 hilang karena penyempitan scope (spec §12) → 43 relevan → 16 setelah normalisasi" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="900" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" value="Provisioning&amp;nbsp;&amp;nbsp;(3,&amp;nbsp;sesuai&amp;nbsp;spec&amp;nbsp;2026-09-16-provisioning-design.md&amp;nbsp;§3)&lt;br&gt;----------------------------------------------------------&lt;br&gt;POST&amp;nbsp;v1/terminal-key-provisioning/qr-redeem&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;TANPA&amp;nbsp;signature&lt;br&gt;POST&amp;nbsp;v1/terminal-key-provisioning/orders/{orderId}/package&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;signed&lt;br&gt;POST&amp;nbsp;v1/terminal-key-provisioning/orders/{orderId}/activate&amp;nbsp;&amp;nbsp;&amp;nbsp;signed&lt;br&gt;&lt;br&gt;Tidak&amp;nbsp;ada&amp;nbsp;login&amp;nbsp;teknisi&amp;nbsp;/&amp;nbsp;temp&amp;nbsp;JWT&amp;nbsp;-&amp;nbsp;otorisasi&amp;nbsp;dari&amp;nbsp;challengeCode&amp;nbsp;QR.&lt;br&gt;J2&amp;nbsp;Re-Provisioning&amp;nbsp;&amp;amp;&amp;nbsp;J3&amp;nbsp;Deactivation:&amp;nbsp;endpoint&amp;nbsp;BELUM&amp;nbsp;ADA&amp;nbsp;(spec&amp;nbsp;§10)." style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="600" height="128" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" value="Payment&amp;nbsp;&amp;nbsp;(7)&lt;br&gt;------------&lt;br&gt;POST&amp;nbsp;/v1/payments/card&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;sale&amp;nbsp;+&amp;nbsp;installment&lt;br&gt;POST&amp;nbsp;/v1/payments/qris&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;dynamic&amp;nbsp;+&amp;nbsp;static&lt;br&gt;GET&amp;nbsp;&amp;nbsp;/v1/payments/{id}&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;status&amp;nbsp;-&amp;nbsp;SESSION-SCOPED&amp;nbsp;(§9&amp;nbsp;item&amp;nbsp;5)&lt;br&gt;GET&amp;nbsp;&amp;nbsp;/v1/payments&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;history&amp;nbsp;+&amp;nbsp;reconciliation&amp;nbsp;(§9&amp;nbsp;item&amp;nbsp;6)&lt;br&gt;POST&amp;nbsp;/v1/payments/{id}/void&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;pembatalan&amp;nbsp;bisnis&lt;br&gt;POST&amp;nbsp;/v1/payments/{id}/reversal&amp;nbsp;&amp;nbsp;&amp;nbsp;host&amp;nbsp;tidak&amp;nbsp;menjawab&lt;br&gt;POST&amp;nbsp;/v1/payments/{id}/cancel&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;batalkan&amp;nbsp;sesi&amp;nbsp;QR&amp;nbsp;yang&amp;nbsp;belum&amp;nbsp;dibayar&lt;br&gt;GET&amp;nbsp;&amp;nbsp;/v1/payments/{id}/receipt&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;struk&amp;nbsp;(termasuk&amp;nbsp;reprint)" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="60" y="290" width="600" height="156" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" value="Settlement&amp;nbsp;&amp;nbsp;(4)&lt;br&gt;---------------&lt;br&gt;POST&amp;nbsp;/v1/settlements&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;jalankan&amp;nbsp;batch&lt;br&gt;GET&amp;nbsp;&amp;nbsp;/v1/settlements&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;daftar&amp;nbsp;batch&lt;br&gt;GET&amp;nbsp;&amp;nbsp;/v1/settlements/{id}&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;detail&amp;nbsp;batch&lt;br&gt;GET&amp;nbsp;&amp;nbsp;/v1/settlements/{id}/receipt&amp;nbsp;struk&amp;nbsp;batch" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="60" y="500" width="600" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="n6" value="Kode&amp;nbsp;error&amp;nbsp;&amp;amp;&amp;nbsp;pemetaannya&amp;nbsp;ke&amp;nbsp;ApiResult&lt;br&gt;-------------------------------------&lt;br&gt;HTTP&amp;nbsp;&amp;nbsp;code&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;arti&amp;nbsp;/&amp;nbsp;tindakan&amp;nbsp;device&lt;br&gt;----&amp;nbsp;&amp;nbsp;----------------------&amp;nbsp;&amp;nbsp;----------------------------------&lt;br&gt;400&amp;nbsp;&amp;nbsp;&amp;nbsp;VALIDATION_ERROR&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;bug&amp;nbsp;wiring&amp;nbsp;-&amp;nbsp;jangan&amp;nbsp;retry&lt;br&gt;401&amp;nbsp;&amp;nbsp;&amp;nbsp;SIGNATURE_INVALID&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;cek&amp;nbsp;clock&amp;nbsp;skew,&amp;nbsp;retry&amp;nbsp;backoff&lt;br&gt;401&amp;nbsp;&amp;nbsp;&amp;nbsp;DEVICE_NOT_PROVISIONED&amp;nbsp;&amp;nbsp;paksa&amp;nbsp;ke&amp;nbsp;alur&amp;nbsp;provisioning&lt;br&gt;403&amp;nbsp;&amp;nbsp;&amp;nbsp;DEVICE_REVOKED&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;hapus&amp;nbsp;key+config,&amp;nbsp;ke&amp;nbsp;Login&amp;nbsp;Teknisi&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;lt;-&amp;nbsp;§7&amp;nbsp;(a)&lt;br&gt;404&amp;nbsp;&amp;nbsp;&amp;nbsp;PAYMENT_NOT_FOUND&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;-&lt;br&gt;409&amp;nbsp;&amp;nbsp;&amp;nbsp;PAYMENT_STATE_CONFLICT&amp;nbsp;&amp;nbsp;mis.&amp;nbsp;void&amp;nbsp;transaksi&amp;nbsp;yang&amp;nbsp;sudah&amp;nbsp;void&lt;br&gt;422&amp;nbsp;&amp;nbsp;&amp;nbsp;UNSUPPORTED_METHOD&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;metode&amp;nbsp;tidak&amp;nbsp;aktif&amp;nbsp;di&amp;nbsp;config&amp;nbsp;terminal&lt;br&gt;429&amp;nbsp;&amp;nbsp;&amp;nbsp;RATE_LIMITED&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;retry&amp;nbsp;dengan&amp;nbsp;backoff&lt;br&gt;503&amp;nbsp;&amp;nbsp;&amp;nbsp;ACQUIRER_UNAVAILABLE&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;transient&amp;nbsp;-&amp;nbsp;retry&amp;nbsp;backoff&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;lt;-&amp;nbsp;§7&amp;nbsp;(b)&lt;br&gt;&lt;br&gt;PENTING:&amp;nbsp;kartu&amp;nbsp;DITOLAK&amp;nbsp;bukan&amp;nbsp;error&amp;nbsp;HTTP.&lt;br&gt;&amp;nbsp;&amp;nbsp;Itu&amp;nbsp;interaksi&amp;nbsp;API&amp;nbsp;yang&amp;nbsp;sukses&amp;nbsp;dengan&amp;nbsp;hasil&amp;nbsp;pembayaran&amp;nbsp;negatif:&lt;br&gt;&amp;nbsp;&amp;nbsp;HTTP&amp;nbsp;200&amp;nbsp;+&amp;nbsp;data.status&amp;nbsp;=&amp;nbsp;&quot;DECLINED&quot;.&lt;br&gt;&amp;nbsp;&amp;nbsp;4xx/5xx&amp;nbsp;hanya&amp;nbsp;untuk&amp;nbsp;request&amp;nbsp;cacat,&amp;nbsp;auth&amp;nbsp;gagal,&amp;nbsp;atau&amp;nbsp;server&amp;nbsp;rusak." style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontFamily=Courier New;fontSize=10;spacingLeft=8;spacingTop=4;fillColor=#fbfbfb;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="700" y="140" width="620" height="268" as="geometry" />
+        </mxCell>
+        <mxCell id="n7" value="&lt;b&gt;Yang hilang, dan kenapa&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;91 endpoint&lt;/b&gt; — POS, Prepaid, VA, BNPL, CNP, PPOB, Cash, Promo, CashlezLink. Di luar scope EDC channel (spec §12).&lt;br&gt;&lt;br&gt;&lt;b&gt;8 ejaan &quot;get config&quot;&lt;/b&gt; → nol. Config menumpang response provisioning; perubahan disiarkan lewat MQTT.&lt;br&gt;&lt;br&gt;&lt;b&gt;2 endpoint signature pelanggan&lt;/b&gt; → dihapus, tidak dipakai lagi.&lt;br&gt;&lt;br&gt;&lt;b&gt;card_routing_check, loyalty_point_trx&lt;/b&gt; → ditunda dari v1 (spec §2).&lt;br&gt;&lt;br&gt;&lt;b&gt;is_debit_check&lt;/b&gt; → jadi field &lt;code&gt;data.card.isDebit&lt;/code&gt;.&lt;br&gt;&lt;br&gt;&lt;b&gt;6 endpoint history&lt;/b&gt; → satu GET dengan filter.&lt;br&gt;&lt;b&gt;5 endpoint receipt&lt;/b&gt; → dua GET sub-resource." style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=#ffffff;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="700" y="480" width="620" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="n8" value="&lt;b&gt;Konsekuensi untuk kode yang sudah ada&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;1. &lt;code&gt;signing-core&lt;/code&gt; kurang satu header.&lt;/b&gt; &lt;code&gt;SigningInterceptor&lt;/code&gt; mengirim X-Signature, X-Timestamp, X-Nonce — tapi tidak ada yang memberitahu backend device mana yang mengirim, sehingga kunci publik mana yang harus dipakai untuk verifikasi. Kontrak ini menambahkan &lt;b&gt;X-Key-Id&lt;/b&gt;.&lt;br&gt;&lt;br&gt;&lt;b&gt;2. &lt;code&gt;safeApiCall&lt;/code&gt; menuntut HTTP status yang jujur.&lt;/b&gt; Ia bercabang di &lt;code&gt;response.isSuccessful&lt;/code&gt;; kalau backend selalu balas 200, setiap penolakan terbaca sebagai sukses.&lt;br&gt;&lt;br&gt;&lt;b&gt;3. Uang harus &lt;code&gt;Long&lt;/code&gt;.&lt;/b&gt; App lama memakai &lt;code&gt;Int&lt;/code&gt; untuk &lt;code&gt;base_amount&lt;/code&gt; di QRIS (mentok Rp 2,1 miliar) tapi &lt;code&gt;Long&lt;/code&gt; di CDCP. Total settlement harian bisa melewati batas itu — dan yang terjadi bukan error, melainkan angka yang salah diam-diam." style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=#ffffff;strokeColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="60" y="620" width="600" height="300" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
