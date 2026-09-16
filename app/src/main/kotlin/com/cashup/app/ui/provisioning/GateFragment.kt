@@ -14,7 +14,7 @@ import com.cashup.app.R
  * jadi sementara tetap ke Scan QR; yang penting keputusannya sudah punya satu
  * tempat, bukan tersebar di beberapa layar nanti.
  */
-class GateFragment : Fragment() {
+class GateFragment : Fragment(R.layout.fragment_gate) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
