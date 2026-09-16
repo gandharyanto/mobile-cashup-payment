@@ -1,6 +1,7 @@
 package com.cashup.provisioning.data.local
 
 import android.content.Context
+import com.cashup.provisioning.domain.ProvisioningStateRepository
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 
@@ -15,7 +16,7 @@ data class ProvisioningState(
     val backings: Map<String, String>,
 )
 
-class ProvisioningStateStore(context: Context) {
+class ProvisioningStateStore(context: Context) : ProvisioningStateRepository {
 
     private val prefs by lazy { SecurePrefs.open(context.applicationContext, PREFS) }
     private val gson = Gson()
@@ -25,7 +26,7 @@ class ProvisioningStateStore(context: Context) {
      * ini — entri dibuang, bukan didiamkan, supaya pembacaan berikutnya tidak
      * mengulang error yang sama selamanya.
      */
-    fun current(): ProvisioningState? {
+    override fun current(): ProvisioningState? {
         val raw = prefs.getString(KEY, null) ?: return null
         return try {
             gson.fromJson(raw, ProvisioningState::class.java)
@@ -38,12 +39,12 @@ class ProvisioningStateStore(context: Context) {
     fun serialNumber(): String? = current()?.serialNumber
 
     @Synchronized
-    fun save(state: ProvisioningState) {
+    override fun save(state: ProvisioningState) {
         prefs.edit().putString(KEY, gson.toJson(state)).commit()
     }
 
     @Synchronized
-    fun clear() {
+    override fun clear() {
         prefs.edit().remove(KEY).commit()
     }
 

@@ -33,12 +33,12 @@ internal data class PlainKeyMaterial(val ipek: String, val ksn: String, val kcv:
  * Karena itu satu KCV yang tidak cocok membatalkan **seluruh** paket, bukan
  * hanya purpose itu — pemasangan separuh adalah keadaan yang dilarang spec §7.1.
  */
-class PackageUnwrapper(
+open class PackageUnwrapper(
     private val unwrapper: RsaUnwrapper,
     private val gson: Gson = Gson(),
 ) {
 
-    fun unwrap(wrappedPackageKeyBase64: String): List<TerminalKeyMaterial> {
+    open fun unwrap(wrappedPackageKeyBase64: String): List<TerminalKeyMaterial> {
         val wrapped = try {
             Base64.getDecoder().decode(wrappedPackageKeyBase64)
         } catch (e: IllegalArgumentException) {
