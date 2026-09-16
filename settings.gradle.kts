@@ -10,6 +10,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // AAR vendor hasil build edc-sdk. flatDir, bukan files(), karena AGP
+        // menolak dependensi berkas .aar lokal di dalam project yang sendirinya
+        // membangun AAR.
+        flatDir { dirs("$rootDir/aarlib") }
     }
 }
 rootProject.name = "mobile-cashup-payment"
