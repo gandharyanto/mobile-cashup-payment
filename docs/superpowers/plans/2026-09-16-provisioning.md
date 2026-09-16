@@ -3758,3 +3758,2334 @@ Ditulis sekarang, selagi alasannya masih segar, supaya pencabutannya tidak jadi 
 Verifikasi bahwa pencabutan itu memang murah, dilakukan sekarang, bukan nanti: jurnal masuk ke `ProvisionDeviceUseCase` lewat satu parameter dengan nilai default, dan tidak ada tipe dari package `audit/` yang muncul di tanda tangan publik module lain.
 
 ---
+
+## Task 11: `ProvisionDeviceUseCase` — ceremony lengkap, atomic
+
+Inti dari plan ini. Sepuluh langkah spec §7.1, dengan satu aturan yang tidak boleh dilanggar: **gagal di langkah mana pun mengembalikan device ke keadaan belum terprovisioning.** Tidak ada state setengah jalan, tidak ada key yang tertinggal.
+
+Tiga interface kecil diperkenalkan supaya seluruh alur ini bisa diuji di JVM tanpa Android sama sekali. Tanpa itu, satu-satunya cara menguji rollback adalah di hardware — dan rollback justru jalur yang paling jarang dijalankan sekaligus paling mahal kalau salah.
+
+**Files:**
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/domain/ProvisioningGateway.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/domain/ProvisioningKeys.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/domain/ProvisioningOutcome.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/domain/ProvisionDeviceUseCase.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/AndroidProvisioningKeys.kt`
+- Modify: `provisioning-core/src/main/kotlin/com/cashup/provisioning/data/ProvisioningRepository.kt` — implement `ProvisioningGateway`
+- Modify: `provisioning-core/src/main/kotlin/com/cashup/provisioning/data/local/ProvisioningStateStore.kt` — implement `ProvisioningStateRepository`
+- Create: `provisioning-core/src/test/kotlin/com/cashup/provisioning/domain/ProvisionDeviceUseCaseTest.kt`
+
+**Interfaces:**
+- Consumes: `ProvisioningRepository` (Task 7); `PackageUnwrapper`, `RsaUnwrapper`, `PackageIntegrityException` (Task 8); `RsaKeyInfo`, `RsaKeyLocation`, `ProvisioningState`, `ProvisioningStateStore`, `Ed25519KeyStore`, `RsaKeyStore` (Task 9); `ProvisioningJournal`, `ProvisioningStep`, `Evidence` (Task 10); `SerialNumberProvider`, `TerminalKeyInstaller`, `TerminalKeyInstallResult`, `KeyInstallOutcome`, `TerminalKeyMaterial` (Task 2).
+- Produces:
+  - `interface ProvisioningGateway` — `suspend fun redeem(QrRedeemRequest): ApiResult<QrRedeemResponse>`, `suspend fun downloadKeyPackage(KeyPackageRequest): ApiResult<KeyPackageResponse>`, `suspend fun activate(orderId: String, ActivateRequest): ApiResult<ActivateResponse>`
+  - `interface ProvisioningKeys` — `fun ensureRsaKeyPair(): RsaKeyInfo`, `fun ensureEd25519KeyPair(): String`, `fun unwrapper(): RsaUnwrapper`, `fun clearAll()`
+  - `interface ProvisioningStateRepository` — `fun current(): ProvisioningState?`, `fun save(state: ProvisioningState)`, `fun clear()`
+  - `sealed interface ProvisioningOutcome` dengan `Success(serialNumber, orderId, installed: List<KeyInstallOutcome>, journalText: String)` dan `Failure(code: String, message: String, journalText: String)`
+  - `class ProvisionDeviceUseCase(gateway, serialNumbers, keys, installer, state, unwrapperFactory, journal)` dengan `suspend operator fun invoke(rawChallengeCode: String): ProvisioningOutcome`
+  - `class AndroidProvisioningKeys(rsa: RsaKeyStore, ed25519: Ed25519KeyStore) : ProvisioningKeys`
+
+- [ ] **Step 1: Tulis interface-nya**
+
+`provisioning-core/src/main/kotlin/com/cashup/provisioning/domain/ProvisioningGateway.kt`:
+
+```kotlin
+package com.cashup.provisioning.domain
+
+import com.cashup.common.network.ApiResult
+import com.cashup.provisioning.data.remote.ActivateRequest
+import com.cashup.provisioning.data.remote.ActivateResponse
+import com.cashup.provisioning.data.remote.KeyPackageRequest
+import com.cashup.provisioning.data.remote.KeyPackageResponse
+import com.cashup.provisioning.data.remote.QrRedeemRequest
+import com.cashup.provisioning.data.remote.QrRedeemResponse
+
+/**
+ * Tiga panggilan ceremony, tanpa menyebut Retrofit.
+ *
+ * Ada supaya [ProvisionDeviceUseCase] — termasuk seluruh jalur rollback-nya —
+ * bisa diuji di JVM dengan implementasi palsu. Rollback adalah jalur yang paling
+ * jarang dijalankan sekaligus paling mahal kalau salah, jadi ia harus bisa diuji
+ * tanpa hardware.
+ */
+interface ProvisioningGateway {
+    suspend fun redeem(request: QrRedeemRequest): ApiResult<QrRedeemResponse>
+    suspend fun downloadKeyPackage(request: KeyPackageRequest): ApiResult<KeyPackageResponse>
+    suspend fun activate(orderId: String, request: ActivateRequest): ApiResult<ActivateResponse>
+}
+```
+
+`provisioning-core/src/main/kotlin/com/cashup/provisioning/domain/ProvisioningKeys.kt`:
+
+```kotlin
+package com.cashup.provisioning.domain
+
+import com.cashup.provisioning.crypto.RsaKeyInfo
+import com.cashup.provisioning.crypto.RsaUnwrapper
+import com.cashup.provisioning.data.local.ProvisioningState
+
+/**
+ * Keypair milik device, tanpa menyebut Android Keystore.
+ *
+ * [ensureRsaKeyPair] dan [ensureEd25519KeyPair] idempoten: memanggil ulang tidak
+ * membuat key baru. Itu penting karena public key yang sudah didaftarkan ke
+ * backend harus tetap milik key yang sama.
+ */
+interface ProvisioningKeys {
+    fun ensureRsaKeyPair(): RsaKeyInfo
+    /** Public key Ed25519 raw 32 byte, Base64. */
+    fun ensureEd25519KeyPair(): String
+    fun unwrapper(): RsaUnwrapper
+    fun clearAll()
+}
+
+interface ProvisioningStateRepository {
+    fun current(): ProvisioningState?
+    fun save(state: ProvisioningState)
+    fun clear()
+}
+```
+
+- [ ] **Step 2: Sambungkan implementasi yang sudah ada ke interface baru**
+
+Di `ProvisioningRepository.kt`, ubah deklarasi kelasnya:
+
+```kotlin
+class ProvisioningRepository internal constructor(
+    private val unsigned: ProvisioningApi,
+    private val signed: ProvisioningApi,
+    private val gson: Gson = Gson(),
+) : ProvisioningGateway {
+```
+
+dan tambahkan `override` pada ketiga method-nya.
+
+Di `ProvisioningStateStore.kt`, ubah deklarasi kelasnya:
+
+```kotlin
+class ProvisioningStateStore(context: Context) : ProvisioningStateRepository {
+```
+
+dan tambahkan `override` pada `current`, `save`, dan `clear`. `serialNumber()` tetap tanpa `override` — itu kemudahan lokal, bukan bagian kontrak.
+
+Buat `provisioning-core/src/main/kotlin/com/cashup/provisioning/AndroidProvisioningKeys.kt`:
+
+```kotlin
+package com.cashup.provisioning
+
+import com.cashup.provisioning.crypto.Ed25519KeyStore
+import com.cashup.provisioning.crypto.RsaKeyInfo
+import com.cashup.provisioning.crypto.RsaKeyStore
+import com.cashup.provisioning.crypto.RsaUnwrapper
+import com.cashup.provisioning.domain.ProvisioningKeys
+
+class AndroidProvisioningKeys(
+    private val rsa: RsaKeyStore,
+    private val ed25519: Ed25519KeyStore,
+) : ProvisioningKeys {
+
+    override fun ensureRsaKeyPair(): RsaKeyInfo = rsa.ensureKeyPair()
+
+    override fun ensureEd25519KeyPair(): String = ed25519.ensureKeyPair()
+
+    override fun unwrapper(): RsaUnwrapper = rsa.unwrapper()
+
+    override fun clearAll() {
+        rsa.clear()
+        ed25519.clear()
+    }
+}
+```
+
+- [ ] **Step 3: Tulis `ProvisioningOutcome.kt`**
+
+```kotlin
+package com.cashup.provisioning.domain
+
+import com.cashup.devicesdk.KeyInstallOutcome
+
+/**
+ * `journalText` di kedua cabang adalah **sementara** — bagian dari alat bantu
+ * pelaporan tahap awal, dijadwalkan dihapus bersama package `audit/` sebelum
+ * produksi. Lihat checklist di Task 10.
+ */
+sealed interface ProvisioningOutcome {
+
+    data class Success(
+        val serialNumber: String,
+        val orderId: String,
+        val installed: List<KeyInstallOutcome>,
+        val journalText: String,
+    ) : ProvisioningOutcome
+
+    /**
+     * [code] adalah `error.code` dari backend kalau kegagalannya datang dari
+     * sana, atau kode lokal (`DEVICE_UNKNOWN`, `PACKAGE_INVALID`,
+     * `KEY_INSTALL_FAILED`) kalau bukan. Selalu bercabang pada [code], tidak
+     * pernah pada [message].
+     */
+    data class Failure(
+        val code: String,
+        val message: String,
+        val journalText: String,
+    ) : ProvisioningOutcome
+}
+```
+
+- [ ] **Step 4: Tulis tes yang gagal untuk use case**
+
+`provisioning-core/src/test/kotlin/com/cashup/provisioning/domain/ProvisionDeviceUseCaseTest.kt`:
+
+```kotlin
+package com.cashup.provisioning.domain
+
+import com.cashup.common.network.ApiError
+import com.cashup.common.network.ApiResult
+import com.cashup.devicesdk.KeyBacking
+import com.cashup.devicesdk.TerminalKeyMaterial
+import com.cashup.devicesdk.fake.FakeSerialNumberProvider
+import com.cashup.devicesdk.fake.FakeTerminalKeyInstaller
+import com.cashup.provisioning.crypto.PackageIntegrityException
+import com.cashup.provisioning.crypto.PackageUnwrapper
+import com.cashup.provisioning.crypto.RsaKeyInfo
+import com.cashup.provisioning.crypto.RsaKeyLocation
+import com.cashup.provisioning.crypto.RsaUnwrapper
+import com.cashup.provisioning.data.local.ProvisioningState
+import com.cashup.provisioning.data.remote.ActivateRequest
+import com.cashup.provisioning.data.remote.ActivateResponse
+import com.cashup.provisioning.data.remote.KeyPackageRequest
+import com.cashup.provisioning.data.remote.KeyPackageResponse
+import com.cashup.provisioning.data.remote.QrRedeemRequest
+import com.cashup.provisioning.data.remote.QrRedeemResponse
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ProvisionDeviceUseCaseTest {
+
+    private class FakeGateway(
+        var redeemResult: ApiResult<QrRedeemResponse> =
+            ApiResult.Success(QrRedeemResponse("o-1", "tok-1")),
+        var packageResult: ApiResult<KeyPackageResponse> =
+            ApiResult.Success(KeyPackageResponse("o-1", "d3JhcHBlZA==")),
+        var activateResult: ApiResult<ActivateResponse> =
+            ApiResult.Success(ActivateResponse("ACTIVE")),
+    ) : ProvisioningGateway {
+        var redeemRequest: QrRedeemRequest? = null
+        var activateRequest: ActivateRequest? = null
+
+        override suspend fun redeem(request: QrRedeemRequest) =
+            redeemResult.also { redeemRequest = request }
+
+        override suspend fun downloadKeyPackage(request: KeyPackageRequest) = packageResult
+
+        override suspend fun activate(orderId: String, request: ActivateRequest) =
+            activateResult.also { activateRequest = request }
+    }
+
+    private class FakeKeys : ProvisioningKeys {
+        var clearCount = 0
+        override fun ensureRsaKeyPair() = RsaKeyInfo("rsa-spki", RsaKeyLocation.ANDROID_KEYSTORE)
+        override fun ensureEd25519KeyPair() = "eddsa-raw"
+        override fun unwrapper() = RsaUnwrapper { it }
+        override fun clearAll() { clearCount++ }
+    }
+
+    private class FakeState : ProvisioningStateRepository {
+        var saved: ProvisioningState? = null
+        var clearCount = 0
+        override fun current() = saved
+        override fun save(state: ProvisioningState) { saved = state }
+        override fun clear() { saved = null; clearCount++ }
+    }
+
+    private fun materials() = listOf(
+        TerminalKeyMaterial("PIN", ByteArray(16) { 1 }, ByteArray(10) { 2 }),
+        TerminalKeyMaterial("TRACK", ByteArray(16) { 3 }, ByteArray(10) { 4 }),
+    )
+
+    private fun useCase(
+        gateway: ProvisioningGateway = FakeGateway(),
+        keys: ProvisioningKeys = FakeKeys(),
+        state: ProvisioningStateRepository = FakeState(),
+        installer: FakeTerminalKeyInstaller = FakeTerminalKeyInstaller(),
+        serial: String? = "PAX-A920-0012938",
+        unwrap: () -> List<TerminalKeyMaterial> = ::materials,
+    ) = ProvisionDeviceUseCase(
+        gateway = gateway,
+        serialNumbers = FakeSerialNumberProvider(serial),
+        keys = keys,
+        installer = installer,
+        state = state,
+        unwrapperFactory = {
+            object : PackageUnwrapper(RsaUnwrapper { it }) {
+                override fun unwrap(wrappedPackageKeyBase64: String) = unwrap()
+            }
+        },
+    )
+
+    @Test
+    fun `a clean run installs the keys and reports where each landed`() = runTest {
+        val state = FakeState()
+        val gateway = FakeGateway()
+
+        val outcome = useCase(gateway = gateway, state = state)("ABCD-1234")
+
+        assertTrue(outcome.toString(), outcome is ProvisioningOutcome.Success)
+        val success = outcome as ProvisioningOutcome.Success
+        assertEquals("PAX-A920-0012938", success.serialNumber)
+        assertEquals("o-1", success.orderId)
+        assertEquals(
+            KeyBacking.VENDOR_SECURE_MODULE,
+            success.installed.single { it.purpose == "PIN" }.backing,
+        )
+        assertEquals("PAX-A920-0012938", state.saved?.serialNumber)
+    }
+
+    @Test
+    fun `redeem carries the serial number and both public keys`() = runTest {
+        val gateway = FakeGateway()
+
+        useCase(gateway = gateway)("ABCD-1234")
+
+        val request = gateway.redeemRequest!!
+        assertEquals("PAX-A920-0012938", request.serialNumber)
+        assertEquals("rsa-spki", request.rsaPublicKey)
+        assertEquals("eddsa-raw", request.eddsaPublicKey)
+    }
+
+    @Test
+    fun `the challenge code is normalized before it is sent`() = runTest {
+        val gateway = FakeGateway()
+
+        useCase(gateway = gateway)("  abcd-1234 ")
+
+        // Server menormalkan dengan cara yang sama, jadi input manual bertanda
+        // hubung atau berspasi tetap cocok dengan hasil scan.
+        assertEquals("abcd1234", gateway.redeemRequest!!.challengeCode)
+    }
+
+    @Test
+    fun `activate sends a KCV for every purpose that was installed`() = runTest {
+        val gateway = FakeGateway()
+
+        useCase(gateway = gateway)("ABCD-1234")
+
+        assertEquals(setOf("PIN", "TRACK"), gateway.activateRequest!!.keyCheckValues.keys)
+    }
+
+    @Test
+    fun `an unknown device never reaches the network`() = runTest {
+        val gateway = FakeGateway()
+
+        val outcome = useCase(gateway = gateway, serial = null)("ABCD-1234")
+
+        assertEquals("DEVICE_UNKNOWN", (outcome as ProvisioningOutcome.Failure).code)
+        assertNull(gateway.redeemRequest)
+    }
+
+    @Test
+    fun `a rejected challenge code keeps the backend error code`() = runTest {
+        val gateway = FakeGateway(
+            redeemResult = ApiResult.Failure(
+                ApiError("PROVISIONING_TOKEN_INVALID", "Kode QR kedaluwarsa", 410)
+            )
+        )
+
+        val outcome = useCase(gateway = gateway)("ABCD-1234")
+
+        assertEquals("PROVISIONING_TOKEN_INVALID", (outcome as ProvisioningOutcome.Failure).code)
+    }
+
+    @Test
+    fun `a failed activate wipes every key that was already installed`() = runTest {
+        val installer = FakeTerminalKeyInstaller()
+        val keys = FakeKeys()
+        val state = FakeState()
+        val gateway = FakeGateway(
+            activateResult = ApiResult.Failure(ApiError("TERMINAL_INACTIVE", "Tidak aktif", 403))
+        )
+
+        val outcome = useCase(gateway = gateway, keys = keys, state = state, installer = installer)("ABCD-1234")
+
+        // Ini inti aturan atomic: activate gagal SETELAH key terpasang, jadi
+        // rollback harus benar-benar mencabutnya -- bukan meninggalkan device
+        // dengan key yang backend tidak tahu keberadaannya.
+        assertEquals("TERMINAL_INACTIVE", (outcome as ProvisioningOutcome.Failure).code)
+        assertEquals(1, installer.wipeCount)
+        assertEquals(1, keys.clearCount)
+        assertNull(state.saved)
+    }
+
+    @Test
+    fun `a corrupted key package rolls back before anything is installed`() = runTest {
+        val installer = FakeTerminalKeyInstaller()
+        val keys = FakeKeys()
+
+        val outcome = useCase(keys = keys, installer = installer, unwrap = {
+            throw PackageIntegrityException("KCV tidak cocok untuk purpose PIN")
+        })("ABCD-1234")
+
+        assertEquals("PACKAGE_INVALID", (outcome as ProvisioningOutcome.Failure).code)
+        assertTrue(installer.installedPurposes.isEmpty())
+        assertEquals(1, installer.wipeCount)
+        assertEquals(1, keys.clearCount)
+    }
+
+    @Test
+    fun `a refused key installation rolls back and names the purpose`() = runTest {
+        val installer = FakeTerminalKeyInstaller(failOnPurpose = "TRACK")
+        val state = FakeState()
+
+        val outcome = useCase(installer = installer, state = state)("ABCD-1234")
+
+        val failure = outcome as ProvisioningOutcome.Failure
+        assertEquals("KEY_INSTALL_FAILED", failure.code)
+        assertTrue(failure.message, failure.message.contains("TRACK"))
+        assertEquals(1, installer.wipeCount)
+        assertNull(state.saved)
+    }
+
+    @Test
+    fun `the journal records every step and never leaks key bytes`() = runTest {
+        val outcome = useCase()("ABCD-1234")
+
+        val journal = (outcome as ProvisioningOutcome.Success).journalText
+        listOf("DETECT_DEVICE", "GENERATE_KEYS", "REDEEM", "DOWNLOAD_PACKAGE", "UNWRAP_PACKAGE", "INSTALL_KEYS", "ACTIVATE", "PERSIST_STATE")
+            .forEach { assertTrue("missing $it", journal.contains(it)) }
+
+        // IPEK di tes ini seluruhnya byte 0x01; kalau pernah dirender mentah,
+        // pola itu akan muncul.
+        assertTrue(journal, !journal.contains("01010101"))
+    }
+}
+```
+
+- [ ] **Step 5: Jalankan tes, pastikan gagal**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --tests "*ProvisionDeviceUseCaseTest" --no-daemon`
+Expected: FAIL — `Unresolved reference: ProvisionDeviceUseCase`.
+
+- [ ] **Step 6: Jadikan `PackageUnwrapper` bisa di-override untuk tes**
+
+Di `PackageUnwrapper.kt`, ubah deklarasi kelas dan method-nya:
+
+```kotlin
+open class PackageUnwrapper(
+    private val unwrapper: RsaUnwrapper,
+    private val gson: Gson = Gson(),
+) {
+
+    open fun unwrap(wrappedPackageKeyBase64: String): List<TerminalKeyMaterial> {
+```
+
+Sisanya tidak berubah.
+
+- [ ] **Step 7: Tulis `ProvisionDeviceUseCase.kt`**
+
+```kotlin
+package com.cashup.provisioning.domain
+
+import com.cashup.common.network.ApiResult
+import com.cashup.devicesdk.KeyInstallOutcome
+import com.cashup.devicesdk.SerialNumberProvider
+import com.cashup.devicesdk.TerminalKeyInstallResult
+import com.cashup.devicesdk.TerminalKeyInstaller
+import com.cashup.devicesdk.TerminalKeyMaterial
+import com.cashup.provisioning.audit.Evidence
+import com.cashup.provisioning.audit.ProvisioningJournal
+import com.cashup.provisioning.audit.ProvisioningStep
+import com.cashup.provisioning.crypto.PackageIntegrityException
+import com.cashup.provisioning.crypto.PackageUnwrapper
+import com.cashup.provisioning.crypto.RsaUnwrapper
+import com.cashup.provisioning.crypto.keyCheckValue
+import com.cashup.provisioning.data.local.ProvisioningState
+import com.cashup.provisioning.data.remote.ActivateRequest
+import com.cashup.provisioning.data.remote.KeyPackageRequest
+import com.cashup.provisioning.data.remote.QrRedeemRequest
+
+/**
+ * Ceremony provisioning J1, sepuluh langkah, atomic.
+ *
+ * Aturan yang mengikat seluruh kelas ini: **gagal di langkah mana pun
+ * mengembalikan device ke keadaan belum terprovisioning.** Tidak ada state
+ * setengah jalan. Kegagalan sebagian — DUKPT terpasang tapi `activate` ditolak,
+ * misalnya — akan meninggalkan terminal memegang key yang backend tidak tahu
+ * keberadaannya, dan itu baru ketahuan saat transaksi pertama ditolak host.
+ * Karena itu setiap jalur keluar yang bukan sukses melewati [rollback].
+ *
+ * Parameter [journal] **sementara** — alat bantu pelaporan tahap awal, dicabut
+ * bersama package `audit/` sebelum produksi. Ia punya nilai default supaya
+ * pencabutannya tidak menyentuh pemanggil mana pun.
+ */
+class ProvisionDeviceUseCase(
+    private val gateway: ProvisioningGateway,
+    private val serialNumbers: SerialNumberProvider,
+    private val keys: ProvisioningKeys,
+    private val installer: TerminalKeyInstaller,
+    private val state: ProvisioningStateRepository,
+    private val unwrapperFactory: (RsaUnwrapper) -> PackageUnwrapper = { PackageUnwrapper(it) },
+    private val journal: ProvisioningJournal = ProvisioningJournal(),
+) {
+
+    suspend operator fun invoke(rawChallengeCode: String): ProvisioningOutcome {
+        journal.clear()
+
+        // 1. Nomor seri. Tanpa ini backend tidak punya identitas untuk device
+        //    ini, jadi jaringan tidak perlu disentuh sama sekali.
+        journal.start(ProvisioningStep.DETECT_DEVICE)
+        val serialNumber = serialNumbers.serialNumber()
+        if (serialNumber.isNullOrBlank()) {
+            journal.failed(ProvisioningStep.DETECT_DEVICE, DEVICE_UNKNOWN)
+            return fail(DEVICE_UNKNOWN, "Perangkat tidak dikenali SDK vendor mana pun")
+        }
+        journal.ok(ProvisioningStep.DETECT_DEVICE, mapOf("serialNumber" to serialNumber))
+
+        // 2. Keypair. Idempoten: percobaan ulang setelah gagal memakai key yang
+        //    sama, sehingga public key yang didaftarkan tetap konsisten.
+        journal.start(ProvisioningStep.GENERATE_KEYS)
+        val rsa = keys.ensureRsaKeyPair()
+        val eddsaPublicKey = keys.ensureEd25519KeyPair()
+        journal.ok(
+            ProvisioningStep.GENERATE_KEYS,
+            mapOf(
+                "rsa.location" to rsa.location.name,
+                "rsa.publicKey" to Evidence.publicKey(rsa.publicKeySpkiBase64),
+                "eddsa.publicKey" to Evidence.publicKey(eddsaPublicKey),
+            ),
+        )
+
+        // 3. Kode QR. Dinormalisasi sama seperti di sisi server, supaya input
+        //    manual bertanda hubung atau berspasi tetap cocok dengan hasil scan.
+        val challengeCode = rawChallengeCode.filter(Char::isLetterOrDigit)
+        if (challengeCode.isEmpty()) {
+            journal.failed(ProvisioningStep.SCAN_QR, CHALLENGE_EMPTY)
+            return fail(CHALLENGE_EMPTY, "Kode provisioning kosong")
+        }
+        journal.ok(ProvisioningStep.SCAN_QR, mapOf("challengeCode" to Evidence.masked(challengeCode)))
+
+        // 4. Redeem. Satu-satunya panggilan yang tidak ditandatangani.
+        journal.start(ProvisioningStep.REDEEM)
+        val redeemed = when (
+            val result = gateway.redeem(
+                QrRedeemRequest(
+                    challengeCode = challengeCode,
+                    serialNumber = serialNumber,
+                    rsaPublicKey = rsa.publicKeySpkiBase64,
+                    eddsaPublicKey = eddsaPublicKey,
+                )
+            )
+        ) {
+            is ApiResult.Success -> result.data
+            is ApiResult.Failure -> {
+                journal.failed(ProvisioningStep.REDEEM, result.error.code)
+                return fail(result.error.code, result.error.message)
+            }
+        }
+        journal.ok(ProvisioningStep.REDEEM, mapOf("orderId" to redeemed.orderId))
+
+        // Mulai di sini backend sudah menerbitkan order, jadi setiap kegagalan
+        // harus melewati rollback.
+        journal.start(ProvisioningStep.DOWNLOAD_PACKAGE)
+        val keyPackage = when (
+            val result = gateway.downloadKeyPackage(
+                KeyPackageRequest(redeemed.orderId, redeemed.activationToken)
+            )
+        ) {
+            is ApiResult.Success -> result.data
+            is ApiResult.Failure -> {
+                journal.failed(ProvisioningStep.DOWNLOAD_PACKAGE, result.error.code)
+                return rollbackAndFail(result.error.code, result.error.message)
+            }
+        }
+        journal.ok(
+            ProvisioningStep.DOWNLOAD_PACKAGE,
+            mapOf("wrappedPackageKey" to Evidence.secret(keyPackage.wrappedPackageKey)),
+        )
+
+        // 6-7. Buka paket dan verifikasi KCV tiap purpose. Ini satu-satunya
+        //      kesempatan mendeteksi key rusak: setelah masuk modul vendor, IPEK
+        //      tidak bisa dibaca kembali.
+        journal.start(ProvisioningStep.UNWRAP_PACKAGE)
+        val materials: List<TerminalKeyMaterial> = try {
+            unwrapperFactory(keys.unwrapper()).unwrap(keyPackage.wrappedPackageKey)
+        } catch (e: PackageIntegrityException) {
+            journal.failed(ProvisioningStep.UNWRAP_PACKAGE, PACKAGE_INVALID)
+            return rollbackAndFail(PACKAGE_INVALID, e.message ?: "Paket key tidak sah")
+        }
+        val checkValues = materials.associate { it.purpose to keyCheckValue(it.ipek.copyOf()) }
+        journal.ok(
+            ProvisioningStep.UNWRAP_PACKAGE,
+            materials.associate { "${it.purpose}.ipek" to Evidence.secret(it.ipek) } +
+                materials.associate { "${it.purpose}.ksn" to Evidence.secret(it.ksn) },
+        )
+        journal.ok(ProvisioningStep.VERIFY_KCV, checkValues.mapKeys { "${it.key}.kcv" })
+
+        // 8. Pasang. Modul vendor dulu untuk purpose yang dinominasikan, sisanya
+        //    ke vault.
+        journal.start(ProvisioningStep.INSTALL_KEYS)
+        val installed: List<KeyInstallOutcome> = when (val result = installer.install(materials)) {
+            is TerminalKeyInstallResult.Installed -> result.outcomes
+            is TerminalKeyInstallResult.Failed -> {
+                journal.failed(ProvisioningStep.INSTALL_KEYS, KEY_INSTALL_FAILED, mapOf("purpose" to result.purpose))
+                return rollbackAndFail(
+                    KEY_INSTALL_FAILED,
+                    "Gagal memasang key untuk purpose ${result.purpose}: ${result.reason}",
+                )
+            }
+        }
+        materials.forEach { it.zeroize() }
+        journal.ok(
+            ProvisioningStep.INSTALL_KEYS,
+            installed.associate { it.purpose to it.backing.name },
+        )
+
+        // 9. Activate. Mengirim KCV sebagai bukti ke backend.
+        journal.start(ProvisioningStep.ACTIVATE)
+        val activated = when (
+            val result = gateway.activate(
+                redeemed.orderId,
+                ActivateRequest(redeemed.activationToken, checkValues),
+            )
+        ) {
+            is ApiResult.Success -> result.data
+            is ApiResult.Failure -> {
+                journal.failed(ProvisioningStep.ACTIVATE, result.error.code)
+                return rollbackAndFail(result.error.code, result.error.message)
+            }
+        }
+        journal.ok(ProvisioningStep.ACTIVATE, mapOf("status" to activated.status))
+
+        // 10. Simpan. Baru di sini device dianggap terprovisioning.
+        journal.start(ProvisioningStep.PERSIST_STATE)
+        state.save(
+            ProvisioningState(
+                serialNumber = serialNumber,
+                orderId = redeemed.orderId,
+                backings = installed.associate { it.purpose to it.backing.name },
+            )
+        )
+        journal.ok(ProvisioningStep.PERSIST_STATE)
+
+        return ProvisioningOutcome.Success(
+            serialNumber = serialNumber,
+            orderId = redeemed.orderId,
+            installed = installed,
+            journalText = journal.render(),
+        )
+    }
+
+    /**
+     * Mengembalikan device ke keadaan belum terprovisioning.
+     *
+     * Ketiganya dijalankan tanpa syarat, tanpa berhenti di kegagalan pertama:
+     * rollback separuh jalan adalah keadaan yang justru hendak dicegah.
+     */
+    private suspend fun rollback() {
+        journal.start(ProvisioningStep.ROLLBACK)
+        runCatching { installer.wipe() }
+        runCatching { keys.clearAll() }
+        runCatching { state.clear() }
+        journal.ok(ProvisioningStep.ROLLBACK)
+    }
+
+    private suspend fun rollbackAndFail(code: String, message: String): ProvisioningOutcome {
+        rollback()
+        return fail(code, message)
+    }
+
+    private fun fail(code: String, message: String) =
+        ProvisioningOutcome.Failure(code, message, journal.render())
+
+    companion object {
+        const val DEVICE_UNKNOWN = "DEVICE_UNKNOWN"
+        const val CHALLENGE_EMPTY = "CHALLENGE_EMPTY"
+        const val PACKAGE_INVALID = "PACKAGE_INVALID"
+        const val KEY_INSTALL_FAILED = "KEY_INSTALL_FAILED"
+    }
+}
+```
+
+- [ ] **Step 8: Jalankan tes, pastikan lolos**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --tests "*ProvisionDeviceUseCaseTest" --no-daemon`
+Expected: PASS, 10 tes.
+
+- [ ] **Step 9: Jalankan seluruh tes module**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --no-daemon`
+Expected: PASS, 39 tes (4 repository + 4 KCV + 5 unwrapper + 3 lokasi RSA + 7 evidence + 6 jurnal + 10 use case).
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add provisioning-core/
+git commit -m "feat(provisioning-core): add the atomic provisioning use case
+
+Ten steps, with one binding rule: a failure at any step returns the device
+to unprovisioned. A partial success -- DUKPT installed but activate
+refused, say -- would leave a terminal holding keys the backend does not
+know about, and that surfaces as the first transaction being declined by
+the host rather than as a provisioning error. Every non-success exit
+therefore goes through rollback, which runs all three cleanups
+unconditionally rather than stopping at the first failure; a half-finished
+rollback is the state it exists to prevent.
+
+Three small interfaces -- ProvisioningGateway, ProvisioningKeys,
+ProvisioningStateRepository -- let the whole flow, rollback included, run
+on the JVM with fakes. Rollback is both the least exercised path and the
+most expensive one to get wrong, so it should not need hardware to test.
+Ten tests cover the clean run and every failure point.
+
+The challenge code is normalized to letters and digits before it is sent,
+matching what the server does, so a manually typed code with hyphens or
+spaces still matches the scanned one.
+
+Key material is zeroed immediately after installation, and the journal
+only ever receives values through Evidence."
+```
+
+---
+
+## Task 12: Pemindaian QR — scanner vendor dulu, kamera sebagai cadangan
+
+> **Urutan:** task ini menaruh berkas di module `:app`, yang baru dibuat di
+> Task 13. Kerjakan **Task 13 Step 1–3 lebih dulu** (daftarkan module, tulis
+> `app/build.gradle.kts` dan manifest-nya), lalu kembali ke sini. Sisa Task 13
+> dikerjakan setelah task ini selesai.
+
+Banyak terminal EDC punya scanner hardware. Memakainya lebih murah daripada CameraX: tidak ada preview yang harus dirender, tidak ada dekoder yang jalan per frame, dan itu berarti sesuatu di device 1 GB.
+
+Cadangannya CameraX + **ZXing**, bukan ML Kit. ML Kit membawa model on-device sekitar 3–4 MB beserta pemakaian memorinya; `edc-mobile` memakainya karena berjalan di HP modern dengan `minSdk 33`, bukan di terminal yang kita tuju.
+
+**Files:**
+- Create: `device-sdk-edcsdk/src/main/kotlin/com/cashup/devicesdk/edcsdk/EdcSdkScanner.kt`
+- Create: `app/src/main/kotlin/com/cashup/app/scan/CameraQrScanner.kt`
+- Create: `app/src/main/kotlin/com/cashup/app/scan/QrScanSource.kt`
+- Create: `app/src/test/kotlin/com/cashup/app/scan/QrScanSourceTest.kt`
+
+**Interfaces:**
+- Consumes: `Scanner` (sudah ada di `device-sdk-api`, `suspend fun scanQr(timeoutMillis: Long): String?`).
+- Produces:
+  - `class EdcSdkScanner(context: Context) : Scanner` — memakai `SDKManager.getQrCodeCamera()`
+  - `class CameraQrScanner(previewView: PreviewView, lifecycleOwner: LifecycleOwner) : Scanner`
+  - `class QrScanSource(vendor: Scanner?, camera: () -> Scanner)` dengan `suspend fun scan(timeoutMillis: Long): String?`
+
+- [ ] **Step 1: Tulis `EdcSdkScanner.kt`**
+
+```kotlin
+package com.cashup.devicesdk.edcsdk
+
+import android.content.Context
+import com.cashup.devicesdk.Scanner
+import com.lib.core.SDKManager
+import com.lib.core.interfaces.QRCodeListener
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
+import kotlin.coroutines.resume
+
+/**
+ * Scanner QR hardware vendor lewat `SDKManager`.
+ *
+ * `BaseQRCodeCamera.start` meminta `Activity`, bukan `Context`, jadi activity
+ * yang sedang aktif diambil dari `SDKManager.currentActivity` — SDK melacaknya
+ * sendiri lewat `ActivityLifecycleCallbacks`.
+ *
+ * Mengembalikan `null` kalau device tidak punya scanner, atau kalau tidak ada
+ * hasil sampai [timeoutMillis] habis. Pemanggil yang memutuskan apa artinya;
+ * lihat `QrScanSource`.
+ *
+ * Kamera ditutup di setiap jalur keluar, termasuk saat coroutine dibatalkan —
+ * scanner vendor yang dibiarkan terbuka menahan kameranya dan percobaan
+ * berikutnya gagal tanpa pesan yang jelas.
+ */
+class EdcSdkScanner(context: Context) : Scanner {
+
+    private val appContext = context.applicationContext
+
+    override suspend fun scanQr(timeoutMillis: Long): String? {
+        val camera = SDKManager.qrCodeCamera ?: return null
+        val activity = SDKManager.currentActivity ?: return null
+
+        return try {
+            withTimeout(timeoutMillis) {
+                suspendCancellableCoroutine { continuation ->
+                    camera.init(appContext)
+                    camera.qrCodeListener = QRCodeListener { value ->
+                        if (continuation.isActive) continuation.resume(value)
+                    }
+                    continuation.invokeOnCancellation { runCatching { camera.close() } }
+                    camera.start(activity)
+                }
+            }
+        } catch (e: TimeoutCancellationException) {
+            null
+        } finally {
+            runCatching { camera.close() }
+        }
+    }
+}
+```
+
+- [ ] **Step 2: Tulis tes yang gagal untuk `QrScanSource`**
+
+`app/src/test/kotlin/com/cashup/app/scan/QrScanSourceTest.kt`:
+
+```kotlin
+package com.cashup.app.scan
+
+import com.cashup.devicesdk.Scanner
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class QrScanSourceTest {
+
+    private class FakeScanner(private val result: String?) : Scanner {
+        var called = false
+        override suspend fun scanQr(timeoutMillis: Long): String? {
+            called = true
+            return result
+        }
+    }
+
+    @Test
+    fun `uses the vendor scanner when it returns a code`() = runTest {
+        val vendor = FakeScanner("ABCD-1234")
+        val camera = FakeScanner("WRONG")
+
+        val result = QrScanSource(vendor) { camera }.scan(10_000)
+
+        assertEquals("ABCD-1234", result)
+        assertFalse("camera must stay off when the vendor scanner worked", camera.called)
+    }
+
+    @Test
+    fun `falls back to the camera when there is no vendor scanner`() = runTest {
+        val camera = FakeScanner("ABCD-1234")
+
+        val result = QrScanSource(vendor = null) { camera }.scan(10_000)
+
+        assertEquals("ABCD-1234", result)
+        assertTrue(camera.called)
+    }
+
+    @Test
+    fun `falls back to the camera when the vendor scanner yields nothing`() = runTest {
+        val vendor = FakeScanner(null)
+        val camera = FakeScanner("ABCD-1234")
+
+        val result = QrScanSource(vendor) { camera }.scan(10_000)
+
+        assertEquals("ABCD-1234", result)
+        assertTrue(camera.called)
+    }
+
+    @Test
+    fun `returns null when neither source produces a code`() = runTest {
+        val result = QrScanSource(FakeScanner(null)) { FakeScanner(null) }.scan(10_000)
+
+        assertNull(result)
+    }
+}
+```
+
+- [ ] **Step 3: Jalankan tes, pastikan gagal**
+
+Run: `./gradlew :app:testDebugUnitTest --tests "*QrScanSourceTest" --no-daemon`
+Expected: FAIL — module `:app` belum ada. Task 13 membuatnya; **kerjakan Task 13 Step 1–3 lebih dulu**, lalu kembali ke sini.
+
+- [ ] **Step 4: Tulis `QrScanSource.kt`**
+
+```kotlin
+package com.cashup.app.scan
+
+import com.cashup.devicesdk.Scanner
+
+/**
+ * Mencoba scanner hardware vendor dulu, jatuh ke kamera kalau perlu.
+ *
+ * Kamera dibuat lewat lambda, bukan diterima jadi, supaya CameraX tidak
+ * di-inisialisasi sama sekali di terminal yang punya scanner hardware — di
+ * device 1 GB, preview yang tidak pernah dipakai tetap memakan memori.
+ *
+ * Vendor mengembalikan `null` baik saat scanner tidak ada maupun saat waktunya
+ * habis. Keduanya diperlakukan sama: coba kamera. Teknisi yang menunggu lebih
+ * peduli pada QR-nya terbaca daripada pada alat mana yang membacanya.
+ */
+class QrScanSource(
+    private val vendor: Scanner?,
+    private val camera: () -> Scanner,
+) {
+    suspend fun scan(timeoutMillis: Long): String? =
+        vendor?.scanQr(timeoutMillis) ?: camera().scanQr(timeoutMillis)
+}
+```
+
+- [ ] **Step 5: Tulis `CameraQrScanner.kt`**
+
+```kotlin
+package com.cashup.app.scan
+
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
+import com.cashup.devicesdk.Scanner
+import com.google.zxing.BinaryBitmap
+import com.google.zxing.DecodeHintType
+import com.google.zxing.MultiFormatReader
+import com.google.zxing.PlanarYUVLuminanceSource
+import com.google.zxing.common.HybridBinarizer
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
+import java.util.concurrent.Executors
+import kotlin.coroutines.resume
+
+/**
+ * Cadangan untuk terminal tanpa scanner hardware.
+ *
+ * ZXing, bukan ML Kit: ML Kit membawa model on-device beberapa megabyte beserta
+ * pemakaian memorinya, dan target kita terminal 1 GB. QR provisioning adalah
+ * kode cetak beresolusi tinggi dari dashboard — ZXing lebih dari cukup.
+ *
+ * Analyzer dibatasi ke satu frame terakhir (`STRATEGY_KEEP_ONLY_LATEST`) supaya
+ * frame tidak menumpuk saat CPU lambat, dan setiap `ImageProxy` ditutup di
+ * `finally` — ImageProxy yang bocor akan menghentikan aliran frame sepenuhnya.
+ */
+class CameraQrScanner(
+    private val previewView: PreviewView,
+    private val lifecycleOwner: LifecycleOwner,
+) : Scanner {
+
+    override suspend fun scanQr(timeoutMillis: Long): String? {
+        val context = previewView.context
+        val executor = Executors.newSingleThreadExecutor()
+        val reader = MultiFormatReader().apply {
+            setHints(mapOf(DecodeHintType.TRY_HARDER to true))
+        }
+
+        return try {
+            withTimeout(timeoutMillis) {
+                suspendCancellableCoroutine { continuation ->
+                    val providerFuture = ProcessCameraProvider.getInstance(context)
+                    providerFuture.addListener({
+                        val provider = providerFuture.get()
+                        val preview = Preview.Builder().build().apply {
+                            setSurfaceProvider(previewView.surfaceProvider)
+                        }
+                        val analysis = ImageAnalysis.Builder()
+                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                            .build()
+                            .apply {
+                                setAnalyzer(executor) { proxy ->
+                                    val decoded = decode(proxy, reader)
+                                    if (decoded != null && continuation.isActive) {
+                                        continuation.resume(decoded)
+                                    }
+                                }
+                            }
+
+                        provider.unbindAll()
+                        provider.bindToLifecycle(
+                            lifecycleOwner,
+                            CameraSelector.DEFAULT_BACK_CAMERA,
+                            preview,
+                            analysis,
+                        )
+                        continuation.invokeOnCancellation { provider.unbindAll() }
+                    }, ContextCompat.getMainExecutor(context))
+                }
+            }
+        } catch (e: TimeoutCancellationException) {
+            null
+        } finally {
+            executor.shutdown()
+            ProcessCameraProvider.getInstance(context).get().unbindAll()
+        }
+    }
+
+    private fun decode(proxy: ImageProxy, reader: MultiFormatReader): String? = try {
+        val buffer = proxy.planes[0].buffer
+        val bytes = ByteArray(buffer.remaining()).also { buffer.get(it) }
+        val source = PlanarYUVLuminanceSource(
+            bytes, proxy.width, proxy.height, 0, 0, proxy.width, proxy.height, false,
+        )
+        reader.decodeWithState(BinaryBitmap(HybridBinarizer(source)))?.text
+    } catch (e: Exception) {
+        // Frame tanpa QR melempar NotFoundException -- itu keadaan normal, bukan
+        // kesalahan, dan terjadi puluhan kali per detik. Jangan dicatat.
+        null
+    } finally {
+        proxy.close()
+    }
+}
+```
+
+- [ ] **Step 6: Jalankan tes, pastikan lolos**
+
+Run: `./gradlew :app:testDebugUnitTest --tests "*QrScanSourceTest" --no-daemon`
+Expected: PASS, 4 tes.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add device-sdk-edcsdk/src/main/kotlin/com/cashup/devicesdk/edcsdk/EdcSdkScanner.kt app/src/main/kotlin/com/cashup/app/scan/ app/src/test/kotlin/com/cashup/app/scan/
+git commit -m "feat: scan provisioning QR with the vendor scanner, camera as fallback
+
+Most EDC terminals have a hardware scanner, and using it avoids rendering
+a preview and running a decoder per frame -- which matters on a 1 GB
+device. QrScanSource builds the camera through a lambda so CameraX is
+never initialised at all on terminals that have one.
+
+The fallback uses ZXing rather than ML Kit. ML Kit ships a multi-megabyte
+on-device model; edc-mobile can afford it because it runs on modern phones
+at minSdk 33, and these terminals are neither. A provisioning QR is a
+high-resolution printed code, which ZXing reads comfortably.
+
+Both scanners close their camera on every exit path including
+cancellation: a vendor scanner left open holds the camera and the next
+attempt fails without a clear message. The analyzer keeps only the latest
+frame and always closes its ImageProxy, since a leaked one stops the
+frame stream entirely."
+```
+
+---
+
+## Task 13: Module `app` — shell, DI, dan ViewModel
+
+Module `com.android.application` pertama di repo ini. XML Views + ViewBinding, bukan Compose — alasannya di spec §6.
+
+**Files:**
+- Create: `app/build.gradle.kts`
+- Create: `app/src/main/AndroidManifest.xml`
+- Create: `app/src/main/res/xml/network_security_config.xml`
+- Create: `app/src/main/kotlin/com/cashup/app/CashupApp.kt`
+- Create: `app/src/main/kotlin/com/cashup/app/di/AppContainer.kt`
+- Create: `app/src/main/kotlin/com/cashup/app/AppConfig.kt`
+- Create: `app/src/main/kotlin/com/cashup/app/ui/provisioning/ProvisioningUiState.kt`
+- Create: `app/src/main/kotlin/com/cashup/app/ui/provisioning/ProvisioningViewModel.kt`
+- Create: `app/src/test/kotlin/com/cashup/app/ui/provisioning/ProvisioningViewModelTest.kt`
+- Modify: `settings.gradle.kts`
+
+**Interfaces:**
+- Consumes: semua yang dihasilkan Task 2, 4, 5, 7, 9, 10, 11, 12.
+- Produces:
+  - `class AppConfig(context: Context)` dengan `var baseUrl: String`
+  - `class AppContainer(context: Context)` — wiring manual
+  - `sealed interface ProvisioningUiState` dengan `Idle`, `Scanning`, `Processing`, `Success`, `Failure`
+  - `class ProvisioningViewModel(container: AppContainer)` dengan `val state: StateFlow<ProvisioningUiState>`, `fun provision(challengeCode: String)`, `fun reset()`
+
+- [ ] **Step 1: Daftarkan module**
+
+Di `settings.gradle.kts`:
+
+```kotlin
+include(":app")
+```
+
+- [ ] **Step 2: Buat `app/build.gradle.kts`**
+
+```kotlin
+plugins {
+    id("com.android.application")
+    kotlin("android")
+}
+
+android {
+    namespace = "com.cashup.app"
+    compileSdk = (project.property("cashup.compileSdk") as String).toInt()
+
+    defaultConfig {
+        applicationId = "com.cashup.payment"
+        minSdk = (project.property("cashup.minSdk") as String).toInt()
+        targetSdk = (project.property("cashup.targetSdk") as String).toInt()
+        versionCode = 1
+        versionName = "0.1.0"
+    }
+
+    buildFeatures { viewBinding = true }
+
+    buildTypes {
+        debug {
+            // Jurnal provisioning hanya diisi di debug; lihat AppContainer.
+            buildConfigField("boolean", "PROVISIONING_JOURNAL", "true")
+        }
+        release {
+            isMinifyEnabled = false
+            buildConfigField("boolean", "PROVISIONING_JOURNAL", "false")
+        }
+    }
+    buildFeatures { buildConfig = true }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+    kotlinOptions { jvmTarget = "1.8" }
+
+    sourceSets["main"].java.srcDir("src/main/kotlin")
+    sourceSets["test"].java.srcDir("src/test/kotlin")
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = false
+            isReturnDefaultValues = true
+        }
+    }
+}
+
+dependencies {
+    implementation(project(":provisioning-core"))
+    implementation(project(":device-sdk-edcsdk"))
+
+    implementation("androidx.core:core-ktx:1.10.1")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("com.google.android.material:material:1.9.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+    implementation("androidx.navigation:navigation-fragment-ktx:2.5.3")
+    implementation("androidx.navigation:navigation-ui-ktx:2.5.3")
+
+    implementation("androidx.camera:camera-core:1.2.3")
+    implementation("androidx.camera:camera-camera2:1.2.3")
+    implementation("androidx.camera:camera-lifecycle:1.2.3")
+    implementation("androidx.camera:camera-view:1.2.3")
+    implementation("com.google.zxing:core:3.5.3")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("io.mockk:mockk:1.13.11")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+}
+```
+
+Navigation 2.5.3 dan CameraX 1.2.3, bukan versi terbaru: rilis setelahnya menuntut `compileSdk 34`, sementara kita di 33.
+
+- [ ] **Step 3: Buat manifest dan konfigurasi jaringan**
+
+`app/src/main/AndroidManifest.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <application
+        android:name=".CashupApp"
+        android:allowBackup="false"
+        android:label="Cashup Payment"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+```
+
+`app/src/main/res/xml/network_security_config.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext diizinkan HANYA untuk host pengembangan di Tailnet. Backend produksi
+  wajib HTTPS; jangan menambahkan host publik ke daftar ini.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">100.103.104.38</domain>
+    </domain-config>
+</network-security-config>
+```
+
+- [ ] **Step 4: Tulis `AppConfig.kt`**
+
+```kotlin
+package com.cashup.app
+
+import android.content.Context
+
+/**
+ * Base URL Front-facing API. Bukan rahasia — boleh di `SharedPreferences` biasa.
+ *
+ * Default menunjuk ke corepayment pengembangan di Raspberry Pi lewat Tailnet,
+ * host yang sama yang dipakai `edc-mobile`. Produksi mengarah ke Front-facing
+ * API lewat HTTPS.
+ */
+class AppConfig(context: Context) {
+
+    private val prefs = context.getSharedPreferences("app_config", Context.MODE_PRIVATE)
+
+    var baseUrl: String
+        get() = prefs.getString(KEY_BASE_URL, DEFAULT_BASE_URL) ?: DEFAULT_BASE_URL
+        set(value) = prefs.edit().putString(KEY_BASE_URL, value.trimEnd('/')).apply()
+
+    private companion object {
+        const val KEY_BASE_URL = "base_url"
+        const val DEFAULT_BASE_URL = "http://100.103.104.38:8080"
+    }
+}
+```
+
+- [ ] **Step 5: Tulis `AppContainer.kt` dan `CashupApp.kt`**
+
+`app/src/main/kotlin/com/cashup/app/di/AppContainer.kt`:
+
+```kotlin
+package com.cashup.app.di
+
+import android.content.Context
+import com.cashup.app.AppConfig
+import com.cashup.app.BuildConfig
+import com.cashup.common.logging.NoOpPaymentLogger
+import com.cashup.common.logging.PaymentLogger
+import com.cashup.devicesdk.edcsdk.EdcSdkScanner
+import com.cashup.devicesdk.edcsdk.EdcSdkSerialNumberProvider
+import com.cashup.devicesdk.edcsdk.EdcSdkTerminalKeyInstaller
+import com.cashup.provisioning.AndroidProvisioningKeys
+import com.cashup.provisioning.StoredDeviceSigner
+import com.cashup.provisioning.audit.ProvisioningJournal
+import com.cashup.provisioning.crypto.Ed25519KeyStore
+import com.cashup.provisioning.crypto.Mgf1Digest
+import com.cashup.provisioning.crypto.RsaKeyStore
+import com.cashup.provisioning.data.local.ProvisioningStateStore
+import com.cashup.provisioning.data.remote.ProvisioningHttp
+import com.cashup.provisioning.domain.ProvisionDeviceUseCase
+
+/**
+ * Wiring manual di satu tempat, tanpa framework DI.
+ *
+ * Hilt akan menambah kapt/ksp dan biaya startup demi keuntungan yang tidak
+ * terasa pada app sekecil ini, sementara targetnya terminal 1 GB (spec §6).
+ */
+class AppContainer(context: Context) {
+
+    private val appContext = context.applicationContext
+
+    val config = AppConfig(appContext)
+
+    private val logger: PaymentLogger = NoOpPaymentLogger
+
+    private val stateStore = ProvisioningStateStore(appContext)
+    private val ed25519 = Ed25519KeyStore(appContext)
+
+    /**
+     * `Mgf1Digest.SHA1` adalah asumsi sampai backend mengonfirmasi (spec §8
+     * item 1b). Ini yang menentukan apakah key RSA bisa dibuat di TEE — salah
+     * menebaknya berarti device mendaftarkan public key yang tidak akan pernah
+     * bisa membuka paketnya sendiri, jadi jangan diubah tanpa jawaban dari
+     * backend.
+     */
+    private val rsa = RsaKeyStore(appContext, requiredMgf1 = Mgf1Digest.SHA1)
+
+    val deviceSigner = StoredDeviceSigner(stateStore, ed25519)
+
+    val serialNumbers = EdcSdkSerialNumberProvider(appContext)
+
+    val vendorScanner = EdcSdkScanner(appContext)
+
+    fun isProvisioned(): Boolean = stateStore.current() != null
+
+    fun provisionDeviceUseCase(): ProvisionDeviceUseCase {
+        val repository = ProvisioningHttp.create(
+            baseUrl = config.baseUrl,
+            deviceSigner = deviceSigner,
+            debugLogging = BuildConfig.DEBUG,
+        )
+        return ProvisionDeviceUseCase(
+            gateway = repository,
+            serialNumbers = serialNumbers,
+            keys = AndroidProvisioningKeys(rsa, ed25519),
+            installer = EdcSdkTerminalKeyInstaller(appContext),
+            state = stateStore,
+            // SEMENTARA -- jurnal hanya diisi di build debug. Dicabut bersama
+            // package audit/ sebelum produksi; lihat Task 10.
+            journal = ProvisioningJournal(if (BuildConfig.PROVISIONING_JOURNAL) logger else NoOpPaymentLogger),
+        )
+    }
+}
+```
+
+`app/src/main/kotlin/com/cashup/app/CashupApp.kt`:
+
+```kotlin
+package com.cashup.app
+
+import android.app.Application
+import com.cashup.app.di.AppContainer
+
+class CashupApp : Application() {
+    lateinit var container: AppContainer
+        private set
+
+    override fun onCreate() {
+        super.onCreate()
+        container = AppContainer(this)
+    }
+}
+```
+
+- [ ] **Step 6: Tulis `ProvisioningUiState.kt`**
+
+```kotlin
+package com.cashup.app.ui.provisioning
+
+import com.cashup.devicesdk.KeyInstallOutcome
+
+/**
+ * Sealed interface, bukan satu data class dengan `isLoading`/`error`/`data`
+ * nullable sekaligus — dengan begitu kombinasi mustahil seperti "sedang memuat
+ * sekaligus gagal" tidak bisa dibentuk sama sekali.
+ *
+ * `journalText` **sementara**, dicabut bersama package `audit/` sebelum
+ * produksi (Task 10).
+ */
+sealed interface ProvisioningUiState {
+
+    data object Idle : ProvisioningUiState
+
+    data object Scanning : ProvisioningUiState
+
+    data object Processing : ProvisioningUiState
+
+    data class Success(
+        val serialNumber: String,
+        val orderId: String,
+        val installed: List<KeyInstallOutcome>,
+        val journalText: String,
+    ) : ProvisioningUiState
+
+    data class Failure(
+        val code: String,
+        val message: String,
+        val journalText: String,
+    ) : ProvisioningUiState
+}
+```
+
+- [ ] **Step 7: Tulis tes yang gagal untuk ViewModel**
+
+`app/src/test/kotlin/com/cashup/app/ui/provisioning/ProvisioningViewModelTest.kt`:
+
+```kotlin
+package com.cashup.app.ui.provisioning
+
+import com.cashup.devicesdk.KeyBacking
+import com.cashup.devicesdk.KeyInstallOutcome
+import com.cashup.provisioning.domain.ProvisioningOutcome
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class ProvisioningViewModelTest {
+
+    private val dispatcher = StandardTestDispatcher()
+
+    @Before
+    fun setUp() = Dispatchers.setMain(dispatcher)
+
+    @After
+    fun tearDown() = Dispatchers.resetMain()
+
+    private fun successOutcome() = ProvisioningOutcome.Success(
+        serialNumber = "PAX-A920-0012938",
+        orderId = "o-1",
+        installed = listOf(KeyInstallOutcome("PIN", KeyBacking.VENDOR_SECURE_MODULE)),
+        journalText = "OK REDEEM",
+    )
+
+    @Test
+    fun `starts idle`() = runTest {
+        val viewModel = ProvisioningViewModel { successOutcome() }
+
+        assertEquals(ProvisioningUiState.Idle, viewModel.state.value)
+    }
+
+    @Test
+    fun `moves through Processing to Success`() = runTest {
+        var provisioned = 0
+        val viewModel = ProvisioningViewModel { provisioned++; successOutcome() }
+
+        viewModel.provision("ABCD-1234")
+        assertEquals(ProvisioningUiState.Processing, viewModel.state.value)
+
+        advanceUntilIdle()
+        val state = viewModel.state.value
+        assertTrue(state.toString(), state is ProvisioningUiState.Success)
+        assertEquals("PAX-A920-0012938", (state as ProvisioningUiState.Success).serialNumber)
+        assertEquals(1, provisioned)
+    }
+
+    @Test
+    fun `a second call while one is running is ignored`() = runTest {
+        var provisioned = 0
+        val viewModel = ProvisioningViewModel { provisioned++; successOutcome() }
+
+        // Scanner QR mendeteksi frame yang sama berkali-kali dalam sepersekian
+        // detik. Tanpa guard ini, kode sekali-pakai ditembak dua kali: yang
+        // pertama berhasil, yang kedua ditolak -- dan penolakan itulah yang
+        // dilihat teknisi.
+        viewModel.provision("ABCD-1234")
+        viewModel.provision("ABCD-1234")
+        advanceUntilIdle()
+
+        assertEquals(1, provisioned)
+    }
+
+    @Test
+    fun `a failure surfaces the backend code`() = runTest {
+        val viewModel = ProvisioningViewModel {
+            ProvisioningOutcome.Failure("PROVISIONING_TOKEN_INVALID", "Kedaluwarsa", "FAILED REDEEM")
+        }
+
+        viewModel.provision("ABCD-1234")
+        advanceUntilIdle()
+
+        val state = viewModel.state.value as ProvisioningUiState.Failure
+        assertEquals("PROVISIONING_TOKEN_INVALID", state.code)
+    }
+
+    @Test
+    fun `reset returns to idle so the technician can retry`() = runTest {
+        val viewModel = ProvisioningViewModel {
+            ProvisioningOutcome.Failure("X", "y", "")
+        }
+
+        viewModel.provision("ABCD-1234")
+        advanceUntilIdle()
+        viewModel.reset()
+
+        assertEquals(ProvisioningUiState.Idle, viewModel.state.value)
+    }
+
+    @Test
+    fun `a retry after a failure is allowed`() = runTest {
+        var attempts = 0
+        val viewModel = ProvisioningViewModel {
+            attempts++
+            ProvisioningOutcome.Failure("X", "y", "")
+        }
+
+        viewModel.provision("ABCD-1234")
+        advanceUntilIdle()
+        viewModel.reset()
+        viewModel.provision("ABCD-1234")
+        advanceUntilIdle()
+
+        assertEquals(2, attempts)
+    }
+}
+```
+
+- [ ] **Step 8: Jalankan tes, pastikan gagal**
+
+Run: `./gradlew :app:testDebugUnitTest --tests "*ProvisioningViewModelTest" --no-daemon`
+Expected: FAIL — `Unresolved reference: ProvisioningViewModel`.
+
+- [ ] **Step 9: Tulis `ProvisioningViewModel.kt`**
+
+```kotlin
+package com.cashup.app.ui.provisioning
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.cashup.app.di.AppContainer
+import com.cashup.provisioning.domain.ProvisioningOutcome
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+/**
+ * Menerima lambda, bukan [AppContainer], supaya seluruh mesin state bisa diuji
+ * di JVM tanpa Android sama sekali. [Factory] yang menyambungkannya ke container
+ * sungguhan.
+ */
+class ProvisioningViewModel(
+    private val provisionDevice: suspend (String) -> ProvisioningOutcome,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow<ProvisioningUiState>(ProvisioningUiState.Idle)
+    val state: StateFlow<ProvisioningUiState> = _state.asStateFlow()
+
+    /**
+     * Guard re-entrancy, dan ini bukan kehati-hatian berlebih: scanner QR
+     * mendeteksi frame yang sama berkali-kali dalam sepersekian detik, sebelum
+     * hasil percobaan pertama sempat masuk state. Tanpa guard ini kode
+     * sekali-pakai ditembak dua kali — percobaan pertama **berhasil**, yang
+     * kedua ditolak karena kodenya sudah terpakai, dan penolakan itulah yang
+     * dilihat teknisi.
+     *
+     * Flag di sini, bukan `isEnabled = false` di UI: yang terakhir baru berlaku
+     * setelah render berikutnya, dan frame kedua sudah datang sebelum itu.
+     */
+    private var inFlight = false
+
+    fun provision(challengeCode: String) {
+        if (inFlight) return
+        inFlight = true
+        _state.value = ProvisioningUiState.Processing
+
+        viewModelScope.launch {
+            try {
+                _state.value = when (val outcome = provisionDevice(challengeCode)) {
+                    is ProvisioningOutcome.Success -> ProvisioningUiState.Success(
+                        serialNumber = outcome.serialNumber,
+                        orderId = outcome.orderId,
+                        installed = outcome.installed,
+                        journalText = outcome.journalText,
+                    )
+                    is ProvisioningOutcome.Failure -> ProvisioningUiState.Failure(
+                        code = outcome.code,
+                        message = outcome.message,
+                        journalText = outcome.journalText,
+                    )
+                }
+            } finally {
+                inFlight = false
+            }
+        }
+    }
+
+    fun scanning() {
+        if (!inFlight) _state.value = ProvisioningUiState.Scanning
+    }
+
+    fun reset() {
+        if (!inFlight) _state.value = ProvisioningUiState.Idle
+    }
+
+    class Factory(private val container: AppContainer) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+            ProvisioningViewModel { code -> container.provisionDeviceUseCase().invoke(code) } as T
+    }
+}
+```
+
+- [ ] **Step 10: Jalankan tes, pastikan lolos**
+
+Run: `./gradlew :app:testDebugUnitTest --tests "*ProvisioningViewModelTest" --no-daemon`
+Expected: PASS, 6 tes.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add settings.gradle.kts app/
+git commit -m "feat(app): add the application shell, manual DI and the provisioning ViewModel
+
+XML Views with ViewBinding rather than Compose: the target is 1 GB EDC
+terminals on Android 7-11, where Compose loads thousands of classes before
+first frame and its remedy, Baseline Profiles, only fully applies from API
+28. edc-mobile's Compose choice came with minSdk 33 and was never meant
+for this hardware.
+
+Dependencies are pinned below their latest releases on purpose --
+Navigation 2.5.3 and CameraX 1.2.3 are the last versions that build
+against compileSdk 33.
+
+ProvisioningViewModel takes a lambda rather than the container so the
+whole state machine runs on the JVM without Android. Its re-entrancy guard
+is a field rather than a disabled button: the QR scanner reports the same
+frame several times within a fraction of a second, and disabling a control
+only takes effect on the next render, by which point the one-shot code has
+already been redeemed twice -- the first succeeding, the second failing,
+and only the failure reaching the technician.
+
+Cleartext HTTP is permitted for the single Tailnet development host and
+nothing else."
+```
+
+
+---
+
+## Task 14: Empat layar provisioning
+
+Gate → Scan QR → Processing → Result. Layout dibuat datar dengan `ConstraintLayout` tunggal per layar; hierarki berlapis mahal di-`measure` pada GPU/CPU lemah (spec §11).
+
+**Files:**
+- Create: `app/src/main/kotlin/com/cashup/app/MainActivity.kt`
+- Create: `app/src/main/res/layout/activity_main.xml`
+- Create: `app/src/main/res/navigation/nav_provisioning.xml`
+- Create: `app/src/main/kotlin/com/cashup/app/ui/provisioning/GateFragment.kt`
+- Create: `app/src/main/kotlin/com/cashup/app/ui/provisioning/ScanQrFragment.kt` + `app/src/main/res/layout/fragment_scan_qr.xml`
+- Create: `app/src/main/kotlin/com/cashup/app/ui/provisioning/ProcessingFragment.kt` + `app/src/main/res/layout/fragment_processing.xml`
+- Create: `app/src/main/kotlin/com/cashup/app/ui/provisioning/ResultFragment.kt` + `app/src/main/res/layout/fragment_result.xml`
+- Create: `app/src/main/kotlin/com/cashup/app/ui/provisioning/ErrorHints.kt`
+- Create: `app/src/main/res/values/strings.xml`
+- Create: `app/src/test/kotlin/com/cashup/app/ui/provisioning/ErrorHintsTest.kt`
+
+**Interfaces:**
+- Consumes: `ProvisioningViewModel`, `ProvisioningUiState` (Task 13); `QrScanSource`, `CameraQrScanner` (Task 12).
+- Produces: `fun hintFor(code: String, fallback: String): Int` — id string resource untuk pesan operator.
+
+- [ ] **Step 1: Tulis tes yang gagal untuk `ErrorHints`**
+
+`app/src/test/kotlin/com/cashup/app/ui/provisioning/ErrorHintsTest.kt`:
+
+```kotlin
+package com.cashup.app.ui.provisioning
+
+import com.cashup.app.R
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class ErrorHintsTest {
+
+    @Test
+    fun `known backend codes map to their own message`() {
+        assertEquals(R.string.err_token_invalid, hintFor("PROVISIONING_TOKEN_INVALID"))
+        assertEquals(R.string.err_already_provisioned, hintFor("TERMINAL_KEY_ALREADY_PROVISIONED"))
+        assertEquals(R.string.err_not_registered, hintFor("TERMINAL_NOT_REGISTERED"))
+    }
+
+    @Test
+    fun `local failure codes map too`() {
+        assertEquals(R.string.err_device_unknown, hintFor("DEVICE_UNKNOWN"))
+        assertEquals(R.string.err_package_invalid, hintFor("PACKAGE_INVALID"))
+        assertEquals(R.string.err_key_install_failed, hintFor("KEY_INSTALL_FAILED"))
+    }
+
+    @Test
+    fun `an unknown code falls back so the backend message still reaches the technician`() {
+        // Daftar kode belum final (spec §8 item 8). Memetakan kode tak dikenal
+        // ke pesan generik akan menyembunyikan justru keterangan yang berguna.
+        assertEquals(0, hintFor("SOMETHING_NEW"))
+    }
+}
+```
+
+- [ ] **Step 2: Jalankan tes, pastikan gagal**
+
+Run: `./gradlew :app:testDebugUnitTest --tests "*ErrorHintsTest" --no-daemon`
+Expected: FAIL — `Unresolved reference: hintFor`.
+
+- [ ] **Step 3: Tulis `strings.xml` dan `ErrorHints.kt`**
+
+`app/src/main/res/values/strings.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Cashup Payment</string>
+
+    <string name="scan_title">Pindai QR Provisioning</string>
+    <string name="scan_hint">Arahkan ke kode QR dari Cashup backoffice</string>
+    <string name="scan_manual_label">Atau ketik kode provisioning</string>
+    <string name="scan_manual_action">Lanjut</string>
+
+    <string name="processing_title">Memproses provisioning…</string>
+
+    <string name="result_success_title">Provisioning berhasil</string>
+    <string name="result_failure_title">Provisioning gagal</string>
+    <string name="result_serial">Serial: %1$s</string>
+    <string name="result_order">Order: %1$s</string>
+    <string name="result_retry">Coba lagi</string>
+    <string name="result_continue">Lanjut</string>
+    <string name="result_journal_label">Log proses (khusus tahap uji coba)</string>
+
+    <string name="err_token_invalid">Kode QR tidak valid, sudah dipakai, atau kedaluwarsa. Minta QR baru dari backoffice.</string>
+    <string name="err_already_provisioned">Perangkat ini sudah pernah diprovisioning penuh.</string>
+    <string name="err_not_registered">Perangkat belum terdaftar atau tidak aktif di backend.</string>
+    <string name="err_device_unknown">Perangkat tidak dikenali SDK vendor mana pun.</string>
+    <string name="err_package_invalid">Paket key dari backend tidak lolos pemeriksaan. Tidak ada key yang dipasang.</string>
+    <string name="err_key_install_failed">Gagal memasang key ke perangkat. Semua key sudah dibersihkan.</string>
+</resources>
+```
+
+`app/src/main/kotlin/com/cashup/app/ui/provisioning/ErrorHints.kt`:
+
+```kotlin
+package com.cashup.app.ui.provisioning
+
+import androidx.annotation.StringRes
+import com.cashup.app.R
+
+/**
+ * Memetakan kode kegagalan ke pesan operator.
+ *
+ * Mengembalikan `0` untuk kode yang tidak dikenal, dan pemanggil menampilkan
+ * `message` dari backend apa adanya. Daftar kode definitif belum ada (spec §8
+ * item 8), jadi memetakan yang tak dikenal ke pesan generik justru akan
+ * menyembunyikan keterangan yang paling berguna saat itu.
+ *
+ * Selalu dipetakan dari `code`, tidak pernah dari `message` — `message`
+ * ditujukan untuk manusia dan boleh berubah kapan saja.
+ */
+@StringRes
+fun hintFor(code: String): Int = when (code) {
+    "PROVISIONING_TOKEN_INVALID" -> R.string.err_token_invalid
+    "TERMINAL_KEY_ALREADY_PROVISIONED" -> R.string.err_already_provisioned
+    "TERMINAL_NOT_REGISTERED", "TERMINAL_INACTIVE" -> R.string.err_not_registered
+    "DEVICE_UNKNOWN" -> R.string.err_device_unknown
+    "PACKAGE_INVALID" -> R.string.err_package_invalid
+    "KEY_INSTALL_FAILED" -> R.string.err_key_install_failed
+    else -> 0
+}
+```
+
+- [ ] **Step 4: Jalankan tes, pastikan lolos**
+
+Run: `./gradlew :app:testDebugUnitTest --tests "*ErrorHintsTest" --no-daemon`
+Expected: PASS, 3 tes.
+
+- [ ] **Step 5: Tulis `MainActivity` dan grafik navigasi**
+
+`app/src/main/res/layout/activity_main.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.fragment.app.FragmentContainerView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_host"
+    android:name="androidx.navigation.fragment.NavHostFragment"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    app:defaultNavHost="true"
+    app:navGraph="@navigation/nav_provisioning" />
+```
+
+`app/src/main/res/navigation/nav_provisioning.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_provisioning"
+    app:startDestination="@id/gateFragment">
+
+    <fragment
+        android:id="@+id/gateFragment"
+        android:name="com.cashup.app.ui.provisioning.GateFragment">
+        <action android:id="@+id/to_scan" app:destination="@id/scanQrFragment"
+            app:popUpTo="@id/gateFragment" app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/scanQrFragment"
+        android:name="com.cashup.app.ui.provisioning.ScanQrFragment"
+        tools:layout="@layout/fragment_scan_qr"
+        xmlns:tools="http://schemas.android.com/tools">
+        <action android:id="@+id/to_processing" app:destination="@id/processingFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/processingFragment"
+        android:name="com.cashup.app.ui.provisioning.ProcessingFragment">
+        <action android:id="@+id/to_result" app:destination="@id/resultFragment"
+            app:popUpTo="@id/scanQrFragment" app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/resultFragment"
+        android:name="com.cashup.app.ui.provisioning.ResultFragment">
+        <action android:id="@+id/to_scan" app:destination="@id/scanQrFragment"
+            app:popUpTo="@id/resultFragment" app:popUpToInclusive="true" />
+    </fragment>
+</navigation>
+```
+
+`app/src/main/kotlin/com/cashup/app/MainActivity.kt`:
+
+```kotlin
+package com.cashup.app
+
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+
+class MainActivity : AppCompatActivity(R.layout.activity_main) {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+    }
+}
+```
+
+- [ ] **Step 6: Tulis `GateFragment.kt`**
+
+```kotlin
+package com.cashup.app.ui.provisioning
+
+import android.os.Bundle
+import android.view.View
+import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
+import com.cashup.app.CashupApp
+import com.cashup.app.R
+
+/**
+ * Layar tanpa tampilan: menentukan ke mana device pergi saat dibuka.
+ *
+ * Belum terprovisioning → Scan QR. Sudah → Home. Home belum ada di plan ini,
+ * jadi sementara tetap ke Scan QR; yang penting keputusannya sudah punya satu
+ * tempat, bukan tersebar di beberapa layar nanti.
+ */
+class GateFragment : Fragment() {
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        val container = (requireActivity().application as CashupApp).container
+        if (container.isProvisioned()) {
+            // TODO(App Shell): arahkan ke Home begitu layar itu ada.
+            findNavController().navigate(R.id.to_scan)
+        } else {
+            findNavController().navigate(R.id.to_scan)
+        }
+    }
+}
+```
+
+- [ ] **Step 7: Tulis layar Scan QR**
+
+`app/src/main/res/layout/fragment_scan_qr.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/scan_title"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <androidx.camera.view.PreviewView
+        android:id="@+id/preview"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintDimensionRatio="1:1"
+        app:layout_constraintTop_toBottomOf="@id/title"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/manualLabel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/scan_manual_label"
+        app:layout_constraintTop_toBottomOf="@id/preview"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <EditText
+        android:id="@+id/manualCode"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:autofillHints=""
+        android:inputType="textCapCharacters"
+        app:layout_constraintTop_toBottomOf="@id/manualLabel"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <Button
+        android:id="@+id/manualSubmit"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/scan_manual_action"
+        app:layout_constraintTop_toBottomOf="@id/manualCode"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+```
+
+`app/src/main/kotlin/com/cashup/app/ui/provisioning/ScanQrFragment.kt`:
+
+```kotlin
+package com.cashup.app.ui.provisioning
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.fragment.findNavController
+import com.cashup.app.CashupApp
+import com.cashup.app.R
+import com.cashup.app.databinding.FragmentScanQrBinding
+import com.cashup.app.scan.CameraQrScanner
+import com.cashup.app.scan.QrScanSource
+import kotlinx.coroutines.launch
+
+class ScanQrFragment : Fragment(R.layout.fragment_scan_qr) {
+
+    // activityViewModels, bukan viewModels: Scan, Processing, dan Result adalah
+    // tujuan bersebelahan di nav graph, bukan parent-child. ViewModel ber-scope
+    // fragment akan memberi masing-masing instance sendiri, dan Processing akan
+    // menunggu state yang tidak pernah berubah.
+    private val viewModel: ProvisioningViewModel by activityViewModels {
+        ProvisioningViewModel.Factory((requireActivity().application as CashupApp).container)
+    }
+
+    private val requestCamera = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> if (granted) startScanning() }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        val binding = FragmentScanQrBinding.bind(view)
+
+        binding.manualSubmit.setOnClickListener {
+            viewModel.provision(binding.manualCode.text.toString())
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.state.collect { state ->
+                    if (state is ProvisioningUiState.Processing) {
+                        findNavController().navigate(R.id.to_processing)
+                    }
+                }
+            }
+        }
+
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            startScanning()
+        } else {
+            // Izin kamera diminta tanpa syarat karena scanner vendor belum tentu
+            // ada; kalau ternyata ada, kamera tidak akan pernah dinyalakan --
+            // QrScanSource membuatnya lewat lambda.
+            requestCamera.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    private fun startScanning() {
+        val container = (requireActivity().application as CashupApp).container
+        val binding = FragmentScanQrBinding.bind(requireView())
+        viewLifecycleOwner.lifecycleScope.launch {
+            val source = QrScanSource(container.vendorScanner) {
+                CameraQrScanner(binding.preview, viewLifecycleOwner)
+            }
+            val code = source.scan(SCAN_TIMEOUT_MILLIS)
+            if (code != null) viewModel.provision(code)
+        }
+    }
+
+    private companion object {
+        const val SCAN_TIMEOUT_MILLIS = 120_000L
+    }
+}
+```
+
+- [ ] **Step 8: Tulis layar Processing dan Result**
+
+`app/src/main/res/layout/fragment_processing.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Progress indicator standar, bukan animasi kustom (spec §11). -->
+    <ProgressBar
+        android:id="@+id/progress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/processing_title"
+        app:layout_constraintTop_toBottomOf="@id/progress"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+```
+
+`app/src/main/kotlin/com/cashup/app/ui/provisioning/ProcessingFragment.kt`:
+
+```kotlin
+package com.cashup.app.ui.provisioning
+
+import android.os.Bundle
+import android.view.View
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.fragment.findNavController
+import com.cashup.app.CashupApp
+import com.cashup.app.R
+import kotlinx.coroutines.launch
+
+class ProcessingFragment : Fragment(R.layout.fragment_processing) {
+
+    private val viewModel: ProvisioningViewModel by activityViewModels {
+        ProvisioningViewModel.Factory((requireActivity().application as CashupApp).container)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.state.collect { state ->
+                    when (state) {
+                        is ProvisioningUiState.Success,
+                        is ProvisioningUiState.Failure -> findNavController().navigate(R.id.to_result)
+                        else -> Unit
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+`app/src/main/res/layout/fragment_result.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
+            android:id="@+id/detail"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            app:layout_constraintTop_toBottomOf="@id/title"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
+            android:id="@+id/backings"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textIsSelectable="true"
+            app:layout_constraintTop_toBottomOf="@id/detail"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- SEMENTARA: panel log, dicabut bersama package audit/ (Task 10). -->
+        <TextView
+            android:id="@+id/journalLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/result_journal_label"
+            android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@id/backings"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
+            android:id="@+id/journal"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textIsSelectable="true"
+            android:textSize="11sp"
+            app:layout_constraintTop_toBottomOf="@id/journalLabel"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <Button
+            android:id="@+id/action"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            app:layout_constraintTop_toBottomOf="@id/journal"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>
+```
+
+`app/src/main/kotlin/com/cashup/app/ui/provisioning/ResultFragment.kt`:
+
+```kotlin
+package com.cashup.app.ui.provisioning
+
+import android.os.Bundle
+import android.view.View
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
+import androidx.navigation.fragment.findNavController
+import com.cashup.app.BuildConfig
+import com.cashup.app.CashupApp
+import com.cashup.app.R
+import com.cashup.app.databinding.FragmentResultBinding
+
+class ResultFragment : Fragment(R.layout.fragment_result) {
+
+    private val viewModel: ProvisioningViewModel by activityViewModels {
+        ProvisioningViewModel.Factory((requireActivity().application as CashupApp).container)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        val binding = FragmentResultBinding.bind(view)
+
+        when (val state = viewModel.state.value) {
+            is ProvisioningUiState.Success -> {
+                binding.title.setText(R.string.result_success_title)
+                binding.detail.text = buildString {
+                    append(getString(R.string.result_serial, state.serialNumber))
+                    append('\n')
+                    append(getString(R.string.result_order, state.orderId))
+                }
+                // Perlindungan tiap purpose ditampilkan, tidak disembunyikan:
+                // tidak semua key mendapat modul aman vendor (spec §4.3), dan
+                // itu harus terlihat teknisi, bukan hanya tercatat di log.
+                binding.backings.text = state.installed.joinToString("\n") {
+                    "${it.purpose}: ${it.backing.name}"
+                }
+                showJournal(binding, state.journalText)
+                binding.action.setText(R.string.result_continue)
+                binding.action.setOnClickListener { requireActivity().finish() }
+            }
+
+            is ProvisioningUiState.Failure -> {
+                binding.title.setText(R.string.result_failure_title)
+                val hint = hintFor(state.code)
+                binding.detail.text = if (hint != 0) getString(hint) else state.message
+                binding.backings.text = state.code
+                showJournal(binding, state.journalText)
+                binding.action.setText(R.string.result_retry)
+                binding.action.setOnClickListener {
+                    viewModel.reset()
+                    findNavController().navigate(R.id.to_scan)
+                }
+            }
+
+            else -> findNavController().navigate(R.id.to_scan)
+        }
+    }
+
+    /** SEMENTARA — dicabut bersama package `audit/` (Task 10). */
+    private fun showJournal(binding: FragmentResultBinding, text: String) {
+        val visible = BuildConfig.PROVISIONING_JOURNAL && text.isNotBlank()
+        binding.journalLabel.visibility = if (visible) View.VISIBLE else View.GONE
+        binding.journal.visibility = if (visible) View.VISIBLE else View.GONE
+        binding.journal.text = text
+    }
+}
+```
+
+- [ ] **Step 9: Build APK debug dan jalankan seluruh tes**
+
+Run: `./gradlew :app:assembleDebug :app:testDebugUnitTest --no-daemon`
+Expected: BUILD SUCCESSFUL, 13 tes lolos (4 `QrScanSource` + 6 ViewModel + 3 `ErrorHints`). APK ada di `app/build/outputs/apk/debug/app-debug.apk`.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add app/
+git commit -m "feat(app): add the four provisioning screens
+
+Gate, Scan QR, Processing, Result, each a single flat ConstraintLayout --
+nested hierarchies are expensive to measure on weak GPUs, and the
+progress indicator is the stock one rather than a custom animation.
+
+The Result screen shows, per purpose, whether a key reached the vendor
+secure module or only the Keystore vault. Not every key can be hardware
+protected, and the technician standing at the terminal is the right person
+to see that rather than having it live only in a log.
+
+hintFor returns 0 for an unrecognised code so the backend's own message
+still reaches the technician. The definitive code list does not exist yet,
+and mapping unknown codes to something generic would hide exactly the
+detail that is useful while it is still being settled.
+
+The journal panel is gated on a build-config flag and is temporary
+scaffolding for terminal trials; it is removed with the audit package."
+```
+
+
+---
+
+## Task 15: Selaraskan dokumen dan verifikasi akhir
+
+Spec induk masih memuat keputusan yang sudah dibatalkan plan ini. Dibiarkan, dokumen itu akan menyesatkan orang berikutnya — dan diagram yang belum di-commit memuat endpoint yang tidak pernah ada.
+
+**Files:**
+- Modify: `docs/EDC_PAYMENT_APP_DESIGN.md` — §2, §3, §4 J1, §9
+- Modify: `docs/diagrams/generate_drawio.py` — halaman provisioning
+- Create: `docs/session_log.md` — perbarui status
+
+**Interfaces:**
+- Consumes: seluruh hasil Task 1–14.
+- Produces: dokumentasi yang konsisten dengan kode yang ada.
+
+- [ ] **Step 1: Perbaiki `EDC_PAYMENT_APP_DESIGN.md` §2**
+
+Ganti dua butir yang salah:
+
+- Butir tentang bootstrap lewat login teknisi → temp JWT, jadi: **"Tidak ada login. Otorisasi provisioning sepenuhnya datang dari `challengeCode` hasil scan QR yang diterbitkan Cashup backoffice."**
+- Butir tentang signing key disimpan di Keystore "TEE floor, StrongBox oportunistik", jadi: **"Signing key Ed25519 TIDAK hardware-backed — `KEY_ALGORITHM_ED25519` tidak ada di Android sampai API 37. Yang berada di TEE: key RSA pembuka paket (bila digest MGF1 backend memungkinkan, lihat spec provisioning §4.5) dan vault DUKPT."**
+
+- [ ] **Step 2: Perbaiki §3 tabel module**
+
+Ganti baris `device-sdk-api` + 9 adapter vendor dengan:
+
+```
+| `device-sdk-api` + `device-sdk-edcsdk` | Abstraksi hardware. Kontrak umum di `device-sdk-api`; satu module adapter di atas AAR `edc-sdk`, yang sudah menyediakan deteksi device, serial number, injeksi key DUKPT, printer, card reader, dan EMV untuk tujuh vendor. Sembilan module adapter per vendor dibatalkan — lihat `docs/superpowers/plans/2026-09-16-device-sdk-vendor-adapters.md`. |
+```
+
+Tambahkan juga baris untuk `provisioning-core` yang menyebut `app` sebagai pemakainya.
+
+- [ ] **Step 3: Perbaiki §4 J1**
+
+Hapus langkah 1–2 (login teknisi dan temp JWT). Ganti seluruh daftar langkah dengan alur sepuluh langkah dari `docs/superpowers/specs/2026-09-16-provisioning-design.md` §2, dan tambahkan satu kalimat penunjuk:
+
+> Kontrak HTTP lengkap, kripto, dan batasannya ada di `docs/superpowers/specs/2026-09-16-provisioning-design.md`.
+
+- [ ] **Step 4: Perbaiki §9 open items**
+
+- Item 1 (skema signature masih terbuka: HMAC? RSA? ECDSA?) → **"Ed25519, sudah dikunci diagram provisioning tim. Yang tersisa: konfirmasi encoding signature (raw 64 byte, Base64 URL-safe tanpa padding)."**
+- Item 2 (kontrak provisioning API belum ada) → **"Terjawab; lihat spec provisioning §3. Sisa yang belum pasti terdaftar di §8 spec itu."**
+
+- [ ] **Step 5: Perbaiki generator diagram**
+
+Di `docs/diagrams/generate_drawio.py`, halaman provisioning memuat `POST /v1/auth/technician` dan `POST /v1/provisioning/activate` — keduanya **tidak pernah ada**; itu dikarang sebelum diagram tim ditemukan.
+
+Ganti `page_provisioning` dan `page_reprov` supaya mencerminkan §2 dan §3 spec provisioning: tiga endpoint `v1/terminal-key-provisioning/*`, tanpa langkah login, dengan lima lifeline dari diagram tim. Halaman J2/J3 diberi catatan bahwa endpoint-nya belum ada.
+
+Lalu jalankan ulang:
+
+Run: `python docs/diagrams/generate_drawio.py`
+Expected: `wrote docs/diagrams/edc-payment-flows.drawio (11 pages)`
+
+- [ ] **Step 6: Perbarui `docs/session_log.md`**
+
+Ganti bagian "What's next" dengan status sebenarnya: Foundation selesai, plan vendor-adapters dibatalkan, Provisioning J1 selesai, dan urutan berikutnya — Notification, CDCP, QRIS, ECR bridge, App Shell, lalu J2/J3 begitu backend menyediakan endpoint-nya.
+
+Cantumkan juga delapan item konfirmasi backend dari spec provisioning §8 sebagai hal yang memblokir, dengan item 1 ditandai paling mendesak.
+
+- [ ] **Step 7: Verifikasi seluruh repo**
+
+Run: `./gradlew clean build --no-daemon`
+Expected: BUILD SUCCESSFUL. Seluruh module ter-compile, seluruh tes lolos.
+
+Run: `./gradlew test testDebugUnitTest --no-daemon`
+Expected: PASS. Hitungan yang diharapkan:
+
+| Module | Tes |
+|---|---|
+| `common-core` | 8 lama + 2 header + 6 amplop = 16 |
+| `device-sdk-api` | tes lama dikurangi `DeviceSdkRegistryTest`, plus 2 `TerminalKeyMaterial` |
+| `signing-core` | 8 |
+| `device-sdk-edcsdk` | 5 |
+| `provisioning-core` | 39 |
+| `app` | 13 |
+
+- [ ] **Step 8: Verifikasi tidak ada key material yang bisa masuk log**
+
+Run: `grep -rn "ipek\|IPEK" --include=*.kt provisioning-core/src/main device-sdk-edcsdk/src/main app/src/main | grep -i "log\|print\|toString"`
+Expected: tidak ada hasil.
+
+Run: `grep -rn "Level.BODY" --include=*.kt .`
+Expected: hanya satu hasil, di `ProvisioningHttp.kt`, di dalam cabang `debugLogging`.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add docs/
+git commit -m "docs: align the design spec and diagrams with what was built
+
+The spec still described a technician login and a temp JWT that the team's
+provisioning diagram does not have and edc-mobile removed outright; still
+promised a hardware-backed signing key that Android cannot provide for
+Ed25519; and still listed nine per-vendor adapter modules that were
+replaced by a single adapter over the edc-sdk AAR.
+
+The diagram generator carried two endpoints that never existed --
+/v1/auth/technician and /v1/provisioning/activate -- invented before the
+team's diagram surfaced. Its provisioning pages are regenerated from the
+real contract.
+
+Leaving any of this in place would mislead whoever reads these documents
+next, which is the only reason they exist."
+```
+
+---
+
+## Setelah plan ini
+
+Provisioning J1 selesai dan bisa dijalankan di terminal. Yang belum, dan urutannya:
+
+1. **Jawaban backend atas delapan item spec §8.** Item 1 paling mendesak: bentuk bungkusan RSA dan digest MGF1-nya menentukan apakah key bisa di TEE sama sekali, dan jawabannya bisa mengubah `KeyPackageResponse`, `PackageUnwrapper`, dan `AppContainer`. Cara tercepat membuktikannya: minta satu `wrappedPackageKey` contoh beserta plaintext-nya, lalu coba buka dengan kedua kombinasi MGF1.
+2. **Validasi manual di terminal fisik** untuk semua yang tidak bisa diuji unit: `EdcSdkSerialNumberProvider`, binder `KeyManager` yang nyata, `RsaKeyStore` di Android Keystore, dan `EdcSdkScanner`.
+3. **J2 Re-Provisioning dan J3 Deactivation**, begitu backend menyediakan endpoint-nya.
+4. **Cabut package `audit/`** sebelum rilis produksi — checklist di Task 10.
+5. **Notification, CDCP, QRIS, ECR bridge, App Shell** — masing-masing siklusnya sendiri.
