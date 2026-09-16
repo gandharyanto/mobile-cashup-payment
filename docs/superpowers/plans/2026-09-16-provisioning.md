@@ -1957,7 +1957,11 @@ android {
 dependencies {
     api(project(":common-core"))
     api(project(":device-sdk-api"))
-    implementation(project(":signing-core"))
+    // api, bukan implementation: ProvisioningHttp.create menerima DeviceSigner,
+    // jadi tipe signing-core muncul di permukaan publik module ini. Sebagai
+    // implementation, :app tidak bisa menyebut tipe itu dan gagal compile --
+    // persis cacat yang sudah pernah ditemukan review Foundation (commit 9707c53).
+    api(project(":signing-core"))
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
@@ -2787,9 +2791,9 @@ Tiga penyimpanan: keypair RSA untuk membuka paket, keypair Ed25519 untuk menanda
 Yang benar-benar bisa diuji unit di sini hanyalah **pemilihan jalur RSA** — TEE atau software — karena itu keputusan logika, dan salah memilihnya berarti device mendaftarkan public key yang tidak akan pernah bisa membuka paketnya sendiri. Operasi Keystore dan BouncyCastle-nya sendiri divalidasi manual; Robolectric tidak mengemulasi Android Keystore dengan setia, dan tes yang berpura-pura melakukannya hanya memberi rasa aman palsu.
 
 **Files:**
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/data/local/SecurePrefs.kt`
 - Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/crypto/RsaKeyStore.kt`
 - Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/crypto/Ed25519KeyStore.kt`
-- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/data/local/SecurePrefs.kt`
 - Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/data/local/ProvisioningStateStore.kt`
 - Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/StoredDeviceSigner.kt`
 - Create: `provisioning-core/src/test/kotlin/com/cashup/provisioning/crypto/RsaKeyLocationTest.kt`
@@ -2864,7 +2868,40 @@ class RsaKeyLocationTest {
 Run: `./gradlew :provisioning-core:testDebugUnitTest --tests "*RsaKeyLocationTest" --no-daemon`
 Expected: FAIL — `Unresolved reference: RsaKeyLocationPolicy`.
 
-- [ ] **Step 3: Tulis `RsaKeyStore.kt`**
+- [ ] **Step 3: Tulis `SecurePrefs.kt` lebih dulu**
+
+`RsaKeyStore` di langkah berikutnya mengimpornya, jadi ia harus ada duluan.
+
+```kotlin
+package com.cashup.provisioning.data.local
+
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+
+/**
+ * `SharedPreferences` ter-enkripsi AES-256-GCM dengan master key yang dipegang
+ * Android Keystore. Dipakai untuk apa pun yang tidak bisa masuk hardware:
+ * blob private key Ed25519 dan, di jalur fallback, blob RSA.
+ */
+internal object SecurePrefs {
+    fun open(context: Context, fileName: String): SharedPreferences {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        return EncryptedSharedPreferences.create(
+            context,
+            fileName,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+        )
+    }
+}
+```
+
+- [ ] **Step 4: Tulis `RsaKeyStore.kt`**
 
 ```kotlin
 package com.cashup.provisioning.crypto
@@ -3051,12 +3088,13 @@ class RsaKeyStore(
 }
 ```
 
-- [ ] **Step 4: Jalankan tes, pastikan lolos**
+- [ ] **Step 5: Jalankan tes, pastikan lolos**
 
 Run: `./gradlew :provisioning-core:testDebugUnitTest --tests "*RsaKeyLocationTest" --no-daemon`
 Expected: PASS, 3 tes.
 
-- [ ] **Step 5: Tulis `SecurePrefs.kt`**
+<!-- SecurePrefs sudah ditulis di Step 3; blok di bawah dipertahankan sebagai rujukan isinya. -->
+<details><summary>Isi <code>SecurePrefs.kt</code> (rujukan)</summary>
 
 ```kotlin
 package com.cashup.provisioning.data.local
@@ -3086,6 +3124,8 @@ internal object SecurePrefs {
     }
 }
 ```
+
+</details>
 
 - [ ] **Step 6: Tulis `Ed25519KeyStore.kt`**
 
