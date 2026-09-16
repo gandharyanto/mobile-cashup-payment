@@ -2,7 +2,8 @@ package com.cashup.provisioning.domain
 
 import com.cashup.provisioning.crypto.RsaKeyInfo
 import com.cashup.provisioning.crypto.RsaUnwrapper
-import com.cashup.provisioning.data.local.ProvisioningState
+import com.cashup.provisioning.data.local.DukptState
+import com.cashup.provisioning.data.local.IdentityState
 
 /**
  * Keypair milik device, tanpa menyebut Android Keystore.
@@ -19,8 +20,18 @@ interface ProvisioningKeys {
     fun clearAll()
 }
 
+/**
+ * Dua record independen — spec 17 September §5. Identity persist segera
+ * setelah redeem sukses; DUKPT persist terpisah setelah activate sukses.
+ * Rollback DUKPT (spec §2.1) memanggil HANYA `clearDukpt()`, tidak
+ * `clearIdentity()`.
+ */
 interface ProvisioningStateRepository {
-    fun current(): ProvisioningState?
-    fun save(state: ProvisioningState)
-    fun clear()
+    fun identity(): IdentityState?
+    fun saveIdentity(state: IdentityState)
+    fun clearIdentity()
+
+    fun dukpt(): DukptState?
+    fun saveDukpt(state: DukptState)
+    fun clearDukpt()
 }
