@@ -2,21 +2,8 @@ package com.cashup.provisioning.audit
 
 import com.cashup.common.logging.NoOpPaymentLogger
 import com.cashup.common.logging.PaymentLogger
+import com.cashup.provisioning.domain.ProvisioningStep
 import java.util.Collections
-
-enum class ProvisioningStep {
-    DETECT_DEVICE,
-    GENERATE_KEYS,
-    SCAN_QR,
-    REDEEM,
-    DOWNLOAD_PACKAGE,
-    UNWRAP_PACKAGE,
-    VERIFY_KCV,
-    INSTALL_KEYS,
-    ACTIVATE,
-    PERSIST_STATE,
-    ROLLBACK,
-}
 
 enum class StepStatus { STARTED, OK, FAILED }
 

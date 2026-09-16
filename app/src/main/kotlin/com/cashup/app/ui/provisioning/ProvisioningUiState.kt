@@ -1,7 +1,7 @@
 package com.cashup.app.ui.provisioning
 
 import com.cashup.devicesdk.KeyInstallOutcome
-import com.cashup.provisioning.audit.ProvisioningStep
+import com.cashup.provisioning.domain.ProvisioningStep
 
 /**
  * Sealed interface, bukan satu data class dengan `isLoading`/`error`/`data`

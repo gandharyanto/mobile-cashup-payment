@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cashup.app.di.AppContainer
-import com.cashup.provisioning.audit.ProvisioningStep
+import com.cashup.provisioning.domain.ProvisioningStep
 import com.cashup.provisioning.domain.ProvisioningOutcome
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

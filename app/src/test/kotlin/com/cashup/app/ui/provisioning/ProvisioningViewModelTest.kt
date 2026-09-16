@@ -2,7 +2,7 @@ package com.cashup.app.ui.provisioning
 
 import com.cashup.devicesdk.KeyBacking
 import com.cashup.devicesdk.KeyInstallOutcome
-import com.cashup.provisioning.audit.ProvisioningStep
+import com.cashup.provisioning.domain.ProvisioningStep
 import com.cashup.provisioning.domain.ProvisioningOutcome
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

@@ -8,7 +8,6 @@ import com.cashup.devicesdk.TerminalKeyInstaller
 import com.cashup.devicesdk.TerminalKeyMaterial
 import com.cashup.provisioning.audit.Evidence
 import com.cashup.provisioning.audit.ProvisioningJournal
-import com.cashup.provisioning.audit.ProvisioningStep
 import com.cashup.provisioning.crypto.PackageIntegrityException
 import com.cashup.provisioning.crypto.PackageUnwrapper
 import com.cashup.provisioning.crypto.RsaUnwrapper
