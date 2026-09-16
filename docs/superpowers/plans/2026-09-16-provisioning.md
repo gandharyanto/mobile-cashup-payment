@@ -1884,3 +1884,1877 @@ is the backend's API convention; CDCP and QRIS will unwrap the same shape."
 ```
 
 ---
+
+## Task 7: `provisioning-core` — module, DTO, dan lapisan HTTP
+
+Membuat module dan seluruh permukaan jaringannya. Kripto dan orkestrasi menyusul di Task 8 dan 9.
+
+Dua client Retrofit dibangun, bukan satu: `qr-redeem` **tidak boleh** melewati `SigningInterceptor` karena saat itu backend belum mengenal public key device. Memisahkannya di level client jauh lebih aman daripada mengandalkan pengecualian per-endpoint di dalam satu interceptor.
+
+**Files:**
+- Create: `provisioning-core/build.gradle.kts`
+- Create: `provisioning-core/src/main/AndroidManifest.xml`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/data/remote/ProvisioningDtos.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/data/remote/ProvisioningApi.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/data/remote/ProvisioningHttp.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/data/ProvisioningRepository.kt`
+- Create: `provisioning-core/src/test/kotlin/com/cashup/provisioning/data/ProvisioningRepositoryTest.kt`
+- Modify: `settings.gradle.kts`
+
+**Interfaces:**
+- Consumes: `ApiResult`, `ApiError`, `ApiEnvelope`, `safeEnvelopeCall`, `RequestHeadersInterceptor` (Task 3, 6); `DeviceSigner`, `SigningInterceptor` (Task 4).
+- Produces:
+  - `data class QrRedeemRequest(challengeCode, serialNumber, rsaPublicKey, eddsaPublicKey)`
+  - `data class QrRedeemResponse(orderId, activationToken)`
+  - `data class KeyPackageRequest(orderId, activationToken)`
+  - `data class KeyPackageResponse(orderId, wrappedPackageKey, appEddsaPublicKey)`
+  - `data class ActivateRequest(activationToken, keyCheckValues: Map<String, String>)`
+  - `data class ActivateResponse(status)`
+  - `class ProvisioningRepository` dengan `suspend fun redeem(QrRedeemRequest): ApiResult<QrRedeemResponse>`, `suspend fun downloadKeyPackage(KeyPackageRequest): ApiResult<KeyPackageResponse>`, `suspend fun activate(orderId: String, ActivateRequest): ApiResult<ActivateResponse>`
+  - `object ProvisioningHttp` dengan `const val TIMEOUT_SECONDS = 65L` dan `fun create(baseUrl: String, deviceSigner: DeviceSigner, debugLogging: Boolean = false): ProvisioningRepository`
+
+- [ ] **Step 1: Daftarkan module**
+
+Di `settings.gradle.kts`, tambahkan:
+
+```kotlin
+include(":provisioning-core")
+```
+
+- [ ] **Step 2: Buat `provisioning-core/build.gradle.kts`**
+
+```kotlin
+plugins {
+    id("com.android.library")
+    kotlin("android")
+}
+
+android {
+    namespace = "com.cashup.provisioning"
+    compileSdk = (project.property("cashup.compileSdk") as String).toInt()
+
+    defaultConfig {
+        minSdk = (project.property("cashup.minSdk") as String).toInt()
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+    kotlinOptions { jvmTarget = "1.8" }
+
+    sourceSets["main"].java.srcDir("src/main/kotlin")
+    sourceSets["test"].java.srcDir("src/test/kotlin")
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = false
+            isReturnDefaultValues = true
+        }
+    }
+}
+
+dependencies {
+    api(project(":common-core"))
+    api(project(":device-sdk-api"))
+    implementation(project(":signing-core"))
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("io.mockk:mockk:1.13.11")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("org.robolectric:robolectric:4.12.2")
+    testImplementation("androidx.test.ext:junit:1.1.5")
+    testImplementation(testFixtures(project(":device-sdk-api")))
+}
+```
+
+- [ ] **Step 3: Buat `provisioning-core/src/main/AndroidManifest.xml`**
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+```
+
+- [ ] **Step 4: Tulis `ProvisioningDtos.kt`**
+
+```kotlin
+package com.cashup.provisioning.data.remote
+
+/**
+ * Bentuk body mengikuti diagram provisioning tim (`Provisioning.drawio`), yang
+ * berwenang atas ini; nama path mengikuti `corepayment`. Di mana keduanya
+ * berbeda, spec §1 menetapkan siapa yang menang, dan §8 mencatat apa yang masih
+ * perlu dikonfirmasi backend.
+ */
+
+/**
+ * Satu-satunya request yang TIDAK ditandatangani: backend belum mengenal public
+ * key device, karena dua kunci itu justru baru dikirim di sini.
+ *
+ * [rsaPublicKey] adalah SPKI X.509 Base64, dipakai backend untuk membungkus
+ * paket key. [eddsaPublicKey] adalah Ed25519 raw 32 byte Base64, dipakai backend
+ * untuk memverifikasi tanda tangan setiap request sesudah ini.
+ */
+data class QrRedeemRequest(
+    val challengeCode: String,
+    val serialNumber: String,
+    val rsaPublicKey: String,
+    val eddsaPublicKey: String,
+)
+
+data class QrRedeemResponse(
+    val orderId: String,
+    val activationToken: String,
+)
+
+/**
+ * `orderId` muncul di path DAN di body — konsekuensi dari memakai path
+ * `corepayment` dengan body diagram tim. Tercatat di spec §8 item 5 sebagai
+ * hal yang perlu dikonfirmasi backend.
+ */
+data class KeyPackageRequest(
+    val orderId: String,
+    val activationToken: String,
+)
+
+/**
+ * [wrappedPackageKey] membawa material DUKPT terbungkus RSA.
+ *
+ * Bentuknya belum dikonfirmasi backend (spec §8 item 1): RSA-2048 OAEP-SHA256
+ * hanya memuat 190 byte, jadi kalau paketnya JSON+base64 untuk empat pasang
+ * IPEK/KSN, backend harus memakai skema hibrida seperti `edc-mobile` dan DTO ini
+ * bertambah field. Kalau itu terjadi, yang berubah hanya berkas ini dan
+ * `PackageUnwrapper` di Task 8.
+ *
+ * [appEddsaPublicKey] adalah gema public key yang dikirim saat redeem, plain.
+ */
+data class KeyPackageResponse(
+    val orderId: String,
+    val wrappedPackageKey: String,
+    val appEddsaPublicKey: String? = null,
+)
+
+/**
+ * [keyCheckValues] dikunci per nama purpose yang datang di paket — tidak ada
+ * daftar purpose yang di-hardcode di mana pun (spec §7.2).
+ */
+data class ActivateRequest(
+    val activationToken: String,
+    val keyCheckValues: Map<String, String>,
+)
+
+data class ActivateResponse(
+    val status: String,
+)
+```
+
+- [ ] **Step 5: Tulis `ProvisioningApi.kt`**
+
+```kotlin
+package com.cashup.provisioning.data.remote
+
+import com.cashup.common.network.ApiEnvelope
+import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.POST
+import retrofit2.http.Path
+
+/**
+ * Setiap method mengembalikan `Response<ApiEnvelope<T>>`, bukan `T` polos.
+ * Retrofit tidak mem-parsing body pada respons gagal kalau tipe return-nya
+ * bukan `Response<T>`, dan justru di sanalah `error.code` backend berada —
+ * lihat `safeEnvelopeCall`.
+ */
+internal interface ProvisioningApi {
+
+    @POST("v1/terminal-key-provisioning/qr-redeem")
+    suspend fun redeem(
+        @Body body: QrRedeemRequest,
+    ): Response<ApiEnvelope<QrRedeemResponse>>
+
+    @POST("v1/terminal-key-provisioning/orders/{orderId}/package")
+    suspend fun keyPackage(
+        @Path("orderId") orderId: String,
+        @Body body: KeyPackageRequest,
+    ): Response<ApiEnvelope<KeyPackageResponse>>
+
+    @POST("v1/terminal-key-provisioning/orders/{orderId}/activate")
+    suspend fun activate(
+        @Path("orderId") orderId: String,
+        @Body body: ActivateRequest,
+    ): Response<ApiEnvelope<ActivateResponse>>
+}
+```
+
+- [ ] **Step 6: Tulis `ProvisioningHttp.kt`**
+
+```kotlin
+package com.cashup.provisioning.data.remote
+
+import com.cashup.common.network.RequestHeadersInterceptor
+import com.cashup.provisioning.data.ProvisioningRepository
+import com.cashup.signing.DeviceSigner
+import com.cashup.signing.SigningInterceptor
+import com.google.gson.Gson
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
+
+/**
+ * Membangun dua client, bukan satu.
+ *
+ * `qr-redeem` harus TIDAK ditandatangani — backend belum mengenal public key
+ * device pada titik itu. Memisahkannya di level client lebih aman daripada
+ * mengecualikan satu endpoint di dalam satu interceptor, karena pengecualian
+ * berbasis path diam-diam rusak begitu path berubah.
+ */
+object ProvisioningHttp {
+
+    /**
+     * 65 detik, jauh di atas default 15 detik milik `RetrofitFactory`.
+     * `/package` menyentuh Payment HSM dan General Purpose HSM di sisi backend,
+     * dan `edc-mobile` sudah menetapkan angka ini terhadap backend yang sama.
+     * Default bersama sengaja TIDAK dinaikkan — itu akan memperlambat deteksi
+     * kegagalan untuk setiap pemakai lain.
+     */
+    const val TIMEOUT_SECONDS = 65L
+
+    fun create(
+        baseUrl: String,
+        deviceSigner: DeviceSigner,
+        debugLogging: Boolean = false,
+    ): ProvisioningRepository {
+        val gson = Gson()
+        val normalized = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
+
+        fun retrofit(client: OkHttpClient) = Retrofit.Builder()
+            .baseUrl(normalized)
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
+            .create(ProvisioningApi::class.java)
+
+        return ProvisioningRepository(
+            unsigned = retrofit(clientBuilder(debugLogging).build()),
+            signed = retrofit(
+                clientBuilder(debugLogging)
+                    // SigningInterceptor membaca X-Timestamp yang ditulis
+                    // RequestHeadersInterceptor, jadi urutan ini mengikat.
+                    .addInterceptor(SigningInterceptor(deviceSigner))
+                    .build()
+            ),
+            gson = gson,
+        )
+    }
+
+    private fun clientBuilder(debugLogging: Boolean) = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .addInterceptor(RequestHeadersInterceptor())
+        .apply {
+            // Level BODY mencetak wrappedPackageKey dan seluruh keyCheckValues
+            // ke logcat. Hanya untuk build debug; rilis mentok di BASIC.
+            addInterceptor(
+                HttpLoggingInterceptor().apply {
+                    level = if (debugLogging) {
+                        HttpLoggingInterceptor.Level.BODY
+                    } else {
+                        HttpLoggingInterceptor.Level.BASIC
+                    }
+                    redactHeader("X-Signature")
+                }
+            )
+        }
+}
+```
+
+- [ ] **Step 7: Tulis tes yang gagal untuk repository**
+
+`provisioning-core/src/test/kotlin/com/cashup/provisioning/data/ProvisioningRepositoryTest.kt`:
+
+```kotlin
+package com.cashup.provisioning.data
+
+import com.cashup.common.network.ApiResult
+import com.cashup.provisioning.data.remote.ActivateRequest
+import com.cashup.provisioning.data.remote.KeyPackageRequest
+import com.cashup.provisioning.data.remote.ProvisioningHttp
+import com.cashup.provisioning.data.remote.QrRedeemRequest
+import com.cashup.signing.DeviceSigner
+import kotlinx.coroutines.runBlocking
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+
+class ProvisioningRepositoryTest {
+
+    private lateinit var server: MockWebServer
+    private lateinit var repository: ProvisioningRepository
+
+    private val signer = object : DeviceSigner {
+        override fun deviceId(): String = "PAX-A920-0012938"
+        override fun sign(canonicalBytes: ByteArray): ByteArray = ByteArray(64) { 7 }
+    }
+
+    @Before
+    fun start() {
+        server = MockWebServer()
+        server.start()
+        repository = ProvisioningHttp.create(server.url("/").toString(), signer)
+    }
+
+    @After
+    fun stop() {
+        server.shutdown()
+    }
+
+    @Test
+    fun `redeem posts to the agreed path and is not signed`() = runBlocking {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"data":{"orderId":"o-1","activationToken":"tok-1"}}"""
+            )
+        )
+
+        val result = repository.redeem(
+            QrRedeemRequest("ABCD-1234", "PAX-A920-0012938", "rsa-spki", "eddsa-raw")
+        )
+
+        val recorded = server.takeRequest()
+        assertEquals("POST", recorded.method)
+        assertEquals("/v1/terminal-key-provisioning/qr-redeem", recorded.path)
+        assertNotNull(recorded.getHeader("X-Timestamp"))
+        assertNotNull(recorded.getHeader("X-Correlation-Id"))
+        assertNull("qr-redeem must not be signed", recorded.getHeader("X-Signature"))
+
+        val body = recorded.body.readUtf8()
+        assertTrue(body.contains(""""challengeCode":"ABCD-1234""""))
+        assertTrue(body.contains(""""eddsaPublicKey":"eddsa-raw""""))
+
+        assertEquals("o-1", (result as ApiResult.Success).data.orderId)
+    }
+
+    @Test
+    fun `downloadKeyPackage posts to the order path and is signed`() = runBlocking {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"data":{"orderId":"o-1","wrappedPackageKey":"d3JhcHBlZA"}}"""
+            )
+        )
+
+        val result = repository.downloadKeyPackage(KeyPackageRequest("o-1", "tok-1"))
+
+        val recorded = server.takeRequest()
+        assertEquals("/v1/terminal-key-provisioning/orders/o-1/package", recorded.path)
+        assertEquals("PAX-A920-0012938", recorded.getHeader("X-Device-Id"))
+        assertNotNull(recorded.getHeader("X-Signature"))
+        assertNotNull(recorded.getHeader("X-Nonce"))
+
+        assertEquals("d3JhcHBlZA", (result as ApiResult.Success).data.wrappedPackageKey)
+    }
+
+    @Test
+    fun `activate sends the key check values it was given`() = runBlocking {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody("""{"data":{"status":"ACTIVE"}}""")
+        )
+
+        val result = repository.activate(
+            "o-1",
+            ActivateRequest("tok-1", mapOf("PIN" to "A1B2C3", "TRACK" to "D4E5F6")),
+        )
+
+        val recorded = server.takeRequest()
+        assertEquals("/v1/terminal-key-provisioning/orders/o-1/activate", recorded.path)
+        val body = recorded.body.readUtf8()
+        assertTrue(body.contains(""""PIN":"A1B2C3""""))
+        assertTrue(body.contains(""""TRACK":"D4E5F6""""))
+
+        assertEquals("ACTIVE", (result as ApiResult.Success).data.status)
+    }
+
+    @Test
+    fun `a backend error code survives to the caller`() = runBlocking {
+        server.enqueue(
+            MockResponse().setResponseCode(410).setBody(
+                """{"error":{"code":"PROVISIONING_TOKEN_INVALID","message":"Kode QR kedaluwarsa"}}"""
+            )
+        )
+
+        val result = repository.redeem(QrRedeemRequest("X", "S", "r", "e"))
+
+        assertEquals("PROVISIONING_TOKEN_INVALID", (result as ApiResult.Failure).error.code)
+    }
+}
+```
+
+- [ ] **Step 8: Jalankan tes, pastikan gagal**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --no-daemon`
+Expected: FAIL — `Unresolved reference: ProvisioningRepository`.
+
+- [ ] **Step 9: Tulis `ProvisioningRepository.kt`**
+
+```kotlin
+package com.cashup.provisioning.data
+
+import com.cashup.common.network.ApiResult
+import com.cashup.common.network.safeEnvelopeCall
+import com.cashup.provisioning.data.remote.ActivateRequest
+import com.cashup.provisioning.data.remote.ActivateResponse
+import com.cashup.provisioning.data.remote.KeyPackageRequest
+import com.cashup.provisioning.data.remote.KeyPackageResponse
+import com.cashup.provisioning.data.remote.ProvisioningApi
+import com.cashup.provisioning.data.remote.QrRedeemRequest
+import com.cashup.provisioning.data.remote.QrRedeemResponse
+import com.google.gson.Gson
+
+/**
+ * Tiga panggilan ceremony provisioning, dipetakan ke [ApiResult].
+ *
+ * Dua client dipisah dengan sengaja: [unsigned] hanya untuk `qr-redeem`, yang
+ * tidak boleh ditandatangani karena backend belum mengenal public key device
+ * pada titik itu. Salah pakai di sini akan tampak sebagai penolakan tanda
+ * tangan dari backend, bukan sebagai bug lokal — karena itu pemilihannya
+ * dikunci di kelas ini, bukan diserahkan ke pemanggil.
+ */
+class ProvisioningRepository internal constructor(
+    private val unsigned: ProvisioningApi,
+    private val signed: ProvisioningApi,
+    private val gson: Gson = Gson(),
+) {
+
+    suspend fun redeem(request: QrRedeemRequest): ApiResult<QrRedeemResponse> =
+        safeEnvelopeCall(gson) { unsigned.redeem(request) }
+
+    suspend fun downloadKeyPackage(request: KeyPackageRequest): ApiResult<KeyPackageResponse> =
+        safeEnvelopeCall(gson) { signed.keyPackage(request.orderId, request) }
+
+    suspend fun activate(orderId: String, request: ActivateRequest): ApiResult<ActivateResponse> =
+        safeEnvelopeCall(gson) { signed.activate(orderId, request) }
+}
+```
+
+- [ ] **Step 10: Jalankan tes, pastikan lolos**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --no-daemon`
+Expected: PASS, 4 tes.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add settings.gradle.kts provisioning-core/
+git commit -m "feat(provisioning-core): add the module and its HTTP layer
+
+Paths come from corepayment, body shapes from the team's provisioning
+diagram, per the authority order in spec section 1.
+
+ProvisioningHttp builds two Retrofit clients rather than one. qr-redeem
+must go out unsigned -- the backend does not know the device public key
+yet, since that request is what delivers it -- and separating that at the
+client is safer than excluding one endpoint inside a single interceptor,
+where a path change would silently reintroduce the signature.
+
+The read timeout is 65s, matching what edc-mobile established against
+this backend, because the package call reaches the payment and
+general-purpose HSMs. RetrofitFactory's shared 15s default is left alone
+so this does not slow failure detection for every other caller.
+
+HTTP logging defaults to BASIC with X-Signature redacted; BODY would put
+the wrapped key package and every key check value into logcat."
+```
+
+---
+
+## Task 8: KCV, provider BouncyCastle, dan pembongkar paket
+
+Tiga hal yang seluruhnya bisa diuji di JVM karena tidak menyentuh Android Keystore. Operasi RSA disembunyikan di balik `RsaUnwrapper` supaya bagian yang menguraikan dan memvalidasi paket bisa diuji tanpa hardware; implementasi nyatanya menyusul di Task 9.
+
+**Files:**
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/crypto/BcProvider.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/crypto/Kcv.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/crypto/RsaUnwrapper.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/crypto/PackageUnwrapper.kt`
+- Create: `provisioning-core/src/test/kotlin/com/cashup/provisioning/crypto/KcvTest.kt`
+- Create: `provisioning-core/src/test/kotlin/com/cashup/provisioning/crypto/PackageUnwrapperTest.kt`
+
+**Interfaces:**
+- Consumes: `TerminalKeyMaterial` (Task 2).
+- Produces:
+  - `object BcProvider` dengan `const val NAME = "BC"` dan `fun ensureInstalled()`
+  - `fun keyCheckValue(key: ByteArray): String` — 6 hex huruf besar
+  - `fun interface RsaUnwrapper { fun unwrap(wrapped: ByteArray): ByteArray }`
+  - `class PackageUnwrapper(unwrapper: RsaUnwrapper, gson: Gson = Gson())` dengan `fun unwrap(wrappedPackageKeyBase64: String): List<TerminalKeyMaterial>`
+  - `class PackageIntegrityException(message: String) : Exception`
+
+- [ ] **Step 1: Tulis `BcProvider.kt`**
+
+```kotlin
+package com.cashup.provisioning.crypto
+
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import java.security.Security
+
+/**
+ * Memasang BouncyCastle sekali, dipakai HANYA lewat penyebutan nama eksplisit.
+ *
+ * Dua jebakan di sini sudah pernah dibayar mahal di `edc-mobile`; keduanya
+ * gagal dengan gejala yang menyesatkan, jadi jangan disederhanakan.
+ *
+ * **Satu: provider bawaan harus dicopot dulu.** Android sudah menyertakan
+ * provider bernama `"BC"` sejak lama, tapi versi yang sengaja dipotong Google
+ * dan tidak punya banyak algoritma yang kita butuhkan. Akibatnya
+ * `Security.getProvider("BC") == null` SELALU false di Android, sehingga pola
+ * lazim `if (provider == null) addProvider(...)` tidak pernah benar-benar
+ * memasang BC lengkap — app diam-diam memakai versi terpotong dan gagal dengan
+ * `NoSuchAlgorithmException`. Karena itu [Security.removeProvider] dipanggil
+ * lebih dulu, tanpa syarat.
+ *
+ * **Dua: prioritasnya harus PALING RENDAH.** `insertProviderAt(bc, 1)` pernah
+ * dipakai dan justru merusak jalur lain: setiap `Cipher.getInstance(...)` yang
+ * tidak menyebut nama provider ikut dialihkan ke BC, termasuk RSA-OAEP, yang
+ * lalu gagal dengan `InvalidCipherTextException: unable to decrypt block` —
+ * pesan khas BC yang terlihat seperti masalah data, bukan masalah provider.
+ * [Security.addProvider] menaruhnya di urutan terakhir: tersedia kalau dipanggil
+ * dengan nama [NAME], tidak mengambil alih resolusi siapa pun.
+ */
+object BcProvider {
+
+    const val NAME = "BC"
+
+    @Volatile
+    private var installed = false
+
+    fun ensureInstalled() {
+        if (installed) return
+        synchronized(this) {
+            if (installed) return
+            Security.removeProvider(NAME)
+            Security.addProvider(BouncyCastleProvider())
+            installed = true
+        }
+    }
+}
+```
+
+- [ ] **Step 2: Tulis tes yang gagal untuk KCV**
+
+`provisioning-core/src/test/kotlin/com/cashup/provisioning/crypto/KcvTest.kt`:
+
+```kotlin
+package com.cashup.provisioning.crypto
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class KcvTest {
+
+    private fun key16() = byteArrayOf(
+        0x01, 0x23, 0x45, 0x67, 0x89.toByte(), 0xAB.toByte(), 0xCD.toByte(), 0xEF.toByte(),
+        0xFE.toByte(), 0xDC.toByte(), 0xBA.toByte(), 0x98.toByte(), 0x76, 0x54, 0x32, 0x10,
+    )
+
+    @Test
+    fun `returns six uppercase hex characters`() {
+        val kcv = keyCheckValue(key16())
+
+        assertEquals(6, kcv.length)
+        assertTrue(kcv, kcv.all { it in "0123456789ABCDEF" })
+    }
+
+    @Test
+    fun `a 16-byte key gives the same KCV as its K1K2K1 expansion`() {
+        val double = key16()
+        val triple = key16() + key16().copyOfRange(0, 8)
+
+        // Mengunci aturan perluasan. Kalau kelak diubah jadi K1K2K2 atau tidak
+        // diperluas sama sekali, tes ini yang jatuh -- bukan bank yang menolak
+        // transaksi dengan response code 81 berbulan-bulan kemudian.
+        assertEquals(keyCheckValue(triple), keyCheckValue(double))
+    }
+
+    @Test
+    fun `different keys give different check values`() {
+        val other = key16().also { it[0] = 0x02 }
+
+        assertNotEquals(keyCheckValue(key16()), keyCheckValue(other))
+    }
+
+    @Test
+    fun `the caller's key array is zeroed afterwards`() {
+        val key = key16()
+
+        keyCheckValue(key)
+
+        assertEquals(0, key.count { it != 0.toByte() })
+    }
+}
+```
+
+- [ ] **Step 3: Jalankan tes, pastikan gagal**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --tests "*KcvTest" --no-daemon`
+Expected: FAIL — `Unresolved reference: keyCheckValue`.
+
+- [ ] **Step 4: Tulis `Kcv.kt`**
+
+```kotlin
+package com.cashup.provisioning.crypto
+
+import javax.crypto.Cipher
+import javax.crypto.spec.SecretKeySpec
+
+/**
+ * Key Check Value 3DES: enkripsi ECB delapan byte nol dengan [key], ambil tiga
+ * byte pertama, hex huruf besar. Ini yang dikirim ke backend di langkah
+ * `activate` sebagai bukti bahwa key yang diterima device sama dengan yang
+ * diterbitkan HSM.
+ *
+ * Key 16 byte (K1K2) diperluas jadi K1K2K1 sebelum dipakai — aturan TDES yang
+ * baku. Key 24 byte dipakai apa adanya.
+ *
+ * [key] di-nol-kan sebelum fungsi ini kembali, termasuk saat gagal. Pemanggil
+ * tidak boleh memakainya lagi setelah ini.
+ */
+fun keyCheckValue(key: ByteArray): String {
+    val normalized = if (key.size == 24) key.copyOf() else key + key.copyOfRange(0, 8)
+    return try {
+        Cipher.getInstance("DESede/ECB/NoPadding").run {
+            init(Cipher.ENCRYPT_MODE, SecretKeySpec(normalized, "DESede"))
+            doFinal(ByteArray(8))
+        }.take(3).joinToString("") { "%02X".format(it) }
+    } finally {
+        key.fill(0)
+        normalized.fill(0)
+    }
+}
+```
+
+- [ ] **Step 5: Jalankan tes, pastikan lolos**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --tests "*KcvTest" --no-daemon`
+Expected: PASS, 4 tes.
+
+- [ ] **Step 6: Tulis `RsaUnwrapper.kt`**
+
+```kotlin
+package com.cashup.provisioning.crypto
+
+/**
+ * Membuka bungkusan RSA dari paket key.
+ *
+ * Interface, bukan kelas langsung, karena implementasi nyatanya memakai private
+ * key non-extractable di Android Keystore yang tidak bisa dijalankan di unit
+ * test JVM. Semua penguraian dan validasi paket diuji terhadap implementasi
+ * palsu; lihat Task 9 untuk yang nyata.
+ */
+fun interface RsaUnwrapper {
+    fun unwrap(wrapped: ByteArray): ByteArray
+}
+```
+
+- [ ] **Step 7: Tulis tes yang gagal untuk `PackageUnwrapper`**
+
+`provisioning-core/src/test/kotlin/com/cashup/provisioning/crypto/PackageUnwrapperTest.kt`:
+
+```kotlin
+package com.cashup.provisioning.crypto
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.util.Base64
+
+class PackageUnwrapperTest {
+
+    private val ipek = ByteArray(16) { (it + 1).toByte() }
+    private val ksn = ByteArray(10) { (it + 100).toByte() }
+
+    private fun plaintextJson(kcvOverride: String? = null): String {
+        val kcv = kcvOverride ?: keyCheckValue(ipek.copyOf())
+        val ipekB64 = Base64.getEncoder().encodeToString(ipek)
+        val ksnB64 = Base64.getEncoder().encodeToString(ksn)
+        return """
+            {"materials":{
+              "PIN":{"ipek":"$ipekB64","ksn":"$ksnB64","kcv":"$kcv"},
+              "TRACK":{"ipek":"$ipekB64","ksn":"$ksnB64","kcv":"$kcv"}
+            }}
+        """.trimIndent()
+    }
+
+    private fun unwrapperReturning(json: String) =
+        PackageUnwrapper(RsaUnwrapper { json.toByteArray() })
+
+    private fun wrappedInput() = Base64.getEncoder().encodeToString("ignored".toByteArray())
+
+    @Test
+    fun `returns one material per purpose in the package`() {
+        val materials = unwrapperReturning(plaintextJson()).unwrap(wrappedInput())
+
+        assertEquals(setOf("PIN", "TRACK"), materials.map { it.purpose }.toSet())
+        assertTrue(materials.all { it.ipek.size == 16 })
+        assertTrue(materials.all { it.ksn.size == 10 })
+    }
+
+    @Test
+    fun `purposes are not hard-coded -- an unfamiliar purpose still comes through`() {
+        val ipekB64 = Base64.getEncoder().encodeToString(ipek)
+        val ksnB64 = Base64.getEncoder().encodeToString(ksn)
+        val kcv = keyCheckValue(ipek.copyOf())
+        val json = """{"materials":{"SOMETHING_NEW":{"ipek":"$ipekB64","ksn":"$ksnB64","kcv":"$kcv"}}}"""
+
+        val materials = unwrapperReturning(json).unwrap(wrappedInput())
+
+        assertEquals(listOf("SOMETHING_NEW"), materials.map { it.purpose })
+    }
+
+    @Test
+    fun `a mismatched KCV rejects the whole package`() {
+        val failure = assertThrows(PackageIntegrityException::class.java) {
+            unwrapperReturning(plaintextJson(kcvOverride = "000000")).unwrap(wrappedInput())
+        }
+
+        assertTrue(failure.message!!.contains("KCV"))
+    }
+
+    @Test
+    fun `a package with no materials is rejected rather than silently installing nothing`() {
+        assertThrows(PackageIntegrityException::class.java) {
+            unwrapperReturning("""{"materials":{}}""").unwrap(wrappedInput())
+        }
+    }
+
+    @Test
+    fun `plaintext that is not the expected JSON is rejected`() {
+        assertThrows(PackageIntegrityException::class.java) {
+            unwrapperReturning("not json at all").unwrap(wrappedInput())
+        }
+    }
+}
+```
+
+- [ ] **Step 8: Jalankan tes, pastikan gagal**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --tests "*PackageUnwrapperTest" --no-daemon`
+Expected: FAIL — `Unresolved reference: PackageUnwrapper`.
+
+- [ ] **Step 9: Tulis `PackageUnwrapper.kt`**
+
+```kotlin
+package com.cashup.provisioning.crypto
+
+import com.cashup.devicesdk.TerminalKeyMaterial
+import com.google.gson.Gson
+import com.google.gson.JsonSyntaxException
+import java.util.Base64
+
+class PackageIntegrityException(message: String) : Exception(message)
+
+/**
+ * Bentuk plaintext di dalam bungkusan RSA.
+ *
+ * **Belum dikonfirmasi backend** (spec §8 item 1). Kalau ternyata backend
+ * memakai skema hibrida seperti `edc-mobile` — RSA membungkus kunci AES,
+ * payload sesungguhnya di AES-GCM — yang berubah hanya berkas ini dan
+ * `KeyPackageResponse`. Batasnya sengaja sempit supaya perubahan itu murah.
+ */
+internal data class PlainKeyPackage(val materials: Map<String, PlainKeyMaterial>?)
+
+internal data class PlainKeyMaterial(val ipek: String, val ksn: String, val kcv: String)
+
+/**
+ * Membuka paket key dan memverifikasinya sebelum apa pun dipasang.
+ *
+ * Purpose diperlakukan **data-driven**: apa pun nama purpose yang datang akan
+ * diteruskan. Tidak ada daftar purpose yang di-hardcode di sini, karena jumlah
+ * dan namanya belum dikonfirmasi backend (spec §7.2) — dan menebaknya berarti
+ * paket yang sah ditolak diam-diam saat backend menambah satu.
+ *
+ * KCV tiap purpose dihitung ulang dari IPEK dan dibandingkan dengan yang
+ * dikirim backend. Ini satu-satunya kesempatan mendeteksi key yang rusak di
+ * perjalanan: begitu IPEK masuk modul aman vendor, ia tidak bisa dibaca lagi.
+ * Karena itu satu KCV yang tidak cocok membatalkan **seluruh** paket, bukan
+ * hanya purpose itu — pemasangan separuh adalah keadaan yang dilarang spec §7.1.
+ */
+class PackageUnwrapper(
+    private val unwrapper: RsaUnwrapper,
+    private val gson: Gson = Gson(),
+) {
+
+    fun unwrap(wrappedPackageKeyBase64: String): List<TerminalKeyMaterial> {
+        val wrapped = try {
+            Base64.getDecoder().decode(wrappedPackageKeyBase64)
+        } catch (e: IllegalArgumentException) {
+            throw PackageIntegrityException("wrappedPackageKey bukan Base64 yang sah")
+        }
+
+        val plaintext = unwrapper.unwrap(wrapped)
+        val parsed = try {
+            gson.fromJson(plaintext.decodeToString(), PlainKeyPackage::class.java)
+        } catch (e: JsonSyntaxException) {
+            throw PackageIntegrityException("Isi paket key bukan JSON yang dikenali")
+        } finally {
+            plaintext.fill(0)
+        }
+
+        val materials = parsed?.materials
+        if (materials.isNullOrEmpty()) {
+            throw PackageIntegrityException("Paket key tidak memuat material DUKPT satu pun")
+        }
+
+        return materials.map { (purpose, material) ->
+            val ipek = decode(purpose, "ipek", material.ipek)
+            val ksn = decode(purpose, "ksn", material.ksn)
+
+            // keyCheckValue menol-kan array yang diberikan, jadi dihitung dari
+            // salinan -- ipek aslinya masih harus diinjeksi setelah ini.
+            val computed = keyCheckValue(ipek.copyOf())
+            if (!computed.equals(material.kcv, ignoreCase = true)) {
+                ipek.fill(0)
+                ksn.fill(0)
+                throw PackageIntegrityException("KCV tidak cocok untuk purpose $purpose")
+            }
+
+            TerminalKeyMaterial(purpose = purpose, ipek = ipek, ksn = ksn)
+        }
+    }
+
+    private fun decode(purpose: String, field: String, value: String): ByteArray = try {
+        Base64.getDecoder().decode(value)
+    } catch (e: IllegalArgumentException) {
+        throw PackageIntegrityException("Field $field untuk purpose $purpose bukan Base64 yang sah")
+    }
+}
+```
+
+- [ ] **Step 10: Jalankan tes, pastikan lolos**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --tests "*PackageUnwrapperTest" --no-daemon`
+Expected: PASS, 5 tes.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add provisioning-core/
+git commit -m "feat(provisioning-core): add KCV, the BouncyCastle provider and the package unwrapper
+
+BcProvider encodes two traps edc-mobile already paid for, both of which
+fail with misleading symptoms. Android ships a stripped provider named
+\"BC\", so the usual null check never fires and the full provider never
+installs -- it is removed unconditionally first. And installing it at
+highest priority reroutes every unqualified Cipher.getInstance call,
+breaking RSA-OAEP with an InvalidCipherTextException that reads like bad
+data rather than a wrong provider -- so it goes in at lowest priority,
+reachable only by name.
+
+PackageUnwrapper treats purposes as data. Neither their names nor their
+count is confirmed yet, and hard-coding a list would mean silently
+rejecting a valid package the day the backend adds one.
+
+A mismatched KCV rejects the entire package rather than the one purpose.
+This is the only moment a corrupted key can be caught: once an IPEK
+enters the vendor secure module it cannot be read back, and a partial
+install is a state the spec forbids.
+
+RSA is behind an RsaUnwrapper seam so all of this is testable on the JVM;
+the real Keystore-backed implementation lands in the next task."
+```
+
+---
+
+## Task 9: Penyimpanan key di Android
+
+Tiga penyimpanan: keypair RSA untuk membuka paket, keypair Ed25519 untuk menandatangani request, dan state provisioning.
+
+Yang benar-benar bisa diuji unit di sini hanyalah **pemilihan jalur RSA** — TEE atau software — karena itu keputusan logika, dan salah memilihnya berarti device mendaftarkan public key yang tidak akan pernah bisa membuka paketnya sendiri. Operasi Keystore dan BouncyCastle-nya sendiri divalidasi manual; Robolectric tidak mengemulasi Android Keystore dengan setia, dan tes yang berpura-pura melakukannya hanya memberi rasa aman palsu.
+
+**Files:**
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/crypto/RsaKeyStore.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/crypto/Ed25519KeyStore.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/data/local/SecurePrefs.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/data/local/ProvisioningStateStore.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/StoredDeviceSigner.kt`
+- Create: `provisioning-core/src/test/kotlin/com/cashup/provisioning/crypto/RsaKeyLocationTest.kt`
+
+**Interfaces:**
+- Consumes: `BcProvider`, `RsaUnwrapper` (Task 8); `DeviceSigner` (Task 4).
+- Produces:
+  - `enum class Mgf1Digest { SHA1, SHA256 }`
+  - `enum class RsaKeyLocation { ANDROID_KEYSTORE, SOFTWARE }`
+  - `object RsaKeyLocationPolicy` dengan `fun choose(required: Mgf1Digest, apiLevel: Int): RsaKeyLocation`
+  - `class RsaKeyStore(context: Context, requiredMgf1: Mgf1Digest = Mgf1Digest.SHA1)` dengan `fun ensureKeyPair(): RsaKeyInfo`, `fun unwrapper(): RsaUnwrapper`, `fun clear()`
+  - `data class RsaKeyInfo(val publicKeySpkiBase64: String, val location: RsaKeyLocation)`
+  - `class Ed25519KeyStore(context: Context)` dengan `fun ensureKeyPair(): String` (raw 32 byte Base64), `fun sign(bytes: ByteArray): ByteArray`, `fun hasKeyPair(): Boolean`, `fun clear()`
+  - `class ProvisioningStateStore(context: Context)` dengan `fun serialNumber(): String?`, `fun save(state: ProvisioningState)`, `fun current(): ProvisioningState?`, `fun clear()`
+  - `data class ProvisioningState(val serialNumber: String, val orderId: String, val backings: Map<String, String>)`
+  - `class StoredDeviceSigner(stateStore: ProvisioningStateStore, ed25519: Ed25519KeyStore) : DeviceSigner`
+
+- [ ] **Step 1: Tulis tes yang gagal untuk pemilihan jalur RSA**
+
+`provisioning-core/src/test/kotlin/com/cashup/provisioning/crypto/RsaKeyLocationTest.kt`:
+
+```kotlin
+package com.cashup.provisioning.crypto
+
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class RsaKeyLocationTest {
+
+    @Test
+    fun `MGF1-SHA1 uses the Keystore on every supported API level`() {
+        // AndroidKeyStore memakai MGF1-SHA1 secara default, jadi tidak ada yang
+        // perlu dikonfigurasi -- jalur TEE terbuka sampai ke minSdk.
+        listOf(23, 24, 28, 30, 33).forEach { api ->
+            assertEquals(
+                "API $api",
+                RsaKeyLocation.ANDROID_KEYSTORE,
+                RsaKeyLocationPolicy.choose(Mgf1Digest.SHA1, api),
+            )
+        }
+    }
+
+    @Test
+    fun `MGF1-SHA256 falls back to software below API 35`() {
+        // setMgf1Digests baru ada di API 35. Di bawah itu digest MGF1 di
+        // AndroidKeyStore terkunci SHA-1 dan tidak bisa diubah, jadi key TEE
+        // tidak akan pernah bisa membuka paket yang dibungkus MGF1-SHA256.
+        listOf(23, 24, 28, 30, 33, 34).forEach { api ->
+            assertEquals(
+                "API $api",
+                RsaKeyLocation.SOFTWARE,
+                RsaKeyLocationPolicy.choose(Mgf1Digest.SHA256, api),
+            )
+        }
+    }
+
+    @Test
+    fun `MGF1-SHA256 uses the Keystore from API 35 upward`() {
+        listOf(35, 36).forEach { api ->
+            assertEquals(
+                "API $api",
+                RsaKeyLocation.ANDROID_KEYSTORE,
+                RsaKeyLocationPolicy.choose(Mgf1Digest.SHA256, api),
+            )
+        }
+    }
+}
+```
+
+- [ ] **Step 2: Jalankan tes, pastikan gagal**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --tests "*RsaKeyLocationTest" --no-daemon`
+Expected: FAIL — `Unresolved reference: RsaKeyLocationPolicy`.
+
+- [ ] **Step 3: Tulis `RsaKeyStore.kt`**
+
+```kotlin
+package com.cashup.provisioning.crypto
+
+import android.content.Context
+import android.os.Build
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.security.keystore.StrongBoxUnavailableException
+import com.cashup.provisioning.data.local.SecurePrefs
+import java.math.BigInteger
+import java.security.KeyFactory
+import java.security.KeyPairGenerator
+import java.security.KeyStore
+import java.security.PrivateKey
+import java.security.spec.MGF1ParameterSpec
+import java.security.spec.PKCS8EncodedKeySpec
+import java.util.Base64
+import java.util.Calendar
+import javax.crypto.Cipher
+import javax.crypto.spec.OAEPParameterSpec
+import javax.crypto.spec.PSource
+import javax.security.auth.x500.X500Principal
+
+/** Digest MGF1 yang dipakai backend saat membungkus paket key. */
+enum class Mgf1Digest { SHA1, SHA256 }
+
+enum class RsaKeyLocation { ANDROID_KEYSTORE, SOFTWARE }
+
+data class RsaKeyInfo(val publicKeySpkiBase64: String, val location: RsaKeyLocation)
+
+/**
+ * Menentukan di mana keypair RSA dibuat.
+ *
+ * Keputusan ini diambil SEKALI, sebelum `qr-redeem`, dan tidak boleh berubah
+ * setelahnya: public key yang didaftarkan ke backend harus milik key yang
+ * nantinya benar-benar dipakai membuka paket.
+ *
+ * Batasannya nyata, sudah diverifikasi terhadap `android.jar`:
+ * `KeyGenParameterSpec.Builder.setMgf1Digests` baru ada di **API 35**. Di bawah
+ * itu, digest MGF1 di AndroidKeyStore terkunci SHA-1. Jadi kalau backend
+ * membungkus dengan MGF1-SHA256, key TEE tidak akan pernah bisa membukanya di
+ * terminal Android 7–11 — dan tidak seperti `edc-mobile`, kita tidak bisa
+ * mencoba dua kombinasi karena key hardware hanya punya satu.
+ *
+ * Lihat spec §4.5.
+ */
+object RsaKeyLocationPolicy {
+    const val MGF1_DIGESTS_API = 35
+
+    fun choose(required: Mgf1Digest, apiLevel: Int): RsaKeyLocation = when {
+        required == Mgf1Digest.SHA1 -> RsaKeyLocation.ANDROID_KEYSTORE
+        apiLevel >= MGF1_DIGESTS_API -> RsaKeyLocation.ANDROID_KEYSTORE
+        else -> RsaKeyLocation.SOFTWARE
+    }
+}
+
+/**
+ * Keypair RSA-2048 yang membuka bungkusan paket key.
+ *
+ * Jalur AndroidKeyStore memakai key non-extractable dengan `PURPOSE_DECRYPT`:
+ * unwrap terjadi di dalam TEE dan private key tidak pernah ada di RAM. StrongBox
+ * dicoba lebih dulu dan gagalnya ditangani, karena banyak SoC EDC tidak punya.
+ *
+ * Jalur software ada semata karena batas MGF1 di [RsaKeyLocationPolicy], bukan
+ * karena dipilih — dan [RsaKeyInfo.location] melaporkannya supaya kondisi itu
+ * terlihat, tidak diam.
+ *
+ * Tidak ada tes unit untuk kelas ini. Robolectric tidak mengemulasi Android
+ * Keystore dengan setia; yang diuji adalah kebijakannya, dan kripto-nya
+ * divalidasi manual di terminal fisik.
+ */
+class RsaKeyStore(
+    context: Context,
+    private val requiredMgf1: Mgf1Digest = Mgf1Digest.SHA1,
+) {
+    private val appContext = context.applicationContext
+    private val prefs by lazy { SecurePrefs.open(appContext, PREFS) }
+
+    private val location: RsaKeyLocation
+        get() = RsaKeyLocationPolicy.choose(requiredMgf1, Build.VERSION.SDK_INT)
+
+    @Synchronized
+    fun ensureKeyPair(): RsaKeyInfo = when (location) {
+        RsaKeyLocation.ANDROID_KEYSTORE -> RsaKeyInfo(ensureKeystoreKey(), RsaKeyLocation.ANDROID_KEYSTORE)
+        RsaKeyLocation.SOFTWARE -> RsaKeyInfo(ensureSoftwareKey(), RsaKeyLocation.SOFTWARE)
+    }
+
+    fun unwrapper(): RsaUnwrapper = RsaUnwrapper { wrapped ->
+        val cipher = when (location) {
+            RsaKeyLocation.ANDROID_KEYSTORE ->
+                Cipher.getInstance("RSA/ECB/OAEPPadding").apply {
+                    init(Cipher.DECRYPT_MODE, keystorePrivateKey(), oaepSpec())
+                }
+            RsaKeyLocation.SOFTWARE -> {
+                BcProvider.ensureInstalled()
+                Cipher.getInstance("RSA/ECB/OAEPPadding", BcProvider.NAME).apply {
+                    init(Cipher.DECRYPT_MODE, softwarePrivateKey(), oaepSpec())
+                }
+            }
+        }
+        cipher.doFinal(wrapped)
+    }
+
+    @Synchronized
+    fun clear() {
+        prefs.edit().remove(KEY_PRIVATE).remove(KEY_PUBLIC).commit()
+        runCatching { androidKeyStore().deleteEntry(ALIAS) }
+    }
+
+    private fun oaepSpec() = OAEPParameterSpec(
+        "SHA-256",
+        "MGF1",
+        when (requiredMgf1) {
+            Mgf1Digest.SHA1 -> MGF1ParameterSpec.SHA1
+            Mgf1Digest.SHA256 -> MGF1ParameterSpec.SHA256
+        },
+        PSource.PSpecified.DEFAULT,
+    )
+
+    private fun androidKeyStore() = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+
+    private fun ensureKeystoreKey(): String {
+        val store = androidKeyStore()
+        store.getCertificate(ALIAS)?.let { return it.publicKey.encoded.base64() }
+
+        fun spec(strongBox: Boolean) = KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_DECRYPT)
+            .setKeySize(2048)
+            .setDigests(KeyProperties.DIGEST_SHA256)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_OAEP)
+            .setCertificateSubject(X500Principal("CN=cashup-provisioning"))
+            .setCertificateSerialNumber(BigInteger.ONE)
+            .setCertificateNotBefore(Calendar.getInstance().time)
+            .apply {
+                if (strongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    setIsStrongBoxBacked(true)
+                }
+            }
+            .build()
+
+        val generator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, "AndroidKeyStore")
+        val pair = try {
+            generator.initialize(spec(strongBox = true))
+            generator.generateKeyPair()
+        } catch (e: StrongBoxUnavailableException) {
+            // Banyak SoC EDC tidak punya StrongBox. TEE biasa tetap jauh lebih
+            // baik daripada blob software, jadi ini turun satu tingkat, bukan
+            // gagal.
+            generator.initialize(spec(strongBox = false))
+            generator.generateKeyPair()
+        }
+        return pair.public.encoded.base64()
+    }
+
+    private fun keystorePrivateKey(): PrivateKey =
+        androidKeyStore().getKey(ALIAS, null) as PrivateKey
+
+    private fun ensureSoftwareKey(): String {
+        prefs.getString(KEY_PUBLIC, null)?.let { return it }
+        BcProvider.ensureInstalled()
+        val pair = KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }.generateKeyPair()
+        prefs.edit()
+            .putString(KEY_PRIVATE, pair.private.encoded.base64())
+            .putString(KEY_PUBLIC, pair.public.encoded.base64())
+            .commit()
+        return pair.public.encoded.base64()
+    }
+
+    private fun softwarePrivateKey(): PrivateKey {
+        val stored = prefs.getString(KEY_PRIVATE, null)
+            ?: error("Keypair RSA belum dibuat")
+        return KeyFactory.getInstance("RSA")
+            .generatePrivate(PKCS8EncodedKeySpec(Base64.getDecoder().decode(stored)))
+    }
+
+    private fun ByteArray.base64(): String = Base64.getEncoder().encodeToString(this)
+
+    private companion object {
+        const val ALIAS = "cashup_provisioning_rsa"
+        const val PREFS = "provisioning_rsa"
+        const val KEY_PRIVATE = "private_key"
+        const val KEY_PUBLIC = "public_key"
+    }
+}
+```
+
+- [ ] **Step 4: Jalankan tes, pastikan lolos**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --tests "*RsaKeyLocationTest" --no-daemon`
+Expected: PASS, 3 tes.
+
+- [ ] **Step 5: Tulis `SecurePrefs.kt`**
+
+```kotlin
+package com.cashup.provisioning.data.local
+
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+
+/**
+ * `SharedPreferences` ter-enkripsi AES-256-GCM dengan master key yang dipegang
+ * Android Keystore. Dipakai untuk apa pun yang tidak bisa masuk hardware:
+ * blob private key Ed25519 dan, di jalur fallback, blob RSA.
+ */
+internal object SecurePrefs {
+    fun open(context: Context, fileName: String): SharedPreferences {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        return EncryptedSharedPreferences.create(
+            context,
+            fileName,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+        )
+    }
+}
+```
+
+- [ ] **Step 6: Tulis `Ed25519KeyStore.kt`**
+
+```kotlin
+package com.cashup.provisioning.crypto
+
+import android.content.Context
+import com.cashup.provisioning.data.local.SecurePrefs
+import java.security.KeyFactory
+import java.security.KeyPairGenerator
+import java.security.Signature
+import java.security.spec.PKCS8EncodedKeySpec
+import java.util.Base64
+
+/**
+ * Keypair Ed25519 yang menandatangani setiap request setelah provisioning.
+ *
+ * **Ini bukan key hardware-backed, dan tidak bisa dibuat begitu.**
+ * `KeyProperties.KEY_ALGORITHM_ED25519` tidak ada di Android — diverifikasi
+ * terhadap `android.jar` API 33, 36, dan 37; API 37 menambah ML-DSA dan tetap
+ * tanpa Ed25519. Jadi keypair dibuat lewat BouncyCastle dan private key-nya
+ * disimpan sebagai blob PKCS8 di [SecurePrefs].
+ *
+ * Tingkat perlindungannya setara `EncryptedSharedPreferences` biasa, bukan
+ * lebih. Ini konsekuensi dari algoritma yang sudah dikunci backend, bukan
+ * pilihan — lihat spec §4.2.
+ *
+ * [ensureKeyPair] idempoten: kalau key sudah ada, tidak dibuat ulang, supaya
+ * device tetap dikenali backend.
+ */
+class Ed25519KeyStore(context: Context) {
+
+    private val prefs by lazy { SecurePrefs.open(context.applicationContext, PREFS) }
+
+    fun hasKeyPair(): Boolean = prefs.contains(KEY_PRIVATE)
+
+    /** Public key raw 32 byte, Base64 — bentuk yang diharapkan backend. */
+    @Synchronized
+    fun ensureKeyPair(): String {
+        prefs.getString(KEY_PUBLIC_RAW, null)?.let { return it }
+
+        BcProvider.ensureInstalled()
+        val pair = KeyPairGenerator.getInstance("Ed25519", BcProvider.NAME).generateKeyPair()
+        val raw = rawFromX509(pair.public.encoded)
+        val rawBase64 = Base64.getEncoder().encodeToString(raw)
+
+        prefs.edit()
+            .putString(KEY_PRIVATE, Base64.getEncoder().encodeToString(pair.private.encoded))
+            .putString(KEY_PUBLIC_RAW, rawBase64)
+            .commit()
+        return rawBase64
+    }
+
+    fun sign(bytes: ByteArray): ByteArray {
+        val stored = prefs.getString(KEY_PRIVATE, null)
+            ?: error("Keypair Ed25519 belum dibuat")
+        BcProvider.ensureInstalled()
+        val privateKey = KeyFactory.getInstance("Ed25519", BcProvider.NAME)
+            .generatePrivate(PKCS8EncodedKeySpec(Base64.getDecoder().decode(stored)))
+        return Signature.getInstance("Ed25519", BcProvider.NAME).run {
+            initSign(privateKey)
+            update(bytes)
+            sign()
+        }
+    }
+
+    @Synchronized
+    fun clear() {
+        prefs.edit().remove(KEY_PRIVATE).remove(KEY_PUBLIC_RAW).commit()
+    }
+
+    /**
+     * SubjectPublicKeyInfo X.509 untuk Ed25519 selalu 44 byte: prefix ASN.1
+     * tetap 12 byte diikuti 32 byte key mentah. Backend memakai konvensi raw
+     * yang sama di arah sebaliknya.
+     */
+    private fun rawFromX509(encoded: ByteArray): ByteArray =
+        encoded.copyOfRange(encoded.size - 32, encoded.size)
+
+    private companion object {
+        const val PREFS = "provisioning_ed25519"
+        const val KEY_PRIVATE = "private_key"
+        const val KEY_PUBLIC_RAW = "public_key_raw"
+    }
+}
+```
+
+- [ ] **Step 7: Tulis `ProvisioningStateStore.kt`**
+
+```kotlin
+package com.cashup.provisioning.data.local
+
+import android.content.Context
+import com.google.gson.Gson
+import com.google.gson.JsonSyntaxException
+
+/**
+ * [backings] memetakan purpose ke nama [com.cashup.devicesdk.KeyBacking],
+ * disimpan sebagai string supaya penambahan nilai enum kelak tidak membuat
+ * state lama tidak terbaca.
+ */
+data class ProvisioningState(
+    val serialNumber: String,
+    val orderId: String,
+    val backings: Map<String, String>,
+)
+
+class ProvisioningStateStore(context: Context) {
+
+    private val prefs by lazy { SecurePrefs.open(context.applicationContext, PREFS) }
+    private val gson = Gson()
+
+    /**
+     * Mengembalikan `null` juga kalau isi tersimpan tidak lagi cocok skema saat
+     * ini — entri dibuang, bukan didiamkan, supaya pembacaan berikutnya tidak
+     * mengulang error yang sama selamanya.
+     */
+    fun current(): ProvisioningState? {
+        val raw = prefs.getString(KEY, null) ?: return null
+        return try {
+            gson.fromJson(raw, ProvisioningState::class.java)
+        } catch (e: JsonSyntaxException) {
+            prefs.edit().remove(KEY).commit()
+            null
+        }
+    }
+
+    fun serialNumber(): String? = current()?.serialNumber
+
+    @Synchronized
+    fun save(state: ProvisioningState) {
+        prefs.edit().putString(KEY, gson.toJson(state)).commit()
+    }
+
+    @Synchronized
+    fun clear() {
+        prefs.edit().remove(KEY).commit()
+    }
+
+    private companion object {
+        const val PREFS = "provisioning_state"
+        const val KEY = "current"
+    }
+}
+```
+
+- [ ] **Step 8: Tulis `StoredDeviceSigner.kt`**
+
+```kotlin
+package com.cashup.provisioning
+
+import com.cashup.provisioning.crypto.Ed25519KeyStore
+import com.cashup.provisioning.data.local.ProvisioningStateStore
+import com.cashup.signing.DeviceSigner
+
+/**
+ * Menyambungkan penyimpanan ke kontrak [DeviceSigner] milik `signing-core`.
+ *
+ * [deviceId] baru punya nilai setelah provisioning berhasil — sebelum itu
+ * `SigningInterceptor` melempar `DeviceNotProvisionedException`, yang memang
+ * yang diinginkan: request bertanda tangan tidak punya urusan berjalan sebelum
+ * backend mengenal device ini.
+ */
+class StoredDeviceSigner(
+    private val stateStore: ProvisioningStateStore,
+    private val ed25519: Ed25519KeyStore,
+) : DeviceSigner {
+
+    override fun deviceId(): String? = stateStore.serialNumber()
+
+    override fun sign(canonicalBytes: ByteArray): ByteArray = ed25519.sign(canonicalBytes)
+}
+```
+
+- [ ] **Step 9: Verifikasi module ter-build dan seluruh tesnya lolos**
+
+Run: `./gradlew :provisioning-core:assembleDebug :provisioning-core:testDebugUnitTest --no-daemon`
+Expected: BUILD SUCCESSFUL, 16 tes lolos (4 repository + 4 KCV + 5 unwrapper + 3 lokasi RSA).
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add provisioning-core/
+git commit -m "feat(provisioning-core): add the Android key stores
+
+RsaKeyLocationPolicy is the part with unit tests, because getting it wrong
+means the device registers a public key that can never open its own key
+package. setMgf1Digests is API 35+ (verified against android.jar), so
+below that AndroidKeyStore's MGF1 digest is locked to SHA-1: if the
+backend wraps with MGF1-SHA256, a TEE key simply cannot decrypt on the
+Android 7-11 terminals we target, and unlike edc-mobile we cannot try both
+combinations because a hardware key only has one. The choice is made once,
+before qr-redeem, since the registered public key must belong to the key
+that will actually unwrap.
+
+The RSA Keystore path uses a non-extractable PURPOSE_DECRYPT key so
+unwrapping happens inside the TEE. StrongBox is attempted and its absence
+handled rather than fatal, because many EDC SoCs lack it.
+
+Ed25519 cannot be hardware-backed at all -- KEY_ALGORITHM_ED25519 does not
+exist through API 37 -- so it is a BouncyCastle key stored as a PKCS8 blob
+in EncryptedSharedPreferences. That is a consequence of the algorithm the
+backend locked, not a preference, and it is written on the class so nobody
+later assumes otherwise.
+
+No unit tests cover the Keystore operations themselves: Robolectric does
+not emulate Android Keystore faithfully, and tests that pretend otherwise
+buy false confidence. They are validated by hand on a physical terminal."
+```
+
+---
+
+## Task 10: Jurnal provisioning — log per langkah dengan bukti nilai
+
+> ### ⏳ SEMENTARA — dijadwalkan dihapus sebelum produksi
+>
+> Ini alat bantu tahap awal: untuk membuktikan alur berjalan dan menyusun
+> laporan selama uji coba di terminal. **Bukan** bagian dari produk akhir.
+>
+> Seluruhnya sengaja ditaruh di satu package, `com.cashup.provisioning.audit`,
+> dan masuk ke alur utama lewat **satu parameter konstruktor** saja. Checklist
+> pencabutannya ada di akhir task ini — kalau nanti ada bagian jurnal yang bocor
+> ke luar package `audit/`, itu pelanggaran desain task ini, bukan sekadar
+> kerapian.
+
+Provisioning harus bisa dilaporkan selama tahap ini: apa yang terjadi di tiap langkah, nilai apa yang mengalir, dan bukti bahwa key yang dipasang memang key yang diterbitkan HSM. Sekaligus, key material tidak boleh bocor ke log — sifat sementaranya **tidak** melonggarkan itu. Uji coba berjalan di terminal sungguhan dengan key sungguhan, dan logcat di sana bukan tempat yang kita kendalikan.
+
+Kedua tuntutan itu didamaikan dengan aturan yang dikodekan, bukan diserahkan ke disiplin penulis kode: **jurnal hanya menerima nilai lewat fungsi pembungkus yang sudah menentukan cara merendernya.** Tidak ada jalan untuk menaruh `ByteArray` mentah ke dalam entri.
+
+| Jenis nilai | Yang dicatat | Kenapa aman |
+|---|---|---|
+| IPEK, private key | `len=16 fp=a3f9c1d2` | Sidik jari SHA-256 dipotong 8 hex. Cukup membuktikan dua nilai sama/berbeda, tidak cukup membalikkannya |
+| KSN | `len=10 fp=…` | Sama. KSN tidak rahasia tapi diperlakukan sama demi keseragaman |
+| KCV | nilai penuh | KCV **memang** dirancang sebagai bukti publik atas sebuah key |
+| Public key | `len=294 fp=…` | Publik, tapi tetap dipotong supaya entri tetap pendek |
+| `challengeCode` | 4 karakter pertama + `…` | Sekali pakai, tapi masih hidup saat log ditulis |
+| `orderId`, `correlationId`, `status`, `serialNumber` | nilai penuh | Justru ini yang dibutuhkan laporan untuk dicocokkan dengan sisi backend |
+
+**Files:**
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/audit/ProvisioningJournal.kt`
+- Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/audit/Evidence.kt`
+- Create: `provisioning-core/src/test/kotlin/com/cashup/provisioning/audit/ProvisioningJournalTest.kt`
+- Create: `provisioning-core/src/test/kotlin/com/cashup/provisioning/audit/EvidenceTest.kt`
+
+**Interfaces:**
+- Consumes: `PaymentLogger`, `NoOpPaymentLogger` dari `common-core`.
+- Produces:
+  - `enum class ProvisioningStep { DETECT_DEVICE, GENERATE_KEYS, SCAN_QR, REDEEM, DOWNLOAD_PACKAGE, UNWRAP_PACKAGE, VERIFY_KCV, INSTALL_KEYS, ACTIVATE, PERSIST_STATE, ROLLBACK }`
+  - `enum class StepStatus { STARTED, OK, FAILED }`
+  - `data class JournalEntry(val step: ProvisioningStep, val status: StepStatus, val atMillis: Long, val durationMillis: Long?, val evidence: Map<String, String>, val errorCode: String?)`
+  - `object Evidence` dengan `fun secret(bytes: ByteArray): String`, `fun secret(text: String): String`, `fun publicKey(base64: String): String`, `fun masked(value: String, visible: Int = 4): String`, `fun fingerprint(bytes: ByteArray): String`
+  - `class ProvisioningJournal(logger: PaymentLogger = NoOpPaymentLogger, clock: () -> Long = System::currentTimeMillis)` dengan `fun start(step, evidence)`, `fun ok(step, evidence)`, `fun failed(step, errorCode, evidence)`, `val entries: List<JournalEntry>`, `fun render(): String`, `fun clear()`
+
+- [ ] **Step 1: Tulis tes yang gagal untuk `Evidence`**
+
+`provisioning-core/src/test/kotlin/com/cashup/provisioning/audit/EvidenceTest.kt`:
+
+```kotlin
+package com.cashup.provisioning.audit
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class EvidenceTest {
+
+    private val ipek = byteArrayOf(0x0A, 0x1B, 0x2C, 0x3D, 0x4E, 0x5F, 0x60, 0x71)
+
+    @Test
+    fun `secret renders length and a short fingerprint, never the bytes`() {
+        val rendered = Evidence.secret(ipek)
+
+        assertTrue(rendered, rendered.startsWith("len=8 fp="))
+        assertFalse("raw byte leaked", rendered.contains("0a1b", ignoreCase = true))
+        assertEquals(8, rendered.substringAfter("fp=").length)
+    }
+
+    @Test
+    fun `the same bytes always fingerprint the same way`() {
+        assertEquals(Evidence.secret(ipek), Evidence.secret(ipek.copyOf()))
+    }
+
+    @Test
+    fun `one changed byte changes the fingerprint`() {
+        val other = ipek.copyOf().also { it[0] = 0x0B }
+
+        assertNotEquals(Evidence.secret(ipek), Evidence.secret(other))
+    }
+
+    @Test
+    fun `secret does not mutate or zero the caller's array`() {
+        val original = ipek.copyOf()
+
+        Evidence.secret(ipek)
+
+        // Berbeda dari keyCheckValue, yang memang menol-kan. Jurnal tidak boleh
+        // punya efek samping terhadap nilai yang sedang dipakai alur utama.
+        assertTrue(original.contentEquals(ipek))
+    }
+
+    @Test
+    fun `masked keeps only the first few characters`() {
+        assertEquals("ABCD…", Evidence.masked("ABCD-1234-EFGH"))
+        assertEquals("AB…", Evidence.masked("ABCD-1234", visible = 2))
+    }
+
+    @Test
+    fun `masked does not pad out a value shorter than the window`() {
+        assertEquals("AB…", Evidence.masked("AB"))
+    }
+
+    @Test
+    fun `publicKey reports length and fingerprint`() {
+        val rendered = Evidence.publicKey("TUZrd0V3WUhLb1pJemowQ0FR")
+
+        assertTrue(rendered, rendered.startsWith("len=24 fp="))
+    }
+}
+```
+
+- [ ] **Step 2: Jalankan tes, pastikan gagal**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --tests "*EvidenceTest" --no-daemon`
+Expected: FAIL — `Unresolved reference: Evidence`.
+
+- [ ] **Step 3: Tulis `Evidence.kt`**
+
+```kotlin
+package com.cashup.provisioning.audit
+
+import java.security.MessageDigest
+
+/**
+ * Satu-satunya jalan menaruh nilai ke dalam [ProvisioningJournal].
+ *
+ * Ada supaya aturan "key material tidak pernah masuk log" jadi properti tipe,
+ * bukan disiplin: [ProvisioningJournal] hanya menerima `Map<String, String>`,
+ * dan satu-satunya cara waras membuat string itu dari sebuah key adalah lewat
+ * [secret], yang memang tidak mampu mengeluarkan byte aslinya.
+ *
+ * Sidik jari dipotong 8 hex (32 bit). Itu cukup untuk keperluan laporan —
+ * membuktikan bahwa IPEK yang dipasang sama dengan yang di-unwrap, atau bahwa
+ * dua device menerima key berbeda — dan terlalu pendek untuk dibalikkan menjadi
+ * key-nya.
+ *
+ * KCV sengaja TIDAK lewat sini: nilai itu memang dirancang sebagai bukti publik
+ * atas sebuah key, dan laporan justru butuh nilai penuhnya untuk dicocokkan
+ * dengan catatan HSM.
+ */
+object Evidence {
+
+    private const val FINGERPRINT_HEX_CHARS = 8
+
+    /** `len=<n> fp=<8 hex>`. Tidak menyentuh isi [bytes]. */
+    fun secret(bytes: ByteArray): String = "len=${bytes.size} fp=${fingerprint(bytes)}"
+
+    fun secret(text: String): String = secret(text.toByteArray(Charsets.UTF_8))
+
+    /** Public key boleh dicatat utuh, tapi dipendekkan supaya entri tetap terbaca. */
+    fun publicKey(base64: String): String = "len=${base64.length} fp=${fingerprint(base64.toByteArray())}"
+
+    /** Beberapa karakter pertama saja — untuk nilai sekali pakai yang masih hidup. */
+    fun masked(value: String, visible: Int = 4): String = value.take(visible) + "…"
+
+    fun fingerprint(bytes: ByteArray): String =
+        MessageDigest.getInstance("SHA-256").digest(bytes)
+            .joinToString("") { "%02x".format(it) }
+            .take(FINGERPRINT_HEX_CHARS)
+}
+```
+
+- [ ] **Step 4: Jalankan tes, pastikan lolos**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --tests "*EvidenceTest" --no-daemon`
+Expected: PASS, 7 tes.
+
+- [ ] **Step 5: Tulis tes yang gagal untuk `ProvisioningJournal`**
+
+`provisioning-core/src/test/kotlin/com/cashup/provisioning/audit/ProvisioningJournalTest.kt`:
+
+```kotlin
+package com.cashup.provisioning.audit
+
+import com.cashup.common.logging.PaymentLogger
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ProvisioningJournalTest {
+
+    private class RecordingLogger : PaymentLogger {
+        val lines = mutableListOf<String>()
+        override fun debug(tag: String, message: String) { lines += message }
+        override fun warn(tag: String, message: String, throwable: Throwable?) { lines += message }
+        override fun error(tag: String, message: String, throwable: Throwable?) { lines += message }
+    }
+
+    private fun journalWithClock(vararg times: Long): Pair<ProvisioningJournal, RecordingLogger> {
+        val logger = RecordingLogger()
+        var index = 0
+        val journal = ProvisioningJournal(logger) { times[index++.coerceAtMost(times.size - 1)] }
+        return journal to logger
+    }
+
+    @Test
+    fun `records steps in order with their evidence`() {
+        val (journal, _) = journalWithClock(1000, 1200)
+
+        journal.start(ProvisioningStep.REDEEM, mapOf("challengeCode" to Evidence.masked("ABCD-1234")))
+        journal.ok(ProvisioningStep.REDEEM, mapOf("orderId" to "o-1"))
+
+        assertEquals(2, journal.entries.size)
+        assertEquals(StepStatus.STARTED, journal.entries[0].status)
+        assertEquals("ABCD…", journal.entries[0].evidence["challengeCode"])
+        assertEquals(StepStatus.OK, journal.entries[1].status)
+        assertEquals("o-1", journal.entries[1].evidence["orderId"])
+    }
+
+    @Test
+    fun `a completed step reports how long it took`() {
+        val (journal, _) = journalWithClock(1000, 1200)
+
+        journal.start(ProvisioningStep.DOWNLOAD_PACKAGE, emptyMap())
+        journal.ok(ProvisioningStep.DOWNLOAD_PACKAGE, emptyMap())
+
+        assertNull(journal.entries[0].durationMillis)
+        assertEquals(200L, journal.entries[1].durationMillis)
+    }
+
+    @Test
+    fun `a failure keeps the backend error code`() {
+        val (journal, _) = journalWithClock(1000, 1100)
+
+        journal.start(ProvisioningStep.REDEEM, emptyMap())
+        journal.failed(ProvisioningStep.REDEEM, "PROVISIONING_TOKEN_INVALID", emptyMap())
+
+        assertEquals("PROVISIONING_TOKEN_INVALID", journal.entries[1].errorCode)
+        assertEquals(StepStatus.FAILED, journal.entries[1].status)
+    }
+
+    @Test
+    fun `every entry is also handed to the logger`() {
+        val (journal, logger) = journalWithClock(1000)
+
+        journal.ok(ProvisioningStep.INSTALL_KEYS, mapOf("PIN" to "VENDOR_SECURE_MODULE"))
+
+        assertEquals(1, logger.lines.size)
+        assertTrue(logger.lines[0], logger.lines[0].contains("INSTALL_KEYS"))
+        assertTrue(logger.lines[0], logger.lines[0].contains("VENDOR_SECURE_MODULE"))
+    }
+
+    @Test
+    fun `render produces one readable line per entry for the report`() {
+        val (journal, _) = journalWithClock(1000, 1050, 1300)
+
+        journal.start(ProvisioningStep.UNWRAP_PACKAGE, emptyMap())
+        journal.ok(
+            ProvisioningStep.UNWRAP_PACKAGE,
+            mapOf("PIN.ipek" to "len=16 fp=a3f9c1d2", "PIN.kcv" to "A1B2C3"),
+        )
+
+        val lines = journal.render().trim().lines()
+        assertEquals(2, lines.size)
+        assertTrue(lines[1], lines[1].contains("UNWRAP_PACKAGE"))
+        assertTrue(lines[1], lines[1].contains("PIN.kcv=A1B2C3"))
+        assertTrue(lines[1], lines[1].contains("fp=a3f9c1d2"))
+    }
+
+    @Test
+    fun `clear empties the journal for a fresh attempt`() {
+        val (journal, _) = journalWithClock(1000)
+
+        journal.ok(ProvisioningStep.SCAN_QR, emptyMap())
+        journal.clear()
+
+        assertTrue(journal.entries.isEmpty())
+    }
+}
+```
+
+- [ ] **Step 6: Jalankan tes, pastikan gagal**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --tests "*ProvisioningJournalTest" --no-daemon`
+Expected: FAIL — `Unresolved reference: ProvisioningJournal`.
+
+- [ ] **Step 7: Tulis `ProvisioningJournal.kt`**
+
+```kotlin
+package com.cashup.provisioning.audit
+
+import com.cashup.common.logging.NoOpPaymentLogger
+import com.cashup.common.logging.PaymentLogger
+import java.util.Collections
+
+enum class ProvisioningStep {
+    DETECT_DEVICE,
+    GENERATE_KEYS,
+    SCAN_QR,
+    REDEEM,
+    DOWNLOAD_PACKAGE,
+    UNWRAP_PACKAGE,
+    VERIFY_KCV,
+    INSTALL_KEYS,
+    ACTIVATE,
+    PERSIST_STATE,
+    ROLLBACK,
+}
+
+enum class StepStatus { STARTED, OK, FAILED }
+
+data class JournalEntry(
+    val step: ProvisioningStep,
+    val status: StepStatus,
+    val atMillis: Long,
+    val durationMillis: Long?,
+    val evidence: Map<String, String>,
+    val errorCode: String?,
+)
+
+/**
+ * **SEMENTARA — dihapus sebelum produksi.** Alat bantu tahap awal untuk
+ * membuktikan alur berjalan dan menyusun laporan selama uji coba di terminal.
+ * Seluruh package `audit/` dicabut bersamaan; lihat checklist di
+ * `docs/superpowers/plans/2026-09-16-provisioning.md` Task 10.
+ *
+ * Catatan berurutan tentang apa yang terjadi selama provisioning, beserta bukti
+ * nilai yang cukup untuk dilaporkan dan dicocokkan dengan sisi backend.
+ *
+ * Isinya aman dibaca dan disalin: nilai rahasia masuk lewat [Evidence], yang
+ * hanya bisa mengeluarkan panjang dan sidik jari terpotong. KCV dicatat utuh
+ * karena memang itu fungsinya — bukti publik atas sebuah key.
+ *
+ * Jurnal ini **bukan** pengganti log aplikasi; tiap entri juga diteruskan ke
+ * [PaymentLogger]. Bedanya, jurnal tetap hidup di memori sebagai satu kesatuan
+ * sehingga layar Result bisa menampilkannya dan laporan bisa mengambilnya utuh,
+ * tanpa mengais logcat.
+ *
+ * Durasi dihitung dari [start] ke [ok]/[failed] untuk langkah yang sama, jadi
+ * laporan bisa menunjukkan langkah mana yang lambat — biasanya
+ * [ProvisioningStep.DOWNLOAD_PACKAGE], yang menunggu dua HSM.
+ */
+class ProvisioningJournal(
+    private val logger: PaymentLogger = NoOpPaymentLogger,
+    private val clock: () -> Long = System::currentTimeMillis,
+) {
+
+    private val mutableEntries = Collections.synchronizedList(mutableListOf<JournalEntry>())
+    private val startedAt = mutableMapOf<ProvisioningStep, Long>()
+
+    val entries: List<JournalEntry> get() = mutableEntries.toList()
+
+    fun start(step: ProvisioningStep, evidence: Map<String, String> = emptyMap()) {
+        val now = clock()
+        synchronized(startedAt) { startedAt[step] = now }
+        record(step, StepStatus.STARTED, now, null, evidence, null)
+    }
+
+    fun ok(step: ProvisioningStep, evidence: Map<String, String> = emptyMap()) {
+        val now = clock()
+        record(step, StepStatus.OK, now, durationFor(step, now), evidence, null)
+    }
+
+    fun failed(step: ProvisioningStep, errorCode: String?, evidence: Map<String, String> = emptyMap()) {
+        val now = clock()
+        record(step, StepStatus.FAILED, now, durationFor(step, now), evidence, errorCode)
+    }
+
+    /** Satu baris per entri, siap disalin ke laporan. */
+    fun render(): String = entries.joinToString("\n") { entry ->
+        buildString {
+            append(entry.atMillis)
+            append(' ')
+            append(entry.status.name.padEnd(7))
+            append(' ')
+            append(entry.step.name)
+            entry.durationMillis?.let { append(" (${it}ms)") }
+            entry.errorCode?.let { append(" error=").append(it) }
+            entry.evidence.forEach { (key, value) -> append(' ').append(key).append('=').append(value) }
+        }
+    }
+
+    fun clear() {
+        mutableEntries.clear()
+        synchronized(startedAt) { startedAt.clear() }
+    }
+
+    private fun durationFor(step: ProvisioningStep, now: Long): Long? =
+        synchronized(startedAt) { startedAt.remove(step) }?.let { now - it }
+
+    private fun record(
+        step: ProvisioningStep,
+        status: StepStatus,
+        atMillis: Long,
+        durationMillis: Long?,
+        evidence: Map<String, String>,
+        errorCode: String?,
+    ) {
+        val entry = JournalEntry(step, status, atMillis, durationMillis, evidence.toMap(), errorCode)
+        mutableEntries += entry
+        val line = renderEntry(entry)
+        when (status) {
+            StepStatus.FAILED -> logger.error(TAG, line)
+            else -> logger.debug(TAG, line)
+        }
+    }
+
+    private fun renderEntry(entry: JournalEntry): String = buildString {
+        append(entry.status.name)
+        append(' ')
+        append(entry.step.name)
+        entry.durationMillis?.let { append(" (${it}ms)") }
+        entry.errorCode?.let { append(" error=").append(it) }
+        entry.evidence.forEach { (key, value) -> append(' ').append(key).append('=').append(value) }
+    }
+
+    private companion object {
+        const val TAG = "Provisioning"
+    }
+}
+```
+
+- [ ] **Step 8: Jalankan tes, pastikan lolos**
+
+Run: `./gradlew :provisioning-core:testDebugUnitTest --tests "*ProvisioningJournalTest" --no-daemon`
+Expected: PASS, 6 tes.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add provisioning-core/
+git commit -m "feat(provisioning-core): add a provisioning journal with redacted evidence
+
+Provisioning has to be reportable -- what happened at each step, which
+values flowed, and proof that the keys installed are the keys the HSM
+issued. It also must not leak key material into logs that leave a device
+we do not control.
+
+Evidence reconciles the two by making the rule a property of the type
+rather than of the author's discipline: the journal only accepts strings,
+and the only sane way to turn a key into one is Evidence.secret, which is
+incapable of emitting the bytes. Fingerprints are 32 bits -- enough to
+prove the IPEK installed is the IPEK unwrapped, far too short to invert.
+
+KCV is deliberately recorded in full. It is designed to be public proof of
+a key, and the report needs it to reconcile against the HSM's own record.
+
+Durations come from pairing start with ok/failed, so a report can show
+which step was slow -- usually the package download, which waits on two
+HSMs.
+
+The whole audit package is temporary scaffolding for terminal trials and
+is scheduled for removal before production; the plan carries the removal
+checklist."
+```
+
+### Checklist pencabutan (dijalankan sebelum rilis produksi)
+
+Ditulis sekarang, selagi alasannya masih segar, supaya pencabutannya tidak jadi pekerjaan arkeologi.
+
+- [ ] Hapus `provisioning-core/src/main/kotlin/com/cashup/provisioning/audit/` seluruhnya
+- [ ] Hapus `provisioning-core/src/test/kotlin/com/cashup/provisioning/audit/` seluruhnya
+- [ ] Hapus parameter `journal` dari konstruktor `ProvisionDeviceUseCase` (Task 11) beserta setiap pemanggilan `journal.start/ok/failed` di dalamnya
+- [ ] Hapus `journalText` dari `ProvisioningUiState.Success` dan `ProvisioningUiState.Failure` (Task 12), beserta panel yang menampilkannya di layar Result
+- [ ] Jalankan `grep -rn "audit\|Journal\|Evidence" --include=*.kt provisioning-core app` — harus tidak ada sisa
+- [ ] `./gradlew test` dan `./gradlew testDebugUnitTest` harus tetap hijau setelahnya
+
+Verifikasi bahwa pencabutan itu memang murah, dilakukan sekarang, bukan nanti: jurnal masuk ke `ProvisionDeviceUseCase` lewat satu parameter dengan nilai default, dan tidak ada tipe dari package `audit/` yang muncul di tanda tangan publik module lain.
+
+---
