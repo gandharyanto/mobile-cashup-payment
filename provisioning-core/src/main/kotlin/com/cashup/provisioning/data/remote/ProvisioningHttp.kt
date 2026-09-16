@@ -46,12 +46,24 @@ object ProvisioningHttp {
             .create(ProvisioningApi::class.java)
 
         return ProvisioningRepository(
-            unsigned = retrofit(clientBuilder(debugLogging).build()),
+            unsigned = retrofit(
+                clientBuilder(debugLogging)
+                    // Logging ditambahkan TERAKHIR (lihat komentar di
+                    // loggingInterceptor) supaya ia melihat header lengkap
+                    // yang ditulis interceptor-interceptor sebelumnya.
+                    .addInterceptor(loggingInterceptor(debugLogging))
+                    .build()
+            ),
             signed = retrofit(
                 clientBuilder(debugLogging)
                     // SigningInterceptor membaca X-Timestamp yang ditulis
                     // RequestHeadersInterceptor, jadi urutan ini mengikat.
                     .addInterceptor(SigningInterceptor(deviceSigner))
+                    // Logging harus paling akhir (spec §7.5 item 7): kalau ia
+                    // dipasang sebelum SigningInterceptor, ia tidak pernah
+                    // melihat X-Signature/X-Device-Id/X-Nonce, dan
+                    // redactHeader("X-Signature") di bawah jadi tidak berguna.
+                    .addInterceptor(loggingInterceptor(debugLogging))
                     .build()
             ),
             gson = gson,
@@ -63,18 +75,15 @@ object ProvisioningHttp {
         .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .addInterceptor(RequestHeadersInterceptor())
-        .apply {
-            // Level BODY mencetak wrappedPackageKey dan seluruh keyCheckValues
-            // ke logcat. Hanya untuk build debug; rilis mentok di BASIC.
-            addInterceptor(
-                HttpLoggingInterceptor().apply {
-                    level = if (debugLogging) {
-                        HttpLoggingInterceptor.Level.BODY
-                    } else {
-                        HttpLoggingInterceptor.Level.BASIC
-                    }
-                    redactHeader("X-Signature")
-                }
-            )
+
+    // Level BODY mencetak wrappedPackageKey dan seluruh keyCheckValues ke
+    // logcat. Hanya untuk build debug; rilis mentok di BASIC.
+    private fun loggingInterceptor(debugLogging: Boolean) = HttpLoggingInterceptor().apply {
+        level = if (debugLogging) {
+            HttpLoggingInterceptor.Level.BODY
+        } else {
+            HttpLoggingInterceptor.Level.BASIC
         }
+        redactHeader("X-Signature")
+    }
 }
