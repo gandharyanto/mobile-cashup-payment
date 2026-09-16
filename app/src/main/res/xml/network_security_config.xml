@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext diizinkan HANYA untuk host pengembangan di Tailnet. Backend produksi
+  wajib HTTPS; jangan menambahkan host publik ke daftar ini.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">100.103.104.38</domain>
+    </domain-config>
+</network-security-config>
