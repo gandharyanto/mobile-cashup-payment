@@ -3355,14 +3355,33 @@ Provisioning harus bisa dilaporkan selama tahap ini: apa yang terjadi di tiap la
 
 Kedua tuntutan itu didamaikan dengan aturan yang dikodekan, bukan diserahkan ke disiplin penulis kode: **jurnal hanya menerima nilai lewat fungsi pembungkus yang sudah menentukan cara merendernya.** Tidak ada jalan untuk menaruh `ByteArray` mentah ke dalam entri.
 
-| Jenis nilai | Yang dicatat | Kenapa aman |
-|---|---|---|
-| IPEK, private key | `len=16 fp=a3f9c1d2` | Sidik jari SHA-256 dipotong 8 hex. Cukup membuktikan dua nilai sama/berbeda, tidak cukup membalikkannya |
-| KSN | `len=10 fp=…` | Sama. KSN tidak rahasia tapi diperlakukan sama demi keseragaman |
-| KCV | nilai penuh | KCV **memang** dirancang sebagai bukti publik atas sebuah key |
-| Public key | `len=294 fp=…` | Publik, tapi tetap dipotong supaya entri tetap pendek |
-| `challengeCode` | 4 karakter pertama + `…` | Sekali pakai, tapi masih hidup saat log ditulis |
-| `orderId`, `correlationId`, `status`, `serialNumber` | nilai penuh | Justru ini yang dibutuhkan laporan untuk dicocokkan dengan sisi backend |
+Nilai dibagi dua kelas, dan hanya satu yang pernah disembunyikan.
+
+**Kelas 1 — ditampilkan penuh, selalu.** Ini yang sebenarnya dibutuhkan saat
+mendebug alur, dan tidak satu pun darinya rahasia:
+
+| Nilai | Kenapa penuh |
+|---|---|
+| `challengeCode` | Sekali pakai dan mati begitu ditebus |
+| `orderId`, `activationToken` | Token alur, tidak berguna tanpa key device |
+| `wrappedPackageKey` | Ciphertext; hanya private key device yang bisa membukanya |
+| KCV | Memang dirancang sebagai bukti publik atas sebuah key |
+| Public key RSA & Ed25519 | Publik menurut definisi |
+| `serialNumber`, `correlationId`, `status`, kode error | Justru ini yang dicocokkan dengan catatan backend |
+| Body request & response | Isinya kelas 1 semua |
+
+**Kelas 2 — hanya dua hal, dan hanya ini yang disembunyikan:** IPEK plaintext
+dan private key. Default-nya `len=16 fp=a3f9c1d2` — sidik jari SHA-256 dipotong
+8 hex, cukup membuktikan IPEK yang dipasang sama dengan yang di-unwrap, terlalu
+pendek untuk dibalikkan.
+
+Keduanya **tetap bisa dibuka penuh** untuk debugging, lewat satu saklar:
+`Evidence.revealSecrets`. Saklar itu dinyalakan di satu tempat saja
+(`AppContainer`, Task 13), dijaga `BuildConfig.DEBUG`, dan mati secara default.
+Alasannya bukan formalitas: uji coba berjalan di terminal sungguhan dengan key
+DUKPT sungguhan, dan logcat di sana bukan milik kita. Dengan bentuk ini, key
+asli tidak bisa bocor kecuali seseorang sengaja menyalakannya pada build debug
+— dan di build rilis saklarnya tidak bisa menyala sama sekali.
 
 **Files:**
 - Create: `provisioning-core/src/main/kotlin/com/cashup/provisioning/audit/ProvisioningJournal.kt`
@@ -3376,7 +3395,7 @@ Kedua tuntutan itu didamaikan dengan aturan yang dikodekan, bukan diserahkan ke 
   - `enum class ProvisioningStep { DETECT_DEVICE, GENERATE_KEYS, SCAN_QR, REDEEM, DOWNLOAD_PACKAGE, UNWRAP_PACKAGE, VERIFY_KCV, INSTALL_KEYS, ACTIVATE, PERSIST_STATE, ROLLBACK }`
   - `enum class StepStatus { STARTED, OK, FAILED }`
   - `data class JournalEntry(val step: ProvisioningStep, val status: StepStatus, val atMillis: Long, val durationMillis: Long?, val evidence: Map<String, String>, val errorCode: String?)`
-  - `object Evidence` dengan `fun secret(bytes: ByteArray): String`, `fun secret(text: String): String`, `fun publicKey(base64: String): String`, `fun masked(value: String, visible: Int = 4): String`, `fun fingerprint(bytes: ByteArray): String`
+  - `object Evidence` dengan `var revealSecrets: Boolean`, `fun secret(bytes: ByteArray): String`, `fun secret(text: String): String`, `fun publicKey(base64: String): String`, `fun token(value: String): String`, `fun ciphertext(value: String): String`, `fun fingerprint(bytes: ByteArray): String`
   - `class ProvisioningJournal(logger: PaymentLogger = NoOpPaymentLogger, clock: () -> Long = System::currentTimeMillis)` dengan `fun start(step, evidence)`, `fun ok(step, evidence)`, `fun failed(step, errorCode, evidence)`, `val entries: List<JournalEntry>`, `fun render(): String`, `fun clear()`
 
 - [ ] **Step 1: Tulis tes yang gagal untuk `Evidence`**
@@ -3398,6 +3417,7 @@ class EvidenceTest {
 
     @Test
     fun `secret renders length and a short fingerprint, never the bytes`() {
+        // Perilaku default -- revealSecrets mati.
         val rendered = Evidence.secret(ipek)
 
         assertTrue(rendered, rendered.startsWith("len=8 fp="))
@@ -3429,21 +3449,32 @@ class EvidenceTest {
     }
 
     @Test
-    fun `masked keeps only the first few characters`() {
-        assertEquals("ABCD…", Evidence.masked("ABCD-1234-EFGH"))
-        assertEquals("AB…", Evidence.masked("ABCD-1234", visible = 2))
+    fun `class-1 values are rendered in full`() {
+        // Token sekali pakai, ciphertext, dan public key semuanya dibutuhkan utuh
+        // saat mendebug alur, dan tidak satu pun rahasia.
+        assertEquals("ABCD-1234-EFGH", Evidence.token("ABCD-1234-EFGH"))
+        assertEquals("d3JhcHBlZA==", Evidence.ciphertext("d3JhcHBlZA=="))
+        assertEquals("TUZrd0V3WUhLb1pJemowQ0FR", Evidence.publicKey("TUZrd0V3WUhLb1pJemowQ0FR"))
     }
 
     @Test
-    fun `masked does not pad out a value shorter than the window`() {
-        assertEquals("AB…", Evidence.masked("AB"))
+    fun `revealSecrets appends the raw bytes when it is on`() {
+        Evidence.revealSecrets = true
+        try {
+            val rendered = Evidence.secret(ipek)
+            assertTrue(rendered, rendered.startsWith("len=8 fp="))
+            assertTrue(rendered, rendered.endsWith(" raw=0a1b2c3d4e5f6071"))
+        } finally {
+            Evidence.revealSecrets = false
+        }
     }
 
     @Test
-    fun `publicKey reports length and fingerprint`() {
-        val rendered = Evidence.publicKey("TUZrd0V3WUhLb1pJemowQ0FR")
-
-        assertTrue(rendered, rendered.startsWith("len=24 fp="))
+    fun `revealSecrets defaults to off`() {
+        // Uji coba berjalan di terminal sungguhan dengan key sungguhan. Default
+        // yang salah di sini berarti key asli masuk logcat tanpa ada yang memilihnya.
+        assertFalse(Evidence.revealSecrets)
+        assertFalse(Evidence.secret(ipek).contains("raw="))
     }
 }
 ```
@@ -3481,16 +3512,42 @@ object Evidence {
 
     private const val FINGERPRINT_HEX_CHARS = 8
 
-    /** `len=<n> fp=<8 hex>`. Tidak menyentuh isi [bytes]. */
-    fun secret(bytes: ByteArray): String = "len=${bytes.size} fp=${fingerprint(bytes)}"
+    /**
+     * Membuka nilai kelas 2 — IPEK plaintext dan private key — sepenuhnya.
+     *
+     * **SEMENTARA, KHUSUS DEBUG, MATI SECARA DEFAULT.** Dinyalakan di satu
+     * tempat saja ([com.cashup.app.di.AppContainer]), dijaga `BuildConfig.DEBUG`,
+     * sehingga di build rilis tidak bisa menyala sama sekali. Uji coba berjalan
+     * di terminal sungguhan dengan key DUKPT sungguhan; logcat di sana bukan
+     * milik kita.
+     *
+     * Sengaja `var` global meski itu buruk sebagai desain: seluruh package ini
+     * dicabut sebelum produksi, dan menyalurkan flag lewat setiap pemanggil akan
+     * membuat pencabutannya menyentuh jauh lebih banyak berkas.
+     */
+    @Volatile
+    @JvmField
+    var revealSecrets: Boolean = false
+
+    /**
+     * `len=<n> fp=<8 hex>`, ditambah `raw=<hex>` kalau [revealSecrets] menyala.
+     * Tidak pernah menyentuh isi [bytes].
+     */
+    fun secret(bytes: ByteArray): String {
+        val base = "len=${bytes.size} fp=${fingerprint(bytes)}"
+        return if (revealSecrets) "$base raw=${bytes.joinToString("") { "%02x".format(it) }}" else base
+    }
 
     fun secret(text: String): String = secret(text.toByteArray(Charsets.UTF_8))
 
-    /** Public key boleh dicatat utuh, tapi dipendekkan supaya entri tetap terbaca. */
-    fun publicKey(base64: String): String = "len=${base64.length} fp=${fingerprint(base64.toByteArray())}"
+    /** Public key itu publik menurut definisi — selalu penuh (kelas 1). */
+    fun publicKey(base64: String): String = base64
 
-    /** Beberapa karakter pertama saja — untuk nilai sekali pakai yang masih hidup. */
-    fun masked(value: String, visible: Int = 4): String = value.take(visible) + "…"
+    /** Token sekali pakai — kelas 1, selalu penuh. Dibutuhkan untuk mencocokkan dengan sisi backend. */
+    fun token(value: String): String = value
+
+    /** Ciphertext — kelas 1, selalu penuh. Hanya private key device yang bisa membukanya. */
+    fun ciphertext(value: String): String = value
 
     fun fingerprint(bytes: ByteArray): String =
         MessageDigest.getInstance("SHA-256").digest(bytes)
@@ -3537,12 +3594,12 @@ class ProvisioningJournalTest {
     fun `records steps in order with their evidence`() {
         val (journal, _) = journalWithClock(1000, 1200)
 
-        journal.start(ProvisioningStep.REDEEM, mapOf("challengeCode" to Evidence.masked("ABCD-1234")))
+        journal.start(ProvisioningStep.REDEEM, mapOf("challengeCode" to Evidence.token("ABCD-1234")))
         journal.ok(ProvisioningStep.REDEEM, mapOf("orderId" to "o-1"))
 
         assertEquals(2, journal.entries.size)
         assertEquals(StepStatus.STARTED, journal.entries[0].status)
-        assertEquals("ABCD…", journal.entries[0].evidence["challengeCode"])
+        assertEquals("ABCD-1234", journal.entries[0].evidence["challengeCode"])
         assertEquals(StepStatus.OK, journal.entries[1].status)
         assertEquals("o-1", journal.entries[1].evidence["orderId"])
     }
@@ -3792,7 +3849,8 @@ Ditulis sekarang, selagi alasannya masih segar, supaya pencabutannya tidak jadi 
 - [ ] Hapus `provisioning-core/src/test/kotlin/com/cashup/provisioning/audit/` seluruhnya
 - [ ] Hapus parameter `journal` dari konstruktor `ProvisionDeviceUseCase` (Task 11) beserta setiap pemanggilan `journal.start/ok/failed` di dalamnya
 - [ ] Hapus `journalText` dari `ProvisioningUiState.Success` dan `ProvisioningUiState.Failure` (Task 12), beserta panel yang menampilkannya di layar Result
-- [ ] Jalankan `grep -rn "audit\|Journal\|Evidence" --include=*.kt provisioning-core app` — harus tidak ada sisa
+- [ ] Hapus blok `init { Evidence.revealSecrets = ... }` di `AppContainer` (Task 13)
+- [ ] Jalankan `grep -rn "audit\|Journal\|Evidence\|revealSecrets" --include=*.kt provisioning-core app` — harus tidak ada sisa
 - [ ] `./gradlew test` dan `./gradlew testDebugUnitTest` harus tetap hijau setelahnya
 
 Verifikasi bahwa pencabutan itu memang murah, dilakukan sekarang, bukan nanti: jurnal masuk ke `ProvisionDeviceUseCase` lewat satu parameter dengan nilai default, dan tidak ada tipe dari package `audit/` yang muncul di tanda tangan publik module lain.
@@ -4304,7 +4362,13 @@ class ProvisionDeviceUseCase(
             journal.failed(ProvisioningStep.SCAN_QR, CHALLENGE_EMPTY)
             return fail(CHALLENGE_EMPTY, "Kode provisioning kosong")
         }
-        journal.ok(ProvisioningStep.SCAN_QR, mapOf("challengeCode" to Evidence.masked(challengeCode)))
+        journal.ok(
+            ProvisioningStep.SCAN_QR,
+            mapOf(
+                "challengeCode.raw" to Evidence.token(rawChallengeCode),
+                "challengeCode.normalized" to Evidence.token(challengeCode),
+            ),
+        )
 
         // 4. Redeem. Satu-satunya panggilan yang tidak ditandatangani.
         journal.start(ProvisioningStep.REDEEM)
@@ -4320,11 +4384,24 @@ class ProvisionDeviceUseCase(
         ) {
             is ApiResult.Success -> result.data
             is ApiResult.Failure -> {
-                journal.failed(ProvisioningStep.REDEEM, result.error.code)
+                journal.failed(
+                    ProvisioningStep.REDEEM,
+                    result.error.code,
+                    mapOf(
+                        "httpStatus" to (result.error.httpStatus?.toString() ?: "-"),
+                        "message" to result.error.message,
+                    ),
+                )
                 return fail(result.error.code, result.error.message)
             }
         }
-        journal.ok(ProvisioningStep.REDEEM, mapOf("orderId" to redeemed.orderId))
+        journal.ok(
+            ProvisioningStep.REDEEM,
+            mapOf(
+                "orderId" to Evidence.token(redeemed.orderId),
+                "activationToken" to Evidence.token(redeemed.activationToken),
+            ),
+        )
 
         // Mulai di sini backend sudah menerbitkan order, jadi setiap kegagalan
         // harus melewati rollback.
@@ -4336,13 +4413,27 @@ class ProvisionDeviceUseCase(
         ) {
             is ApiResult.Success -> result.data
             is ApiResult.Failure -> {
-                journal.failed(ProvisioningStep.DOWNLOAD_PACKAGE, result.error.code)
+                journal.failed(
+                    ProvisioningStep.DOWNLOAD_PACKAGE,
+                    result.error.code,
+                    mapOf(
+                        "httpStatus" to (result.error.httpStatus?.toString() ?: "-"),
+                        "message" to result.error.message,
+                    ),
+                )
                 return rollbackAndFail(result.error.code, result.error.message)
             }
         }
         journal.ok(
             ProvisioningStep.DOWNLOAD_PACKAGE,
-            mapOf("wrappedPackageKey" to Evidence.secret(keyPackage.wrappedPackageKey)),
+            mapOf(
+                "orderId" to Evidence.token(keyPackage.orderId),
+                // Ciphertext -- kelas 1, dicatat penuh. Hanya private key device
+                // yang bisa membukanya, dan justru nilai inilah yang dibutuhkan
+                // untuk mereproduksi kegagalan unwrap di luar terminal.
+                "wrappedPackageKey" to Evidence.ciphertext(keyPackage.wrappedPackageKey),
+                "appEddsaPublicKey" to (keyPackage.appEddsaPublicKey ?: "-"),
+            ),
         )
 
         // 6-7. Buka paket dan verifikasi KCV tiap purpose. Ini satu-satunya
@@ -4352,7 +4443,11 @@ class ProvisionDeviceUseCase(
         val materials: List<TerminalKeyMaterial> = try {
             unwrapperFactory(keys.unwrapper()).unwrap(keyPackage.wrappedPackageKey)
         } catch (e: PackageIntegrityException) {
-            journal.failed(ProvisioningStep.UNWRAP_PACKAGE, PACKAGE_INVALID)
+            journal.failed(
+                ProvisioningStep.UNWRAP_PACKAGE,
+                PACKAGE_INVALID,
+                mapOf("message" to (e.message ?: "-")),
+            )
             return rollbackAndFail(PACKAGE_INVALID, e.message ?: "Paket key tidak sah")
         }
         val checkValues = materials.associate { it.purpose to keyCheckValue(it.ipek.copyOf()) }
@@ -4392,7 +4487,14 @@ class ProvisionDeviceUseCase(
         ) {
             is ApiResult.Success -> result.data
             is ApiResult.Failure -> {
-                journal.failed(ProvisioningStep.ACTIVATE, result.error.code)
+                journal.failed(
+                    ProvisioningStep.ACTIVATE,
+                    result.error.code,
+                    mapOf(
+                        "httpStatus" to (result.error.httpStatus?.toString() ?: "-"),
+                        "message" to result.error.message,
+                    ) + checkValues.mapKeys { "sent.${it.key}.kcv" },
+                )
                 return rollbackAndFail(result.error.code, result.error.message)
             }
         }
@@ -5008,6 +5110,7 @@ import com.cashup.devicesdk.edcsdk.EdcSdkSerialNumberProvider
 import com.cashup.devicesdk.edcsdk.EdcSdkTerminalKeyInstaller
 import com.cashup.provisioning.AndroidProvisioningKeys
 import com.cashup.provisioning.StoredDeviceSigner
+import com.cashup.provisioning.audit.Evidence
 import com.cashup.provisioning.audit.ProvisioningJournal
 import com.cashup.provisioning.crypto.Ed25519KeyStore
 import com.cashup.provisioning.crypto.Mgf1Digest
@@ -5029,6 +5132,14 @@ class AppContainer(context: Context) {
     val config = AppConfig(appContext)
 
     private val logger: PaymentLogger = NoOpPaymentLogger
+
+    init {
+        // SEMENTARA -- membuka IPEK plaintext dan private key sepenuhnya di
+        // jurnal, untuk mendebug alur di tahap awal. Satu-satunya tempat saklar
+        // ini disentuh, dan BuildConfig.DEBUG membuatnya mustahil menyala di
+        // build rilis. Dicabut bersama package audit/ (Task 10).
+        Evidence.revealSecrets = BuildConfig.DEBUG && BuildConfig.PROVISIONING_JOURNAL
+    }
 
     private val stateStore = ProvisioningStateStore(appContext)
     private val ed25519 = Ed25519KeyStore(appContext)
