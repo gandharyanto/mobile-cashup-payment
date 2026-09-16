@@ -100,9 +100,62 @@ class RsaKeyStore(
         cipher.doFinal(wrapped)
     }
 
+    /**
+     * `SHA256withRSA` — dipakai `ProvisionDeviceUseCase` untuk `deviceSignature`
+     * proof-of-possession di `/activate` (spec §2 langkah 6b-i). Key yang sama
+     * dengan yang membuka paket; `PURPOSE_SIGN` ditambahkan ke
+     * `KeyGenParameterSpec` di bawah supaya ini bekerja di jalur TEE.
+     */
+    fun sign(bytes: ByteArray): ByteArray {
+        val privateKey = when (location) {
+            RsaKeyLocation.ANDROID_KEYSTORE -> keystorePrivateKey()
+            RsaKeyLocation.SOFTWARE -> {
+                BcProvider.ensureInstalled()
+                softwarePrivateKey()
+            }
+        }
+        val provider = if (location == RsaKeyLocation.SOFTWARE) BcProvider.NAME else null
+        return (if (provider != null) java.security.Signature.getInstance("SHA256withRSA", provider)
+                else java.security.Signature.getInstance("SHA256withRSA")).run {
+            initSign(privateKey)
+            update(bytes)
+            sign()
+        }
+    }
+
+    /**
+     * Sertifikat self-signed atas keypair ini (§4.2 spec 17 September),
+     * dibuat sekali dan disimpan — idempoten seperti keypair-nya sendiri,
+     * supaya sertifikat yang dikirim ke backend selalu cocok dengan key yang
+     * sedang dipakai. Daftar beranggota satu: self-signed, bukan rantai.
+     */
+    @Synchronized
+    fun certificateChain(): List<String> {
+        prefs.getString(KEY_CERTIFICATE, null)?.let { return listOf(it) }
+
+        val keyPair = when (location) {
+            RsaKeyLocation.ANDROID_KEYSTORE -> java.security.KeyPair(
+                androidKeyStore().getCertificate(ALIAS).publicKey,
+                keystorePrivateKey(),
+            )
+            RsaKeyLocation.SOFTWARE -> {
+                BcProvider.ensureInstalled()
+                java.security.KeyPair(
+                    java.security.KeyFactory.getInstance("RSA")
+                        .generatePublic(java.security.spec.X509EncodedKeySpec(Base64.decode(prefs.getString(KEY_PUBLIC, null), Base64.NO_WRAP))),
+                    softwarePrivateKey(),
+                )
+            }
+        }
+        val der = SelfSignedCertificate.build(keyPair)
+        val base64 = Base64.encodeToString(der, Base64.NO_WRAP)
+        prefs.edit().putString(KEY_CERTIFICATE, base64).commit()
+        return listOf(base64)
+    }
+
     @Synchronized
     fun clear() {
-        prefs.edit().remove(KEY_PRIVATE).remove(KEY_PUBLIC).commit()
+        prefs.edit().remove(KEY_PRIVATE).remove(KEY_PUBLIC).remove(KEY_CERTIFICATE).commit()
         runCatching { androidKeyStore().deleteEntry(ALIAS) }
     }
 
@@ -122,7 +175,10 @@ class RsaKeyStore(
         val store = androidKeyStore()
         store.getCertificate(ALIAS)?.let { return it.publicKey.encoded.base64() }
 
-        fun spec(strongBox: Boolean) = KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_DECRYPT)
+        fun spec(strongBox: Boolean) = KeyGenParameterSpec.Builder(
+            ALIAS,
+            KeyProperties.PURPOSE_DECRYPT or KeyProperties.PURPOSE_SIGN,
+        )
             .setKeySize(2048)
             // SHA-256 untuk digest utama OAEP, SHA-1 untuk MGF1. Keduanya harus
             // ada: `unwrapper()` memakai MGF1ParameterSpec.SHA1 (Mgf1Digest.SHA1
@@ -134,6 +190,7 @@ class RsaKeyStore(
             // UNWRAP_PACKAGE, setelah backend menerbitkan order.
             .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA1)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_OAEP)
+            .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
             .setCertificateSubject(X500Principal("CN=cashup-provisioning"))
             .setCertificateSerialNumber(BigInteger.ONE)
             .setCertificateNotBefore(Calendar.getInstance().time)
@@ -205,5 +262,6 @@ class RsaKeyStore(
         const val PREFS = "provisioning_rsa"
         const val KEY_PRIVATE = "private_key"
         const val KEY_PUBLIC = "public_key"
+        const val KEY_CERTIFICATE = "certificate"
     }
 }
