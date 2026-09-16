@@ -26,6 +26,21 @@ sealed interface TerminalKeyInstallResult {
  *
  * [wipe] dipanggil saat rollback atomic: gagal di langkah mana pun membuat
  * device kembali ke keadaan belum terprovisioning, tanpa sisa key separuh jalan.
+ *
+ * **Batas [wipe] yang harus dibaca sebagai celah, bukan sebagai masalah yang
+ * sudah selesai.** [wipe] menghapus apa yang ada di bawah kendali app: vault
+ * dan state lokal. Ia TIDAK dan TIDAK BISA menghapus IPEK yang sudah masuk
+ * modul aman vendor — modul itu memang dirancang supaya key yang masuk tidak
+ * bisa keluar, dan implementasinya (`BaseSystemKey` di AAR `edc-sdk`) tidak
+ * mengekspos operasi hapus apa pun, hanya `writeIPEK`. Akibatnya, kegagalan di
+ * `ACTIVATE` bisa meninggalkan key hidup di hardware yang backend tidak tahu
+ * keberadaannya; yang memulihkannya hanyalah provisioning berikutnya yang
+ * berhasil dan menimpa slot itu.
+ *
+ * Memperbaikinya butuh `BaseSystemKey` diperluas dengan kemampuan hapus dan
+ * diimplementasikan ulang per vendor — menyentuh repo `edc-sdk` dan menunggu
+ * AAR baru, karena itu **di luar scope plan ini** (spec §4.3, §10). Dicatat di
+ * sini, bukan diam-diam ditanggung.
  */
 interface TerminalKeyInstaller {
     suspend fun install(materials: List<TerminalKeyMaterial>): TerminalKeyInstallResult

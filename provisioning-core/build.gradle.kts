@@ -21,6 +21,14 @@ android {
     sourceSets["test"].java.srcDir("src/test/kotlin")
 
     testOptions {
+        // PERINGATAN -- `isReturnDefaultValues = true` membuat setiap method
+        // android.jar yang tidak di-stub mengembalikan null/0/false alih-alih
+        // melempar "not mocked". Digabung dengan `android.util.Base64` di kode
+        // produksi, unit test yang TIDAK beranotasi
+        // @RunWith(RobolectricTestRunner::class) akan menerima null dari
+        // encode/decode dan gagal di tempat yang jauh dari sebabnya -- atau
+        // lebih buruk, lulus dengan nilai kosong. Test apa pun yang menyentuh
+        // jalur Base64 harus memakai Robolectric.
         unitTests {
             isIncludeAndroidResources = false
             isReturnDefaultValues = true

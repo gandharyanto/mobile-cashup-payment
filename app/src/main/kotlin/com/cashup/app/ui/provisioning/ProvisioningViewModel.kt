@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cashup.app.di.AppContainer
+import com.cashup.provisioning.audit.ProvisioningStep
 import com.cashup.provisioning.domain.ProvisioningOutcome
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,9 +15,14 @@ import kotlinx.coroutines.launch
  * Menerima lambda, bukan [AppContainer], supaya seluruh mesin state bisa diuji
  * di JVM tanpa Android sama sekali. [Factory] yang menyambungkannya ke container
  * sungguhan.
+ *
+ * Parameter kedua lambda adalah callback langkah: use case memanggilnya setiap
+ * kali satu langkah ceremony dimulai, dan ViewModel meneruskannya ke
+ * [ProvisioningUiState.Processing] supaya layar Processing menunjukkan kemajuan
+ * yang sebenarnya, bukan spinner tanpa keterangan.
  */
 class ProvisioningViewModel(
-    private val provisionDevice: suspend (String) -> ProvisioningOutcome,
+    private val provisionDevice: suspend (String, (ProvisioningStep) -> Unit) -> ProvisioningOutcome,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ProvisioningUiState>(ProvisioningUiState.Idle)
@@ -38,11 +44,14 @@ class ProvisioningViewModel(
     fun provision(challengeCode: String) {
         if (inFlight) return
         inFlight = true
-        _state.value = ProvisioningUiState.Processing
+        _state.value = ProvisioningUiState.Processing(ProvisioningStep.DETECT_DEVICE)
 
         viewModelScope.launch {
             try {
-                _state.value = when (val outcome = provisionDevice(challengeCode)) {
+                val report: (ProvisioningStep) -> Unit = { step ->
+                    _state.value = ProvisioningUiState.Processing(step)
+                }
+                _state.value = when (val outcome = provisionDevice(challengeCode, report)) {
                     is ProvisioningOutcome.Success -> ProvisioningUiState.Success(
                         serialNumber = outcome.serialNumber,
                         orderId = outcome.orderId,
@@ -72,6 +81,8 @@ class ProvisioningViewModel(
     class Factory(private val container: AppContainer) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            ProvisioningViewModel { code -> container.provisionDeviceUseCase().invoke(code) } as T
+            ProvisioningViewModel { code, onStep ->
+                container.provisionDeviceUseCase().invoke(code, onStep)
+            } as T
     }
 }

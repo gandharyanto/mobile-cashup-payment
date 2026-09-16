@@ -56,11 +56,21 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
         }
     }
 
-    /** SEMENTARA — dicabut bersama package `audit/` (Task 10). */
+    /**
+     * SEMENTARA — dicabut bersama package `audit/` (Task 10).
+     *
+     * Teks jurnal hanya ditulis ke view kalau view itu memang ditampilkan.
+     * `visibility = GONE` menyembunyikan dari mata, bukan dari hierarki view:
+     * teks yang ditulis tetap hidup di `TextView`, terbaca lewat dump
+     * hierarki, layanan aksesibilitas, dan snapshot proses. Jurnal membawa
+     * orderId dan token aktivasi terpotong, jadi di build rilis — tempat
+     * panel ini selalu GONE — jurnalnya tidak boleh sampai ke view sama
+     * sekali.
+     */
     private fun showJournal(binding: FragmentResultBinding, text: String) {
         val visible = BuildConfig.PROVISIONING_JOURNAL && text.isNotBlank()
         binding.journalLabel.visibility = if (visible) View.VISIBLE else View.GONE
         binding.journal.visibility = if (visible) View.VISIBLE else View.GONE
-        binding.journal.text = text
+        if (visible) binding.journal.text = text
     }
 }

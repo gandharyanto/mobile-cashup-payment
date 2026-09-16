@@ -124,7 +124,15 @@ class RsaKeyStore(
 
         fun spec(strongBox: Boolean) = KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_DECRYPT)
             .setKeySize(2048)
-            .setDigests(KeyProperties.DIGEST_SHA256)
+            // SHA-256 untuk digest utama OAEP, SHA-1 untuk MGF1. Keduanya harus
+            // ada: `unwrapper()` memakai MGF1ParameterSpec.SHA1 (Mgf1Digest.SHA1
+            // yang dipatok di §4.5), dan sebagian implementasi AndroidKeyStore
+            // ikut memvalidasi digest MGF1 terhadap daftar digest yang
+            // diotorisasi key -- menolak `Cipher.init` dengan
+            // InvalidAlgorithmParameterException kalau hanya SHA-256 terdaftar.
+            // Key yang tidak bisa membuka paketnya sendiri baru ketahuan di
+            // UNWRAP_PACKAGE, setelah backend menerbitkan order.
+            .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA1)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_OAEP)
             .setCertificateSubject(X500Principal("CN=cashup-provisioning"))
             .setCertificateSerialNumber(BigInteger.ONE)

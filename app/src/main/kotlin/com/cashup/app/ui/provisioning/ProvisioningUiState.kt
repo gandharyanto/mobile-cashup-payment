@@ -1,6 +1,7 @@
 package com.cashup.app.ui.provisioning
 
 import com.cashup.devicesdk.KeyInstallOutcome
+import com.cashup.provisioning.audit.ProvisioningStep
 
 /**
  * Sealed interface, bukan satu data class dengan `isLoading`/`error`/`data`
@@ -16,7 +17,15 @@ sealed interface ProvisioningUiState {
 
     data object Scanning : ProvisioningUiState
 
-    data object Processing : ProvisioningUiState
+    /**
+     * [step] membawa langkah ceremony yang sedang berjalan.
+     * `ProvisionDeviceUseCase` sudah melaporkannya sejak awal; sebelum ini
+     * laporan itu tidak tersambung ke mana pun dan layar Processing hanya
+     * menampilkan spinner selama seluruh ceremony — termasuk sepanjang
+     * `DOWNLOAD_PACKAGE`, yang menunggu dua HSM dan paling mungkin terlihat
+     * seperti aplikasi yang menggantung.
+     */
+    data class Processing(val step: ProvisioningStep) : ProvisioningUiState
 
     data class Success(
         val serialNumber: String,

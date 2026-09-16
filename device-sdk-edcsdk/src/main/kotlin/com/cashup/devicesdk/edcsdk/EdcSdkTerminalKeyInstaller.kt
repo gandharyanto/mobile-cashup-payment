@@ -75,6 +75,13 @@ class EdcSdkTerminalKeyInstaller internal constructor(
         TerminalKeyInstallResult.Installed(outcomes)
     }
 
+    /**
+     * Menghapus vault dan cerminannya. **Tidak menyentuh modul aman vendor** —
+     * `BaseSystemKey` tidak punya operasi hapus, hanya `writeIPEK`, sehingga
+     * IPEK yang sudah masuk hardware tetap di sana. Celah yang diketahui dan
+     * disengaja untuk sekarang; lihat KDoc
+     * [com.cashup.devicesdk.TerminalKeyInstaller.wipe] dan spec §4.3.
+     */
     override suspend fun wipe() = withContext(Dispatchers.IO) {
         gateway.clearAll()
     }

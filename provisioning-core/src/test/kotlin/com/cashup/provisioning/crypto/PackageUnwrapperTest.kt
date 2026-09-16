@@ -74,6 +74,25 @@ class PackageUnwrapperTest {
         }
     }
 
+    /**
+     * Gson membangun [PlainKeyMaterial] lewat `Unsafe`, jadi field yang hilang
+     * tetap masuk sebagai `null` betapapun tipe Kotlin-nya non-null. Yang harus
+     * keluar dari sini adalah kegagalan integritas yang menyebut field-nya,
+     * bukan NullPointerException tanpa konteks.
+     */
+    @Test
+    fun `a material missing a field is named, not turned into a null pointer`() {
+        val ksnB64 = Base64.getEncoder().encodeToString(ksn)
+        val json = """{"materials":{"PIN":{"ksn":"$ksnB64","kcv":"ABCDEF"}}}"""
+
+        val failure = assertThrows(PackageIntegrityException::class.java) {
+            unwrapperReturning(json).unwrap(wrappedInput())
+        }
+
+        assertTrue(failure.message, failure.message!!.contains("ipek"))
+        assertTrue(failure.message, failure.message!!.contains("PIN"))
+    }
+
     @Test
     fun `plaintext that is not the expected JSON is rejected`() {
         assertThrows(PackageIntegrityException::class.java) {

@@ -55,6 +55,31 @@ class Ed25519RequestSignerTest {
         assertEquals("/v1/payments?status=PENDING", canonical.decodeToString().lines()[1])
     }
 
+    /**
+     * Mengunci encoder Base64 buatan tangan di [Ed25519RequestSigner] terhadap
+     * implementasi JDK, untuk setiap panjang dari 0 sampai 199 byte.
+     *
+     * Encoder itu ditulis manual karena `java.util.Base64` baru ada di API 26
+     * sementara class ini berjalan di device API 23 (lihat KDoc-nya). Encoder
+     * buatan sendiri di jalur tanda tangan adalah tempat yang mahal untuk
+     * salah: outputnya tidak pernah diperiksa di sisi device, hanya ditolak
+     * backend, dan penanganan sisa 1/2 byte adalah bagian yang paling mudah
+     * meleset. JDK di sini dipakai sebagai orakel test-only -- ia tidak pernah
+     * masuk ke kode produksi.
+     */
+    @Test
+    fun `matches the JDK URL-safe unpadded encoder for every length`() {
+        val random = java.util.Random(42)
+        repeat(200) { length ->
+            val bytes = ByteArray(length).also(random::nextBytes)
+            assertEquals(
+                Base64.getUrlEncoder().withoutPadding().encodeToString(bytes),
+                Ed25519RequestSigner.encodeSignature(bytes),
+                "length $length",
+            )
+        }
+    }
+
     @Test
     fun `signature encodes URL-safe without padding and verifies`() {
         val keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair()

@@ -26,6 +26,17 @@ internal interface KeyManagerGateway {
     fun hasVendorModule(): Boolean
     fun writeToVendorModule(ipek: ByteArray, ksn: ByteArray): Boolean
     fun writeToVaultSlot(slot: Int, ipek: ByteArray, ksn: ByteArray): Boolean
+
+    /**
+     * Menghapus cerminan vault. **Tidak menyentuh modul aman vendor.**
+     *
+     * `BaseSystemKey` (AAR `edc-sdk`) hanya mengekspos `writeIPEK` — tidak ada
+     * erase, delete, atau clear dalam bentuk apa pun. Jadi IPEK yang sudah
+     * ditulis ke modul vendor tetap di sana setelah [clearAll], dan rollback
+     * atomic hanya benar-benar atomic untuk bagian yang ada di bawah kendali
+     * app. Lihat KDoc [com.cashup.devicesdk.TerminalKeyInstaller.wipe] dan spec
+     * §4.3.
+     */
     fun clearAll()
 }
 
@@ -50,6 +61,15 @@ internal class RealKeyManagerGateway(context: Context) : KeyManagerGateway {
      *
      * Ini kopling rapuh ke detail internal `edc-sdk` dan dicatat sebagai utang
      * di spec §4.3: begitu `edc-sdk` menyediakan `clear()` resmi, ganti ke sana.
+     *
+     * **Celah yang lebih dalam, dicatat sebagai celah:** yang dihapus di sini
+     * HANYA cerminan vault. IPEK yang sudah masuk modul aman vendor lewat
+     * [writeToVendorModule] tidak ikut terhapus, dan tidak bisa — `BaseSystemKey`
+     * tidak punya operasi hapus sama sekali, hanya `writeIPEK`. Kegagalan di
+     * `ACTIVATE` karena itu bisa meninggalkan key hidup di hardware yang backend
+     * tidak tahu keberadaannya, sampai provisioning berikutnya menimpa slot itu.
+     * Menutupnya berarti memperluas `BaseSystemKey` di repo `edc-sdk` dan
+     * mengimplementasikannya ulang per vendor — di luar scope plan ini (§10).
      */
     override fun clearAll() {
         VAULT_PREFS.forEach { deletePrefs(it) }

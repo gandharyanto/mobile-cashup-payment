@@ -8,6 +8,8 @@
     <string name="scan_manual_action">Lanjut</string>
 
     <string name="processing_title">Memproses provisioning…</string>
+    <!-- Nama langkah ditampilkan apa adanya; belum ada salinan teks per langkah. -->
+    <string name="processing_step">Langkah: %1$s</string>
 
     <string name="result_success_title">Provisioning berhasil</string>
     <string name="result_failure_title">Provisioning gagal</string>
