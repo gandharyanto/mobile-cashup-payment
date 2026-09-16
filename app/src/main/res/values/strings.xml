@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Cashup Payment</string>
+
+    <string name="scan_title">Pindai QR Provisioning</string>
+    <string name="scan_hint">Arahkan ke kode QR dari Cashup backoffice</string>
+    <string name="scan_manual_label">Atau ketik kode provisioning</string>
+    <string name="scan_manual_action">Lanjut</string>
+
+    <string name="processing_title">Memproses provisioning…</string>
+
+    <string name="result_success_title">Provisioning berhasil</string>
+    <string name="result_failure_title">Provisioning gagal</string>
+    <string name="result_serial">Serial: %1$s</string>
+    <string name="result_order">Order: %1$s</string>
+    <string name="result_retry">Coba lagi</string>
+    <string name="result_continue">Lanjut</string>
+    <string name="result_journal_label">Log proses (khusus tahap uji coba)</string>
+
+    <string name="err_token_invalid">Kode QR tidak valid, sudah dipakai, atau kedaluwarsa. Minta QR baru dari backoffice.</string>
+    <string name="err_already_provisioned">Perangkat ini sudah pernah diprovisioning penuh.</string>
+    <string name="err_not_registered">Perangkat belum terdaftar atau tidak aktif di backend.</string>
+    <string name="err_device_unknown">Perangkat tidak dikenali SDK vendor mana pun.</string>
+    <string name="err_package_invalid">Paket key dari backend tidak lolos pemeriksaan. Tidak ada key yang dipasang.</string>
+    <string name="err_key_install_failed">Gagal memasang key ke perangkat. Semua key sudah dibersihkan.</string>
+</resources>

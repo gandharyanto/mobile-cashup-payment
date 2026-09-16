@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_provisioning"
+    app:startDestination="@id/gateFragment">
+
+    <fragment
+        android:id="@+id/gateFragment"
+        android:name="com.cashup.app.ui.provisioning.GateFragment">
+        <action android:id="@+id/to_scan" app:destination="@id/scanQrFragment"
+            app:popUpTo="@id/gateFragment" app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/scanQrFragment"
+        android:name="com.cashup.app.ui.provisioning.ScanQrFragment"
+        tools:layout="@layout/fragment_scan_qr"
+        xmlns:tools="http://schemas.android.com/tools">
+        <action android:id="@+id/to_processing" app:destination="@id/processingFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/processingFragment"
+        android:name="com.cashup.app.ui.provisioning.ProcessingFragment">
+        <action android:id="@+id/to_result" app:destination="@id/resultFragment"
+            app:popUpTo="@id/scanQrFragment" app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/resultFragment"
+        android:name="com.cashup.app.ui.provisioning.ResultFragment">
+        <action android:id="@+id/to_scan" app:destination="@id/scanQrFragment"
+            app:popUpTo="@id/resultFragment" app:popUpToInclusive="true" />
+    </fragment>
+</navigation>
