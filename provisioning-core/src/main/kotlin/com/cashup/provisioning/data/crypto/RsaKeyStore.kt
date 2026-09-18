@@ -13,6 +13,7 @@ import java.security.KeyFactory
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.PrivateKey
+import java.security.SecureRandom
 import java.security.spec.MGF1ParameterSpec
 import java.security.spec.PKCS8EncodedKeySpec
 import android.util.Base64
@@ -34,7 +35,7 @@ enum class RsaKeyLocation { ANDROID_KEYSTORE, SOFTWARE }
 data class RsaKeyInfo(val publicKeySpkiBase64: String, val location: RsaKeyLocation)
 
 /**
- * Menentukan di mana keypair RSA dibuat.
+ * Menentukan lokasi keypair untuk jalur paket TDES_DUKPT lama.
  *
  * Keputusan ini diambil SEKALI, sebelum `qr-redeem`, dan tidak boleh berubah
  * setelahnya: public key yang didaftarkan ke backend harus milik key yang
@@ -42,10 +43,9 @@ data class RsaKeyInfo(val publicKeySpkiBase64: String, val location: RsaKeyLocat
  *
  * Batasannya nyata, sudah diverifikasi terhadap `android.jar`:
  * `KeyGenParameterSpec.Builder.setMgf1Digests` baru ada di **API 35**. Di bawah
- * itu, digest MGF1 di AndroidKeyStore terkunci SHA-1. Jadi kalau backend
- * membungkus dengan MGF1-SHA256, key TEE tidak akan pernah bisa membukanya di
- * terminal Android 7–11 — dan tidak seperti `edc-mobile`, kita tidak bisa
- * mencoba dua kombinasi karena key hardware hanya punya satu.
+ * itu, operasi OAEP bawaan AndroidKeyStore memakai MGF1 SHA-1. Token TR-34
+ * SHA-256/MGF1 SHA-256 dibuka melalui RSA/NoPadding Keystore dan validasi
+ * OAEP terpisah di [unwrapTr34EphemeralKey].
  *
  * Lihat spec §4.5.
  */
@@ -62,9 +62,10 @@ object RsaKeyLocationPolicy {
 /**
  * Keypair RSA-2048 yang membuka bungkusan paket key.
  *
- * Jalur AndroidKeyStore memakai key non-extractable dengan `PURPOSE_DECRYPT`:
- * unwrap terjadi di dalam TEE dan private key tidak pernah ada di RAM. StrongBox
- * dicoba lebih dulu dan gagalnya ditangani, karena banyak SoC EDC tidak punya.
+ * Jalur AndroidKeyStore memakai key non-exportable dengan `PURPOSE_DECRYPT`.
+ * Pada perangkat software-backed, material key tidak diberi ke API aplikasi,
+ * tetapi tidak mendapat isolasi hardware. StrongBox dicoba lebih dulu dan
+ * gagalnya ditangani, karena banyak SoC EDC tidak punya.
  *
  * Jalur software ada semata karena batas MGF1 di [RsaKeyLocationPolicy], bukan
  * karena dipilih — dan [RsaKeyInfo.location] melaporkannya supaya kondisi itu
@@ -126,10 +127,37 @@ class RsaKeyStore(
         cipher.doFinal(wrapped)
     }
 
-    /** Returns the non-exportable private handle for in-process TR-34 unwrap only. */
-    fun privateKeyHandle(): PrivateKey = when (location) {
-        RsaKeyLocation.ANDROID_KEYSTORE -> keystorePrivateKey()
-        RsaKeyLocation.SOFTWARE -> softwarePrivateKey()
+    /**
+     * TR-34 uses OAEP SHA-256 with MGF1 SHA-256. On Android 13 the Keystore
+     * OAEP operation cannot authorize that MGF1 digest, so perform only raw
+     * RSA inside Keystore and validate the OAEP encoded message in app memory.
+     * The private key remains non-exportable; the raw RSA authorization is
+     * broader than OAEP-only and must be restricted to this provisioning use.
+     */
+    fun unwrapTr34EphemeralKey(wrapped: ByteArray): ByteArray {
+        val spec = OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, PSource.PSpecified.DEFAULT)
+        return when (location) {
+            RsaKeyLocation.ANDROID_KEYSTORE -> {
+                val privateKey = keystorePrivateKey()
+                val publicKey = androidKeyStore().getCertificate(ALIAS).publicKey as java.security.interfaces.RSAPublicKey
+                val raw = Cipher.getInstance("RSA/ECB/NoPadding").run {
+                    init(Cipher.DECRYPT_MODE, privateKey)
+                    Log.d(TAG, "RSA TR-34 raw cipher provider=${provider.name}")
+                    doFinal(wrapped)
+                }
+                try {
+                    OaepSha256.decode(raw, (publicKey.modulus.bitLength() + 7) / 8)
+                } finally {
+                    raw.fill(0)
+                }
+            }
+            RsaKeyLocation.SOFTWARE -> {
+                BcProvider.ensureInstalled()
+                Cipher.getInstance("RSA/ECB/OAEPPadding", BcProvider.NAME).apply {
+                    init(Cipher.DECRYPT_MODE, softwarePrivateKey(), spec)
+                }.doFinal(wrapped)
+            }
+        }
     }
 
     /** Debug-only helper for decrypting Base64 RSA-OAEP ciphertext in the app. */
@@ -204,7 +232,12 @@ class RsaKeyStore(
     @Synchronized
     fun clear() {
         prefs.edit().remove(KEY_PRIVATE).remove(KEY_PUBLIC).remove(KEY_CERTIFICATE).commit()
-        runCatching { androidKeyStore().deleteEntry(ALIAS) }
+        runCatching {
+            androidKeyStore().apply {
+                deleteEntry(ALIAS)
+                deleteEntry(OLD_ALIAS)
+            }
+        }
     }
 
     private fun oaepSpec() = OAEPParameterSpec(
@@ -240,10 +273,13 @@ class RsaKeyStore(
             // ikut memvalidasi digest MGF1 terhadap daftar digest yang
             // diotorisasi key -- menolak `Cipher.init` dengan
             // InvalidAlgorithmParameterException kalau hanya SHA-256 terdaftar.
-            // Key yang tidak bisa membuka paketnya sendiri baru ketahuan di
-            // UNWRAP_PACKAGE, setelah backend menerbitkan order.
-            .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA1)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_OAEP)
+            // TR-34 memakai RSA/NoPadding Keystore dan validasi OAEP terpisah;
+            // kemampuan tersebut diuji sebelum backend menerbitkan order.
+            .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA1, KeyProperties.DIGEST_NONE)
+            .setEncryptionPaddings(
+                KeyProperties.ENCRYPTION_PADDING_RSA_OAEP,
+                KeyProperties.ENCRYPTION_PADDING_NONE,
+            )
             .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
             .setCertificateSubject(X500Principal("CN=cashup-provisioning"))
             .setCertificateSerialNumber(BigInteger.ONE)
@@ -272,7 +308,36 @@ class RsaKeyStore(
             generator.initialize(spec(strongBox = false))
             generator.generateKeyPair()
         }
+        try {
+            probeTr34Unwrap(pair.public)
+        } catch (failure: Exception) {
+            runCatching { store.deleteEntry(ALIAS) }
+            throw IllegalStateException("RSA Keystore tidak dapat membuka OAEP SHA-256/MGF1 SHA-256 di perangkat ini", failure)
+        }
+        prefs.edit().remove(KEY_CERTIFICATE).commit()
         return pair.public.encoded.base64()
+    }
+
+    private fun probeTr34Unwrap(publicKey: java.security.PublicKey) {
+        BcProvider.ensureInstalled()
+        val expected = ByteArray(24).also { SecureRandom().nextBytes(it) }
+        val wrapped = Cipher.getInstance("RSA/ECB/OAEPPadding", BcProvider.NAME).run {
+            init(Cipher.ENCRYPT_MODE, publicKey,
+                OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, PSource.PSpecified.DEFAULT))
+            doFinal(expected)
+        }
+        try {
+            val actual = unwrapTr34EphemeralKey(wrapped)
+            try {
+                check(expected.contentEquals(actual)) { "RSA TR-34 self-test gagal" }
+            } finally {
+                actual.fill(0)
+            }
+        } finally {
+            expected.fill(0)
+            wrapped.fill(0)
+        }
+        Log.i(TAG, "RSA TR-34 OAEP SHA-256/MGF1 SHA-256 self-test passed with AndroidKeyStore")
     }
 
     /** AndroidKeyStore may theoretically use a software provider; reject that for payment keys. */
@@ -347,9 +412,9 @@ class RsaKeyStore(
 
     private companion object {
         const val TAG = "CashupKeyStore"
-        // Versioned alias prevents a key generated by an older, opportunistic
-        // (non-StrongBox) build from being silently reused after strict mode.
-        const val ALIAS = "cashup_provisioning_rsa_strongbox_v2"
+        // Alias baru wajib karena izin NoPadding tidak bisa ditambahkan ke key v2.
+        const val ALIAS = "cashup_provisioning_rsa_raw_tr34_v3"
+        const val OLD_ALIAS = "cashup_provisioning_rsa_strongbox_v2"
         const val PREFS = "provisioning_rsa"
         const val KEY_PRIVATE = "private_key"
         const val KEY_PUBLIC = "public_key"

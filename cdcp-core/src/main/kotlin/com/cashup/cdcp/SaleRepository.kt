@@ -12,6 +12,7 @@ import java.math.BigDecimal
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -45,15 +46,23 @@ class SaleRepository private constructor(
     }
 
     companion object {
-        fun create(baseUrl: String, signer: DeviceSigner, keys: DukptKeyProvider): SaleRepository {
+        fun create(baseUrl: String, signer: DeviceSigner, keys: DukptKeyProvider,
+                   debugLogging: Boolean = false): SaleRepository {
             val gson = Gson()
-            val client = OkHttpClient.Builder()
+            val clientBuilder = OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(65, TimeUnit.SECONDS)
                 .writeTimeout(65, TimeUnit.SECONDS)
                 .addInterceptor(RequestHeadersInterceptor())
                 .addInterceptor(SigningInterceptor(signer))
-                .build()
+            if (debugLogging) {
+                // Sale DTO contains encrypted card/PIN fields; enable body logs only in debug.
+                clientBuilder.addInterceptor(HttpLoggingInterceptor().apply {
+                    level = HttpLoggingInterceptor.Level.BODY
+                    redactHeader("X-Signature")
+                })
+            }
+            val client = clientBuilder.build()
             val api = Retrofit.Builder()
                 .baseUrl(if (baseUrl.endsWith('/')) baseUrl else "$baseUrl/")
                 .client(client)

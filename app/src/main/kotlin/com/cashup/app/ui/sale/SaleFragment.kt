@@ -40,27 +40,27 @@ class SaleFragment : Fragment(R.layout.fragment_sale) {
             viewModel.pay(cards[binding.card.selectedItemPosition], binding.amount.text.toString(),
                 binding.tip.text.toString(), binding.pin.text.toString())
         }
-        binding.decryptRsa.setOnClickListener {
-            val ciphertext = binding.rsaCiphertext.text.toString()
-            if (ciphertext.isBlank()) {
-                binding.decryptResult.text = "Ciphertext wajib diisi"
-            } else {
-                runCatching { container.decryptRsaBase64(ciphertext).toString(Charsets.UTF_8) }
-                    .onSuccess { binding.decryptResult.text = "Plaintext: $it" }
-                    .onFailure { binding.decryptResult.text = "Decrypt gagal: ${it.message ?: it.javaClass.simpleName}" }
-            }
-        }
+//        binding.decryptRsa.setOnClickListener {
+//            val ciphertext = binding.rsaCiphertext.text.toString()
+//            if (ciphertext.isBlank()) {
+//                binding.decryptResult.text = "Ciphertext wajib diisi"
+//            } else {
+//                runCatching { container.decryptRsaBase64(ciphertext).toString(Charsets.UTF_8) }
+//                    .onSuccess { binding.decryptResult.text = "Plaintext: $it" }
+//                    .onFailure { binding.decryptResult.text = "Decrypt gagal: ${it.message ?: it.javaClass.simpleName}" }
+//            }
+//        }
         binding.provisionAgain.setOnClickListener { findNavController().navigate(R.id.to_scan) }
-        binding.decryptRsa.setOnClickListener {
-            val ciphertext = binding.rsaCiphertext.text.toString()
-            if (ciphertext.isBlank()) {
-                binding.decryptResult.text = "Ciphertext wajib diisi"
-            } else {
-                runCatching { container.decryptRsaBase64(ciphertext).toString(Charsets.UTF_8) }
-                    .onSuccess { binding.decryptResult.text = "Plaintext: $it" }
-                    .onFailure { binding.decryptResult.text = "Decrypt gagal: ${it.message ?: it.javaClass.simpleName}" }
-            }
-        }
+//        binding.decryptRsa.setOnClickListener {
+//            val ciphertext = binding.rsaCiphertext.text.toString()
+//            if (ciphertext.isBlank()) {
+//                binding.decryptResult.text = "Ciphertext wajib diisi"
+//            } else {
+//                runCatching { container.decryptRsaBase64(ciphertext).toString(Charsets.UTF_8) }
+//                    .onSuccess { binding.decryptResult.text = "Plaintext: $it" }
+//                    .onFailure { binding.decryptResult.text = "Decrypt gagal: ${it.message ?: it.javaClass.simpleName}" }
+//            }
+//        }
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { state ->

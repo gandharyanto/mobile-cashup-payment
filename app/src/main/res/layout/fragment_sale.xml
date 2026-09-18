@@ -42,15 +42,6 @@
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="24dp" android:text="Simulasi decrypt RSA (Base64)"
             android:textStyle="bold" />
-        <EditText android:id="@+id/rsaCiphertext" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:inputType="textMultiLine"
-            android:hint="Tempel ciphertext dari Python" />
-        <Button android:id="@+id/decryptRsa" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="8dp"
-            android:text="Decrypt RSA" />
-        <TextView android:id="@+id/decryptResult" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="8dp"
-            android:textColor="#163A55" />
         <TextView android:id="@+id/result" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="24dp"
             android:textColor="#163A55" android:textSize="16sp" />

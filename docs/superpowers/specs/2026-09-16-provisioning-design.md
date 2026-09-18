@@ -55,7 +55,7 @@ Dari `Provisioning.drawio` Page-1, lima lifeline: **App Provisioning · EDC · B
 
 ## 3. Kontrak HTTP
 
-Base URL dari konfigurasi. Default pengembangan: `http://100.103.104.38:8080` (Raspberry Pi di Tailnet, sama dengan `edc-mobile`). Produksi menunjuk ke Front-facing API (EDC channel), yang meneruskan ke `corepayment` di belakangnya.
+Base URL dari konfigurasi. Default pengembangan: `http://192.168.90.46:8080` (Raspberry Pi di Tailnet, sama dengan `edc-mobile`). Produksi menunjuk ke Front-facing API (EDC channel), yang meneruskan ke `corepayment` di belakangnya.
 
 Path mencerminkan `corepayment` 1:1; bentuk body mengikuti diagram tim.
 

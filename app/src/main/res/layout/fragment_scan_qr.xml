@@ -70,33 +70,13 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <EditText
-        android:id="@+id/rsaCiphertext"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:hint="Ciphertext RSA Base64 dari Python"
-        android:inputType="textMultiLine"
-        app:layout_constraintTop_toBottomOf="@id/manualSubmit"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <Button
-        android:id="@+id/decryptRsa"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="Decrypt RSA"
-        app:layout_constraintTop_toBottomOf="@id/rsaCiphertext"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
     <TextView
         android:id="@+id/decryptResult"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:textColor="#163A55"
-        app:layout_constraintTop_toBottomOf="@id/decryptRsa"
+        app:layout_constraintTop_toBottomOf="@id/manualSubmit"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 

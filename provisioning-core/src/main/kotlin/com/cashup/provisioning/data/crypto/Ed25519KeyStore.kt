@@ -1,6 +1,7 @@
 package com.cashup.provisioning.crypto
 
 import android.content.Context
+import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
@@ -36,19 +37,45 @@ class Ed25519KeyStore(context: Context) {
 
     private val prefs by lazy { SecurePrefs.open(context.applicationContext, PREFS) }
 
-    fun hasKeyPair(): Boolean = keystore().containsAlias(ALIAS) || prefs.contains(KEY_PRIVATE)
+    fun hasKeyPair(): Boolean = prefs.contains(KEY_PRIVATE) ||
+        (Build.VERSION.SDK_INT > Build.VERSION_CODES.TIRAMISU && keystore().containsAlias(ALIAS))
 
     fun storageDescription(): String =
-        if (keystore().containsAlias(ALIAS)) "AndroidKeyStore" else "EncryptedSharedPreferences"
+        if (prefs.contains(KEY_PRIVATE)) "EncryptedSharedPreferences" else "AndroidKeyStore"
 
     /** Public key raw 32 byte, Base64 — bentuk yang diharapkan backend. */
     @Synchronized
     fun ensureKeyPair(): String {
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13 vendor providers may create Ed25519 entries but fail
+            // intermittently when getKey() is called from the OkHttp thread.
+            // Choose one stable signing backend before public-key enrollment.
+            runCatching { keystore().deleteEntry(ALIAS) }
+            prefs.getString(KEY_PUBLIC_RAW, null)?.let {
+                Log.d(TAG, "Ed25519 key reused from encrypted app storage; Android 13 Keystore Ed25519 disabled")
+                return it
+            }
+            return generateSoftwareKey()
+        }
         keystore().getCertificate(ALIAS)?.let { certificate ->
-            verifyKeystoreKey()
-            val rawBase64 = Base64.encodeToString(rawFromX509(certificate.publicKey.encoded), Base64.NO_WRAP)
-            Log.d(TAG, "Ed25519 key reused from Android Keystore; non-exportable=${keystorePrivateKey()?.encoded == null}")
-            return rawBase64
+            try {
+                verifyKeystoreKey()
+                // Some API 33 vendor providers can generate Ed25519 but fail only
+                // when a private operation is attempted. Probe signing now so the
+                // key is never registered and then unusable for request signing.
+                val probe = keystorePrivateKey() ?: error("Ed25519 Keystore private key missing")
+                Signature.getInstance("Ed25519").run {
+                    initSign(probe)
+                    update(byteArrayOf(0x01))
+                    sign()
+                }
+                val rawBase64 = Base64.encodeToString(rawFromX509(certificate.publicKey.encoded), Base64.NO_WRAP)
+                Log.d(TAG, "Ed25519 key reused from Android Keystore; non-exportable=${probe.encoded == null}")
+                return rawBase64
+            } catch (failure: Exception) {
+                runCatching { keystore().deleteEntry(ALIAS) }
+                Log.w(TAG, "Android Keystore Ed25519 cannot perform signing; falling back to encrypted software key", failure)
+            }
         }
         prefs.getString(KEY_PUBLIC_RAW, null)?.let {
             Log.d(TAG, "Ed25519 key reused from encrypted app storage; hardware StrongBox is unavailable for this algorithm")
@@ -63,6 +90,14 @@ class Ed25519KeyStore(context: Context) {
             ).setDigests(KeyProperties.DIGEST_NONE).setAlgorithmParameterSpec(ECGenParameterSpec("Ed25519")).build())
             val pair = generator.generateKeyPair()
             verifyKeystoreKey()
+            Signature.getInstance("Ed25519").run {
+                // Do not probe the in-memory object returned by generateKeyPair:
+                // some vendor providers can sign with it but cannot reload the
+                // same Ed25519 entry through AndroidKeyStore later.
+                initSign(keystorePrivateKey())
+                update(byteArrayOf(0x01))
+                sign()
+            }
             val rawBase64 = Base64.encodeToString(rawFromX509(pair.public.encoded), Base64.NO_WRAP)
             Log.i(TAG, "Ed25519 key generated in Android Keystore; non-exportable=true")
             return rawBase64
@@ -71,6 +106,10 @@ class Ed25519KeyStore(context: Context) {
             Log.w(TAG, "Android Keystore Ed25519 unavailable; using encrypted software fallback", failure)
         }
 
+        return generateSoftwareKey()
+    }
+
+    private fun generateSoftwareKey(): String {
         Log.d(TAG, "Generating Ed25519 key with BouncyCastle encrypted software fallback")
         BcProvider.ensureInstalled()
         val pair = KeyPairGenerator.getInstance("Ed25519", BcProvider.NAME).generateKeyPair()
@@ -90,6 +129,16 @@ class Ed25519KeyStore(context: Context) {
     }
 
     fun sign(bytes: ByteArray): ByteArray {
+        prefs.getString(KEY_PRIVATE, null)?.let { stored ->
+            BcProvider.ensureInstalled()
+            val privateKey = KeyFactory.getInstance("Ed25519", BcProvider.NAME)
+                .generatePrivate(PKCS8EncodedKeySpec(Base64.decode(stored, Base64.NO_WRAP)))
+            return Signature.getInstance("Ed25519", BcProvider.NAME).run {
+                initSign(privateKey)
+                update(bytes)
+                sign()
+            }
+        }
         keystorePrivateKey()?.let { privateKey ->
             return Signature.getInstance("Ed25519").run {
                 initSign(privateKey)
@@ -97,24 +146,17 @@ class Ed25519KeyStore(context: Context) {
                 sign()
             }
         }
-        val stored = prefs.getString(KEY_PRIVATE, null)
-            ?: error("Keypair Ed25519 belum dibuat")
-        BcProvider.ensureInstalled()
-        val privateKey = KeyFactory.getInstance("Ed25519", BcProvider.NAME)
-            .generatePrivate(PKCS8EncodedKeySpec(Base64.decode(stored, Base64.NO_WRAP)))
-        return Signature.getInstance("Ed25519", BcProvider.NAME).run {
-            initSign(privateKey)
-            update(bytes)
-            sign()
-        }
+        error("Keypair Ed25519 belum dibuat")
     }
 
     /** Debug verification using the public key held by the same provider. */
     fun verify(bytes: ByteArray, signature: ByteArray): Boolean {
-        val publicEncoded = keystore().getCertificate(ALIAS)?.publicKey?.encoded ?: run {
-            val stored = prefs.getString(KEY_PUBLIC_RAW, null) ?: return false
+        val stored = prefs.getString(KEY_PUBLIC_RAW, null)
+        val publicEncoded = if (stored != null) {
             val raw = Base64.decode(stored, Base64.NO_WRAP)
             byteArrayOf(0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00) + raw
+        } else {
+            keystore().getCertificate(ALIAS)?.publicKey?.encoded ?: return false
         }
         BcProvider.ensureInstalled()
         val publicKey = KeyFactory.getInstance("Ed25519", BcProvider.NAME)

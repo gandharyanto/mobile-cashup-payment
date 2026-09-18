@@ -49,11 +49,9 @@ class AppContainer(context: Context) {
     private val ed25519 = Ed25519KeyStore(appContext)
 
     /**
-     * `Mgf1Digest.SHA1` adalah asumsi sampai backend mengonfirmasi (spec §8
-     * item 1b). Ini yang menentukan apakah key RSA bisa dibuat di TEE — salah
-     * menebaknya berarti device mendaftarkan public key yang tidak akan pernah
-     * bisa membuka paketnya sendiri, jadi jangan diubah tanpa jawaban dari
-     * backend.
+     * `Mgf1Digest.SHA1` berlaku untuk paket TDES_DUKPT lama. Token TR-34
+     * memakai SHA-256/MGF1 SHA-256 dan dibuka lewat raw RSA Keystore +
+     * validasi OAEP di aplikasi, tanpa mengekspor private key.
      */
     private val rsa = RsaKeyStore(
         appContext,
@@ -94,7 +92,8 @@ class AppContainer(context: Context) {
 
     fun isProvisioned(): Boolean {
         val identity = stateStore.identity() ?: return false
-        return stateStore.dukpt()?.deviceId == identity.deviceId
+        return identity.devicePublicKey == ed25519.ensureKeyPair() &&
+            stateStore.dukpt()?.deviceId == identity.deviceId
     }
 
     fun activeDeviceId(): String? = stateStore.identity()?.deviceId
@@ -111,7 +110,8 @@ class AppContainer(context: Context) {
     fun activeKeySetVersion(): Int? = stateStore.dukpt()?.keySetVersion
 
     val saleRepository: SaleRepository by lazy {
-        SaleRepository.create(config.baseUrl, deviceSigner, EdcSdkDukptKeyProvider(appContext))
+        SaleRepository.create(config.baseUrl, deviceSigner, EdcSdkDukptKeyProvider(appContext),
+            debugLogging = BuildConfig.DEBUG)
     }
 
     fun provisionDeviceUseCase(): ProvisionDeviceUseCase {

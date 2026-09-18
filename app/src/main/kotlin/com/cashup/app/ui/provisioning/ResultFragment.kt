@@ -47,7 +47,13 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
             is ProvisioningUiState.Failure -> {
                 binding.title.setText(R.string.result_failure_title)
                 val hint = hintFor(state.code)
-                binding.detail.text = if (hint != 0) getString(hint) else state.message
+                binding.detail.text = if (hint != 0) buildString {
+                    append(getString(hint))
+                    if (BuildConfig.DEBUG && state.message.isNotBlank()) {
+                        append("\n\nDetail debug: ")
+                        append(state.message)
+                    }
+                } else state.message
                 binding.backings.text = state.code
                 showJournal(binding, state.journalText)
                 binding.action.setText(R.string.result_retry)

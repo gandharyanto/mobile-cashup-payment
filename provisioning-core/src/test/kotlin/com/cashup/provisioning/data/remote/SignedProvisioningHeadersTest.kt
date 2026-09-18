@@ -22,6 +22,13 @@ class SignedProvisioningHeadersTest {
         override fun clearDukpt() = Unit
     }
 
+    @Test fun `rotated signing key cannot use previously enrolled device id`() {
+        val state = State()
+        state.saveIdentity(IdentityState("SN-1", "backend-uuid", 1, devicePublicKey = "old-public-key"))
+        val signer = StoredDeviceSigner(state, { ByteArray(64) }, { "new-public-key" })
+        assertNull(signer.deviceId())
+    }
+
     @Test fun `package is signed with backend device id after redeem`() = runBlocking {
         val server = MockWebServer()
         server.start()

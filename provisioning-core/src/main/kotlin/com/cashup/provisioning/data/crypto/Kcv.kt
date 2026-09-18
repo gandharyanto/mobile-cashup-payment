@@ -27,3 +27,11 @@ fun keyCheckValue(key: ByteArray): String {
         normalized.fill(0)
     }
 }
+
+/** AT1000 reports two KCV bytes; other issuers may report three. */
+fun normalizeReportedKeyCheckValue(reported: String): String = reported.trim().uppercase().also {
+    require(it.matches(Regex("[0-9A-F]{4}|[0-9A-F]{6}"))) { "Panjang atau format KCV server tidak valid" }
+}
+
+fun keyCheckValueMatches(actual: String, reported: String): Boolean =
+    actual.startsWith(normalizeReportedKeyCheckValue(reported))

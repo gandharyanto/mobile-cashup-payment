@@ -2,15 +2,11 @@
 
 import java.io.ByteArrayInputStream
 import java.security.MessageDigest
-import java.security.PrivateKey
 import java.security.Signature
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
-import java.security.spec.MGF1ParameterSpec
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
-import javax.crypto.spec.OAEPParameterSpec
-import javax.crypto.spec.PSource
 import javax.crypto.spec.SecretKeySpec
 import org.bouncycastle.asn1.ASN1InputStream
 import org.bouncycastle.asn1.ASN1OctetString
@@ -47,11 +43,10 @@ internal object Tr34KeyTokenParser {
     /**
      * @param keyToken CMS `SignedData` (field `keyBlock` dari respons `TR34_2019`).
      * @param kdhCertificateChain leaf dulu -- signature diverifikasi terhadap certificate PERTAMA.
-     * @param devicePrivateKey RSA private key device sendiri (private key TIDAK PERNAH keluar
-     *   device) -- yang membungkus ephemeral key TR-34 adalah public key pasangannya, dikirim
-     *   sebagai bagian sertifikat device saat enrollment.
+     * @param unwrapEphemeralKey RSA decrypt lewat pemilik key device. Parser tidak memilih
+     *   provider agar handle AndroidKeyStore tetap diproses oleh AndroidKeyStore.
      */
-    fun parseKeyToken(keyToken: ByteArray, kdhCertificateChain: List<ByteArray>, devicePrivateKey: PrivateKey): Tr34KeyTokenResult {
+    fun parseKeyToken(keyToken: ByteArray, kdhCertificateChain: List<ByteArray>, unwrapEphemeralKey: (ByteArray) -> ByteArray): Tr34KeyTokenResult {
         BcProvider.ensureInstalled()
         val kdhLeaf = CertificateFactory.getInstance("X.509")
             .generateCertificate(kdhCertificateChain.first().inputStream()) as X509Certificate
@@ -97,15 +92,9 @@ internal object Tr34KeyTokenParser {
         val encryptedContentTagged = ASN1TaggedObject.getInstance(innerAlgSeq.getObjectAt(2))
         val encryptedContent = ASN1OctetString.getInstance(encryptedContentTagged, false).octets
 
-        // 4. RSA-OAEP-SHA256 unwrap ephemeral key pakai private key device sendiri -- provider BC
-        //    eksplisit + OAEPParameterSpec eksplisit, pola sama `TerminalKeyProvisioner.unwrapPackageKey`
-        //    (AndroidOpenSSL diam-diam salah menafsirkan kombinasi non-default di sebagian OEM).
+        // 4. RSA-OAEP-SHA256 unwrap lewat provider yang memiliki private key device.
         val ephemeralKey = try {
-            val oaepSpec = OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, PSource.PSpecified.DEFAULT)
-            Cipher.getInstance("RSA/ECB/OAEPPadding", BcProvider.NAME).run {
-                init(Cipher.DECRYPT_MODE, devicePrivateKey, oaepSpec)
-                doFinal(encryptedEphemeralKey)
-            }
+            unwrapEphemeralKey(encryptedEphemeralKey)
         } catch (failure: Exception) {
             throw Tr34ParsingException("Gagal unwrap ephemeral key TR-34: ${failure.message}")
         }

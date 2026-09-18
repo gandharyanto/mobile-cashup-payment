@@ -8,8 +8,11 @@ import com.cashup.devicesdk.SerialNumberProvider
 import com.cashup.provisioning.audit.ProvisioningJournal
 import com.cashup.provisioning.crypto.PackageIntegrityException
 import com.cashup.provisioning.crypto.PackageUnwrapper
+import com.cashup.provisioning.crypto.Tr34ParsingException
 import com.cashup.provisioning.crypto.RsaUnwrapper
 import com.cashup.provisioning.crypto.keyCheckValue
+import com.cashup.provisioning.crypto.keyCheckValueMatches
+import com.cashup.provisioning.crypto.normalizeReportedKeyCheckValue
 import com.cashup.provisioning.data.local.DukptState
 import com.cashup.provisioning.data.local.IdentityState
 import com.cashup.provisioning.data.remote.ActivateRequest
@@ -64,7 +67,8 @@ class ProvisionDeviceUseCase(
                 if (!hadIdentity) rollbackAll()
                 return fail(PROTOCOL_VIOLATION, "Redeem tanpa deviceId")
             }
-            state.saveIdentity(IdentityState(serial, redeemed.deviceId, redeemed.credentialKeyVersion, redeemed.certificateChain ?: emptyList()))
+            state.saveIdentity(IdentityState(serial, redeemed.deviceId, redeemed.credentialKeyVersion,
+                redeemed.certificateChain ?: emptyList(), devicePublicKey))
             identityPersisted = true
 
             if (!redeemed.dukptProvisioningRequired) {
@@ -93,11 +97,31 @@ class ProvisionDeviceUseCase(
                 val code = if (e.message == "PACKAGE_SIGNATURE_INVALID") "PACKAGE_SIGNATURE_INVALID" else PACKAGE_INVALID
                 return fail(code, e.message ?: "Paket key tidak sah")
             }
+            catch (e: Tr34ParsingException) {
+                return fail(PACKAGE_INVALID, e.message ?: "Key token TR-34 tidak valid")
+            }
             if (materials.map { it.purpose }.toSet() != PURPOSES) {
                 materials.forEach { it.zeroize() }
                 return fail(PACKAGE_INVALID, "Purpose paket key tidak lengkap")
             }
-            val checkValues = materials.associate { it.purpose to keyCheckValue(it.ipek.copyOf()) }
+            val checkValues = try {
+                materials.associate { material ->
+                    val actual = keyCheckValue(material.ipek.copyOf())
+                    val reported = if (encrypted.algorithm == "TR34_2019") {
+                        val serverKcv = encrypted.tr34Materials?.get(material.purpose)?.kcv
+                            ?: error("KCV TR-34 tidak tersedia untuk ${material.purpose}")
+                        val normalized = normalizeReportedKeyCheckValue(serverKcv)
+                        check(keyCheckValueMatches(actual, normalized)) {
+                            "KCV key terminal tidak cocok untuk ${material.purpose}"
+                        }
+                        normalized
+                    } else actual
+                    material.purpose to reported
+                }
+            } catch (failure: Exception) {
+                materials.forEach { it.zeroize() }
+                return fail(PACKAGE_INVALID, failure.message ?: "KCV paket key tidak valid")
+            }
             advance(ProvisioningStep.INSTALL_KEYS)
             installStarted = true
             val installed = try { installer.install(materials) } finally { materials.forEach { it.zeroize() } }

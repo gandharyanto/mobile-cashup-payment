@@ -1,9 +1,11 @@
 package com.cashup.app.ui.sale
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cashup.app.di.AppContainer
+import com.cashup.app.BuildConfig
 import com.cashup.cdcp.CardDefinition
 import com.cashup.cdcp.SaleRepository
 import com.cashup.common.network.ApiResult
@@ -44,7 +46,9 @@ class SaleViewModel(private val container: AppContainer) : ViewModel() {
             try {
                 val deviceId = requireNotNull(container.activeDeviceId()) { "Identitas device belum tersedia" }
                 val version = requireNotNull(container.activeKeySetVersion()) { "Key DUKPT belum aktif" }
+                if (BuildConfig.DEBUG) Log.d("CashupSale", "Preparing sale request")
                 val response = container.saleRepository.sale(deviceId, version, card, amount, tip, pin, pendingKey!!)
+                if (BuildConfig.DEBUG) Log.d("CashupSale", "Sale result: ${response.javaClass.simpleName}")
                 mutableState.value = when (response) {
                     is ApiResult.Success -> {
                         pendingFingerprint = null; pendingKey = null
@@ -55,6 +59,7 @@ class SaleViewModel(private val container: AppContainer) : ViewModel() {
                     is ApiResult.Failure -> SaleUiState(result = "${response.error.code}: ${response.error.message}")
                 }
             } catch (failure: Exception) {
+                if (BuildConfig.DEBUG) Log.e("CashupSale", "Sale failed before or during HTTP", failure)
                 mutableState.value = SaleUiState(result = failure.message ?: "Pembayaran gagal")
             }
         }

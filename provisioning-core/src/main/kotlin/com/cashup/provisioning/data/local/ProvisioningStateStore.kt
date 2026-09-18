@@ -11,6 +11,7 @@ data class IdentityState(
     val deviceId: String,
     val credentialKeyVersion: Int,
     val certificateChain: List<String> = emptyList(),
+    val devicePublicKey: String? = null,
 )
 
 /**

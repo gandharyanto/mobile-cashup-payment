@@ -32,7 +32,11 @@ import com.cashup.signing.DeviceSigner
 class StoredDeviceSigner(
     private val state: ProvisioningStateRepository,
     private val signBytes: (ByteArray) -> ByteArray,
+    private val currentPublicKey: (() -> String)?,
 ) : DeviceSigner, DeviceIdentitySink {
+
+    constructor(state: ProvisioningStateRepository, signBytes: (ByteArray) -> ByteArray) :
+        this(state, signBytes, null)
 
     /**
      * Konstruktor produksi. Dipisah dari yang utama supaya kelas ini bisa
@@ -40,7 +44,7 @@ class StoredDeviceSigner(
      * [Ed25519KeyStore].
      */
     constructor(stateStore: ProvisioningStateStore, ed25519: Ed25519KeyStore) :
-            this(stateStore, ed25519::sign)
+            this(stateStore, ed25519::sign, ed25519::ensureKeyPair)
 
     @Volatile
     private var inFlightSerialNumber: String? = null
@@ -49,7 +53,12 @@ class StoredDeviceSigner(
         inFlightSerialNumber = serial
     }
 
-    override fun deviceId(): String? = state.identity()?.deviceId
+    override fun deviceId(): String? {
+        val identity = state.identity() ?: return null
+        val current = currentPublicKey ?: return identity.deviceId
+        // A rotated Ed25519 key needs a new QR redeem before signed traffic.
+        return identity.deviceId.takeIf { identity.devicePublicKey == current() }
+    }
 
     override fun sign(canonicalBytes: ByteArray): ByteArray = signBytes(canonicalBytes)
 }

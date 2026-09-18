@@ -47,16 +47,16 @@ class ScanQrFragment : Fragment(R.layout.fragment_scan_qr) {
             viewModel.provision(binding.manualCode.text.toString())
         }
 
-        binding.decryptRsa.setOnClickListener {
-            val ciphertext = binding.rsaCiphertext.text.toString()
-            if (ciphertext.isBlank()) {
-                binding.decryptResult.text = "Ciphertext wajib diisi"
-            } else {
-                runCatching { container.decryptRsaBase64(ciphertext).toString(Charsets.UTF_8) }
-                    .onSuccess { binding.decryptResult.text = "Plaintext: $it" }
-                    .onFailure { binding.decryptResult.text = "Decrypt gagal: ${it.message ?: it.javaClass.simpleName}" }
-            }
-        }
+//        binding.decryptRsa.setOnClickListener {
+//            val ciphertext = binding.rsaCiphertext.text.toString()
+//            if (ciphertext.isBlank()) {
+//                binding.decryptResult.text = "Ciphertext wajib diisi"
+//            } else {
+//                runCatching { container.decryptRsaBase64(ciphertext).toString(Charsets.UTF_8) }
+//                    .onSuccess { binding.decryptResult.text = "Plaintext: $it" }
+//                    .onFailure { binding.decryptResult.text = "Decrypt gagal: ${it.message ?: it.javaClass.simpleName}" }
+//            }
+//        }
         binding.signEd25519.setOnClickListener {
             val message = binding.ed25519Message.text.toString()
             if (message.isBlank()) {

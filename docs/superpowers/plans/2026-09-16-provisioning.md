@@ -5059,7 +5059,7 @@ Navigation 2.5.3 dan CameraX 1.2.3, bukan versi terbaru: rilis setelahnya menunt
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">100.103.104.38</domain>
+        <domain includeSubdomains="false">192.168.90.46</domain>
     </domain-config>
 </network-security-config>
 ```
@@ -5088,7 +5088,7 @@ class AppConfig(context: Context) {
 
     private companion object {
         const val KEY_BASE_URL = "base_url"
-        const val DEFAULT_BASE_URL = "http://100.103.104.38:8080"
+        const val DEFAULT_BASE_URL = "http://192.168.90.46:8080"
     }
 }
 ```

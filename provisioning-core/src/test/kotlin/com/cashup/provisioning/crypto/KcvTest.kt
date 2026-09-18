@@ -3,6 +3,8 @@ package com.cashup.provisioning.crypto
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class KcvTest {
@@ -45,5 +47,16 @@ class KcvTest {
         keyCheckValue(key)
 
         assertEquals(0, key.count { it != 0.toByte() })
+    }
+
+    @Test
+    fun `AT1000 four digit KCV matches prefix and retains reported width`() {
+        val actual = keyCheckValue(key16())
+        val reported = actual.take(4).lowercase()
+
+        assertTrue(keyCheckValueMatches(actual, reported))
+        assertEquals(actual.take(4), normalizeReportedKeyCheckValue(reported))
+        assertFalse(keyCheckValueMatches(actual, "0000"))
+        assertThrows(IllegalArgumentException::class.java) { normalizeReportedKeyCheckValue("123") }
     }
 }

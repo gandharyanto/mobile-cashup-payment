@@ -15,6 +15,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.security.KeyPairGenerator
 import java.security.Signature
+import java.security.ProviderException
+import java.io.IOException
 import java.util.Base64
 
 class SigningInterceptorTest {
@@ -105,6 +107,20 @@ class SigningInterceptorTest {
         assertThrows(MissingTimestampException::class.java) {
             clientFor(TestSigner("dev-1")).newCall(request).execute()
         }
+    }
+
+    @Test
+    fun `provider failure is returned as an IOException without sending request`() {
+        val signer = object : DeviceSigner {
+            override fun deviceId(): String = "dev-1"
+            override fun sign(canonicalBytes: ByteArray): ByteArray =
+                throw ProviderException("Unsupported Android Keystore public key algorithm: Ed25519")
+        }
+        val failure = assertThrows(IOException::class.java) {
+            clientFor(signer).newCall(post(server.url("/v1/x").toString(), "{}")).execute()
+        }
+        assertTrue(failure.cause is ProviderException)
+        assertEquals(0, server.requestCount)
     }
 
     @Test

@@ -68,7 +68,17 @@ class SigningInterceptor(
             nonce = nonce,
             body = bodyBytes,
         )
-        val signature = Ed25519RequestSigner.encodeSignature(signer.sign(canonical))
+        val signatureBytes = try {
+            signer.sign(canonical)
+        } catch (failure: IOException) {
+            throw failure
+        } catch (failure: Exception) {
+            // Retrofit's async OkHttp dispatcher crashes the process when an
+            // interceptor throws a runtime ProviderException. Report a normal
+            // request failure and never send an unsigned request.
+            throw IOException("Gagal menandatangani request dengan Ed25519", failure)
+        }
+        val signature = Ed25519RequestSigner.encodeSignature(signatureBytes)
 
         val signed = request.newBuilder()
             .header("X-Device-Id", deviceId)
