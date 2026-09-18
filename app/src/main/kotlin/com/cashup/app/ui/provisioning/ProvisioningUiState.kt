@@ -32,6 +32,7 @@ sealed interface ProvisioningUiState {
         val orderId: String,
         val installed: List<KeyInstallOutcome>,
         val journalText: String,
+        val identityOnly: Boolean = false,
     ) : ProvisioningUiState
 
     data class Failure(

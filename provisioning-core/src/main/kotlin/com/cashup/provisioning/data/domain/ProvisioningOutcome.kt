@@ -14,6 +14,7 @@ sealed interface ProvisioningOutcome {
         val orderId: String,
         val installed: List<KeyInstallOutcome>,
         val journalText: String,
+        val identityOnly: Boolean = false,
     ) : ProvisioningOutcome
 
     /**

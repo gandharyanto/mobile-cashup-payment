@@ -31,7 +31,7 @@ class ProvisioningRepository internal constructor(
         safeEnvelopeCall(gson) { unsigned.redeem(request) }
 
     override suspend fun downloadKeyPackage(request: KeyPackageRequest): ApiResult<KeyPackageResponse> =
-        safeEnvelopeCall(gson) { signed.keyPackage(request.orderId, request) }
+        safeEnvelopeCall(gson) { signed.keyPackage(request.orderId, request.activationToken) }
 
     override suspend fun activate(orderId: String, request: ActivateRequest): ApiResult<ActivateResponse> =
         safeEnvelopeCall(gson) { signed.activate(orderId, request) }

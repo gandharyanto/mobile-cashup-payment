@@ -106,7 +106,7 @@ class ProvisioningHttpLoggingOrderTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody("""{"data":{"orderId":"o-1","activationToken":"tok-1"}}"""))
 
         val logged = capturePlatformLog {
-            repository.redeem(QrRedeemRequest("ABCD-1234", "PAX-A920-0012938", "rsa-spki", "eddsa-raw"))
+            repository.redeem(QrRedeemRequest("ABCD-1234", "PAX-A920-0012938", "rsa-spki", "eddsa-raw", setOf("TRACK", "AMOUNT", "PIN"), listOf("cert")))
         }.joinToString("\n")
 
         assertTrue("expected X-Correlation-Id to be logged:\n$logged", logged.contains("X-Correlation-Id:"))

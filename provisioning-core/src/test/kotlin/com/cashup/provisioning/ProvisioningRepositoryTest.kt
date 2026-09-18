@@ -48,7 +48,7 @@ class ProvisioningRepositoryTest {
         )
 
         val result = repository.redeem(
-            QrRedeemRequest("ABCD-1234", "PAX-A920-0012938", "rsa-spki", "eddsa-raw")
+            QrRedeemRequest("ABCD-1234", "PAX-A920-0012938", "rsa-spki", "eddsa-raw", setOf("TRACK", "AMOUNT", "PIN"), listOf("cert"))
         )
 
         val recorded = server.takeRequest()
@@ -59,8 +59,8 @@ class ProvisioningRepositoryTest {
         assertNull("qr-redeem must not be signed", recorded.getHeader("X-Signature"))
 
         val body = recorded.body.readUtf8()
-        assertTrue(body.contains(""""challengeCode":"ABCD-1234""""))
-        assertTrue(body.contains(""""eddsaPublicKey":"eddsa-raw""""))
+        assertTrue(body.contains(""""qrToken":"ABCD-1234""""))
+        assertTrue(body.contains(""""devicePublicKey":"eddsa-raw""""))
 
         assertEquals("o-1", (result as ApiResult.Success).data.orderId)
     }
@@ -76,6 +76,8 @@ class ProvisioningRepositoryTest {
         val result = repository.downloadKeyPackage(KeyPackageRequest("o-1", "tok-1"))
 
         val recorded = server.takeRequest()
+        assertEquals("GET", recorded.method)
+        assertEquals("tok-1", recorded.getHeader("X-Activation-Token"))
         assertEquals("/v1/terminal-key-provisioning/orders/o-1/package", recorded.path)
         assertEquals("PAX-A920-0012938", recorded.getHeader("X-Device-Id"))
         assertNotNull(recorded.getHeader("X-Signature"))
@@ -92,7 +94,7 @@ class ProvisioningRepositoryTest {
 
         val result = repository.activate(
             "o-1",
-            ActivateRequest("tok-1", mapOf("PIN" to "A1B2C3", "TRACK" to "D4E5F6")),
+            ActivateRequest("tok-1", mapOf("PIN" to "A1B2C3", "TRACK" to "D4E5F6"), "proof"),
         )
 
         val recorded = server.takeRequest()
@@ -112,7 +114,7 @@ class ProvisioningRepositoryTest {
             )
         )
 
-        val result = repository.redeem(QrRedeemRequest("X", "S", "r", "e"))
+        val result = repository.redeem(QrRedeemRequest("X", "S", "r", "e", setOf("TRACK", "AMOUNT", "PIN"), listOf("cert")))
 
         assertEquals("PROVISIONING_TOKEN_INVALID", (result as ApiResult.Failure).error.code)
     }

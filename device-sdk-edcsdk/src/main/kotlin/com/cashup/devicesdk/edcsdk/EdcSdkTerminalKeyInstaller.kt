@@ -41,14 +41,13 @@ class EdcSdkTerminalKeyInstaller internal constructor(
     ): TerminalKeyInstallResult = withContext(Dispatchers.IO) {
         val vendorAvailable = gateway.hasVendorModule()
         val outcomes = mutableListOf<KeyInstallOutcome>()
-        var nextVaultSlot = VAULT_SLOT_BASE
 
         for (material in materials) {
             val takesVendorSlot = vendorAvailable && material.purpose == vendorSlotPurpose
             val ok = if (takesVendorSlot) {
                 gateway.writeToVendorModule(material.ipek, material.ksn)
             } else {
-                gateway.writeToVaultSlot(nextVaultSlot++, material.ipek, material.ksn)
+                gateway.writeToVaultSlot(vaultSlot(material.purpose), material.ipek, material.ksn)
             }
 
             if (!ok) {
@@ -85,4 +84,12 @@ class EdcSdkTerminalKeyInstaller internal constructor(
     override suspend fun wipe() = withContext(Dispatchers.IO) {
         gateway.clearAll()
     }
+}
+
+internal fun vaultSlot(purpose: String): Int = when (purpose) {
+    "TRACK" -> VAULT_SLOT_BASE
+    "AMOUNT" -> VAULT_SLOT_BASE + 1
+    "PIN" -> VAULT_SLOT_BASE + 2
+    "EMV" -> VAULT_SLOT_BASE + 3
+    else -> error("Purpose DUKPT tidak dikenal: $purpose")
 }

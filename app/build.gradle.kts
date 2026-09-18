@@ -5,6 +5,9 @@ plugins {
 
 android {
     namespace = "com.cashup.app"
+    packaging {
+        resources.excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+    }
     compileSdk = (project.property("cashup.compileSdk") as String).toInt()
 
     defaultConfig {
@@ -56,6 +59,7 @@ android {
 
 dependencies {
     implementation(project(":provisioning-core"))
+    implementation(project(":cdcp-core"))
     implementation(project(":device-sdk-edcsdk"))
 
     implementation("androidx.core:core-ktx:1.10.1")

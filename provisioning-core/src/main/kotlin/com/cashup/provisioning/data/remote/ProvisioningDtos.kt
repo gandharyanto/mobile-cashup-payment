@@ -11,21 +11,33 @@ package com.cashup.provisioning.data.remote
  * key device, karena dua kunci itu justru baru dikirim di sini.
  *
  * [rsaPublicKey] SPKI X.509 Base64 — dipakai backend membungkus paket key DAN
- * memverifikasi [deviceCertificateChain]. [eddsaPublicKey] Ed25519 raw 32 byte
+ * memverifikasi [krdCsr]. [eddsaPublicKey] Ed25519 raw 32 byte
  * Base64 — dipakai backend memverifikasi tanda tangan setiap request sesudah
  * ini. [purposes] SELALU tiga tetap (spec §1) — client yang menyatakan apa
- * yang diminta, bukan menunggu server memberi tahu. [deviceCertificateChain]
- * sertifikat self-signed X.509 atas [rsaPublicKey] (DER Base64, satu elemen —
- * self-signed, bukan rantai) — proof-of-possession, lihat `RsaKeyStore.kt`.
+ * yang diminta, bukan menunggu server memberi tahu. [krdCsr] adalah PKCS#10
+ * DER Base64 yang ditandatangani private key RSA device; backend menerbitkan
+ * sertifikat KRD dari CSR tersebut.
  */
 data class QrRedeemRequest(
-    val challengeCode: String,
+    val qrToken: String,
     val serialNumber: String,
     val rsaPublicKey: String,
-    val eddsaPublicKey: String,
+    val devicePublicKey: String,
     val purposes: Set<String>,
-    val deviceCertificateChain: List<String>,
-)
+    val krdCsr: String,
+) {
+    /** Compatibility view for older tests/callers; not serialized as a field. */
+    val deviceCertificateChain: List<String> get() = listOf(krdCsr)
+
+    constructor(
+        qrToken: String,
+        serialNumber: String,
+        rsaPublicKey: String,
+        devicePublicKey: String,
+        purposes: Set<String>,
+        legacyCertificateChain: List<String>,
+    ) : this(qrToken, serialNumber, rsaPublicKey, devicePublicKey, purposes, legacyCertificateChain.firstOrNull().orEmpty())
+}
 
 /**
  * [deviceId] (UUID) sejak response ini jadi `X-Device-Id` — PERSIST segera,
@@ -37,6 +49,7 @@ data class QrRedeemRequest(
  * berhenti di sini (spec §2 langkah 6a).
  */
 data class QrRedeemResponse(
+    val challengeId: String? = null,
     val deviceId: String,
     val credentialKeyVersion: Int,
     val dukptProvisioningRequired: Boolean,
@@ -45,6 +58,7 @@ data class QrRedeemResponse(
     val keySetVersion: Int? = null,
     val expiresAt: String? = null,
     val status: String,
+    val certificateChain: List<String>? = null,
 )
 
 /**
@@ -63,31 +77,26 @@ data class KeyPackageResponse(
     val keySetVersion: Int,
     val algorithm: String,
     val activationChallenge: String,
-    val wrappedPackageKey: String,
-    val nonce: String,
-    val ciphertext: String,
-    val packageSignature: String,
-    val signingPublicKey: String,
+    val wrappedPackageKey: String? = null,
+    val nonce: String? = null,
+    val ciphertext: String? = null,
+    val packageSignature: String? = null,
+    val signingPublicKey: String? = null,
+    val tr34Materials: Map<String, Tr34MaterialResponse>? = null,
+    val kdhCertificateChain: List<String>? = null,
 )
 
+data class Tr34MaterialResponse(val keyBlock: String, val baseKsn: String, val kcv: String)
+
 /** Plaintext hasil decrypt AES-GCM — TIDAK pernah dikirim/diterima langsung dari backend. */
-internal data class PlainKeyPackage(
-    val deviceId: String? = null,
-    val keySetVersion: Int? = null,
-    val algorithm: String? = null,
-    val materials: Map<String, PlainKeyMaterial>? = null,
-)
 
 /**
  * Ketiga field sengaja nullable meski paket yang sah selalu memuatnya — lihat
  * KDoc `PackageUnwrapper` untuk alasannya (Gson lewat `Unsafe`, null-safety
  * Kotlin tidak berjalan). TIDAK berubah dari kontrak lama.
  */
-internal data class PlainKeyMaterial(
-    val ipek: String? = null,
-    val ksn: String? = null,
-    val kcv: String? = null,
-)
+
+data class KeyPackageRequest(val orderId: String, val activationToken: String)
 
 /**
  * [keyCheckValues] dikunci per tiga purpose tetap (TRACK/AMOUNT/PIN).

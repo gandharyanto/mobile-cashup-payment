@@ -1,8 +1,10 @@
 package com.cashup.provisioning.crypto
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
 import android.security.keystore.StrongBoxUnavailableException
 import com.cashup.provisioning.data.local.SecurePrefs
@@ -14,11 +16,15 @@ import java.security.PrivateKey
 import java.security.spec.MGF1ParameterSpec
 import java.security.spec.PKCS8EncodedKeySpec
 import android.util.Base64
+import android.util.Log
 import java.util.Calendar
 import javax.crypto.Cipher
 import javax.crypto.spec.OAEPParameterSpec
 import javax.crypto.spec.PSource
 import javax.security.auth.x500.X500Principal
+import org.bouncycastle.asn1.x500.X500Name
+import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
 
 /** Digest MGF1 yang dipakai backend saat membungkus paket key. */
 enum class Mgf1Digest { SHA1, SHA256 }
@@ -71,6 +77,10 @@ object RsaKeyLocationPolicy {
 class RsaKeyStore(
     context: Context,
     private val requiredMgf1: Mgf1Digest = Mgf1Digest.SHA1,
+    /** When true, refuse devices that cannot generate this key in StrongBox. */
+    private val requireStrongBox: Boolean = false,
+    /** When true, refuse software RSA even if the backend digest is incompatible with TEE. */
+    private val requireHardwareBacked: Boolean = true,
 ) {
     private val appContext = context.applicationContext
     private val prefs by lazy { SecurePrefs.open(appContext, PREFS) }
@@ -80,8 +90,24 @@ class RsaKeyStore(
 
     @Synchronized
     fun ensureKeyPair(): RsaKeyInfo = when (location) {
-        RsaKeyLocation.ANDROID_KEYSTORE -> RsaKeyInfo(ensureKeystoreKey(), RsaKeyLocation.ANDROID_KEYSTORE)
-        RsaKeyLocation.SOFTWARE -> RsaKeyInfo(ensureSoftwareKey(), RsaKeyLocation.SOFTWARE)
+        RsaKeyLocation.ANDROID_KEYSTORE -> {
+            Log.d(TAG, "RSA key requested: backend=${requiredMgf1.name}, api=${Build.VERSION.SDK_INT}, requireStrongBox=$requireStrongBox")
+            val publicKey = ensureKeystoreKey()
+            val hardwareBacked = verifyHardwareBacked()
+            RsaKeyInfo(publicKey, RsaKeyLocation.ANDROID_KEYSTORE)
+                .also {
+                    if (hardwareBacked) {
+                        Log.d(TAG, "RSA key ready: hardware-backed AndroidKeyStore (StrongBox preferred, TEE fallback)")
+                    } else {
+                        Log.w(TAG, "RSA key ready: software-backed AndroidKeyStore, private key non-exportable")
+                    }
+                }
+        }
+        RsaKeyLocation.SOFTWARE -> {
+            if (requireHardwareBacked) throw IllegalStateException("RSA software key dilarang; backend/device tidak kompatibel dengan TEE")
+            Log.w(TAG, "RSA key using software fallback: api=${Build.VERSION.SDK_INT}, requiredMgf1=${requiredMgf1.name}")
+            RsaKeyInfo(ensureSoftwareKey(), RsaKeyLocation.SOFTWARE)
+        }
     }
 
     fun unwrapper(): RsaUnwrapper = RsaUnwrapper { wrapped ->
@@ -99,6 +125,16 @@ class RsaKeyStore(
         }
         cipher.doFinal(wrapped)
     }
+
+    /** Returns the non-exportable private handle for in-process TR-34 unwrap only. */
+    fun privateKeyHandle(): PrivateKey = when (location) {
+        RsaKeyLocation.ANDROID_KEYSTORE -> keystorePrivateKey()
+        RsaKeyLocation.SOFTWARE -> softwarePrivateKey()
+    }
+
+    /** Debug-only helper for decrypting Base64 RSA-OAEP ciphertext in the app. */
+    fun decryptBase64(ciphertext: String): ByteArray =
+        unwrapper().unwrap(Base64.decode(ciphertext.trim(), Base64.DEFAULT))
 
     /**
      * `SHA256withRSA` — dipakai `ProvisionDeviceUseCase` untuk `deviceSignature`
@@ -153,6 +189,18 @@ class RsaKeyStore(
         return listOf(base64)
     }
 
+    /** PKCS#10 CSR signed by the RSA private key for backend KRD issuance. */
+    @Synchronized
+    fun krdCsr(): String {
+        BcProvider.ensureInstalled()
+        val publicKey = androidKeyStore().getCertificate(ALIAS)?.publicKey
+            ?: throw IllegalStateException("RSA public key tidak tersedia")
+        val csr = JcaPKCS10CertificationRequestBuilder(
+            X500Name("CN=cashup-edc-device"), publicKey,
+        ).build(JcaContentSignerBuilder("SHA256withRSA").build(keystorePrivateKey()))
+        return Base64.encodeToString(csr.encoded, Base64.NO_WRAP)
+    }
+
     @Synchronized
     fun clear() {
         prefs.edit().remove(KEY_PRIVATE).remove(KEY_PUBLIC).remove(KEY_CERTIFICATE).commit()
@@ -172,8 +220,14 @@ class RsaKeyStore(
     private fun androidKeyStore() = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
 
     private fun ensureKeystoreKey(): String {
+        if (requireStrongBox && Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            throw IllegalStateException("StrongBox membutuhkan Android 9 (API 28) atau lebih baru")
+        }
         val store = androidKeyStore()
-        store.getCertificate(ALIAS)?.let { return it.publicKey.encoded.base64() }
+        store.getCertificate(ALIAS)?.let {
+            Log.d(TAG, "RSA key reused from AndroidKeyStore alias=$ALIAS")
+            return it.publicKey.encoded.base64()
+        }
 
         fun spec(strongBox: Boolean) = KeyGenParameterSpec.Builder(
             ALIAS,
@@ -203,15 +257,49 @@ class RsaKeyStore(
 
         val generator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, "AndroidKeyStore")
         val pair = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            generateWithStrongBoxFallback(generator) { spec(strongBox = true) } ?: run {
+
+            generateWithStrongBoxFallback(generator) { spec(strongBox = false) } ?: run {
+                if (requireStrongBox) {
+                    Log.e(TAG, "RSA StrongBox generation unavailable; refusing fallback")
+                    throw IllegalStateException("StrongBox tidak tersedia untuk RSA key pair")
+                }
+                Log.w(TAG, "RSA StrongBox unavailable; falling back to AndroidKeyStore TEE")
                 generator.initialize(spec(strongBox = false))
                 generator.generateKeyPair()
             }
         } else {
+            if (requireStrongBox) throw IllegalStateException("StrongBox tidak tersedia")
             generator.initialize(spec(strongBox = false))
             generator.generateKeyPair()
         }
         return pair.public.encoded.base64()
+    }
+
+    /** AndroidKeyStore may theoretically use a software provider; reject that for payment keys. */
+    private fun verifyHardwareBacked(): Boolean {
+        val privateKey = keystorePrivateKey()
+        val publicKey = androidKeyStore().getCertificate(ALIAS).publicKey
+        val privateEncoded = privateKey.encoded
+        Log.d("RSA", "Private format = ${privateKey.format}")
+        Log.d("RSA", "Private encoded available = ${privateEncoded != null}, length = ${privateEncoded?.size ?: 0}")
+        Log.d("RSA", "Public format = ${publicKey.format}")
+        val keyInfo = KeyFactory.getInstance("RSA", "AndroidKeyStore")
+            .getKeySpec(privateKey, KeyInfo::class.java)
+        if (!keyInfo.isInsideSecureHardware) {
+            if (requireHardwareBacked) {
+                throw IllegalStateException("RSA private key tidak berada di hardware-backed Android Keystore (TEE/StrongBox)")
+            }
+            Log.w(TAG, "RSA Keystore is software-backed; private key remains non-exportable by API")
+        }
+        check(privateEncoded == null) {
+            "RSA private key hardware-backed tetapi encoded masih tersedia; provisioning dihentikan"
+        }
+        if (keyInfo.isInsideSecureHardware) {
+            Log.d(TAG, "RSA private key verified hardware-backed: insideSecureHardware=true")
+        } else {
+            Log.w(TAG, "RSA private key accepted as non-exportable software-backed Keystore fallback")
+        }
+        return keyInfo.isInsideSecureHardware
     }
 
     /**
@@ -258,7 +346,10 @@ class RsaKeyStore(
     private fun ByteArray.base64(): String = Base64.encodeToString(this, Base64.NO_WRAP)
 
     private companion object {
-        const val ALIAS = "cashup_provisioning_rsa"
+        const val TAG = "CashupKeyStore"
+        // Versioned alias prevents a key generated by an older, opportunistic
+        // (non-StrongBox) build from being silently reused after strict mode.
+        const val ALIAS = "cashup_provisioning_rsa_strongbox_v2"
         const val PREFS = "provisioning_rsa"
         const val KEY_PRIVATE = "private_key"
         const val KEY_PUBLIC = "public_key"

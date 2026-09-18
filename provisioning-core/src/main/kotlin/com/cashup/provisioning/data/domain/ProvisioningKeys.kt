@@ -4,6 +4,8 @@ import com.cashup.provisioning.crypto.RsaKeyInfo
 import com.cashup.provisioning.crypto.RsaUnwrapper
 import com.cashup.provisioning.data.local.DukptState
 import com.cashup.provisioning.data.local.IdentityState
+import com.cashup.provisioning.data.remote.KeyPackageResponse
+import com.cashup.devicesdk.TerminalKeyMaterial
 
 /**
  * Keypair milik device, tanpa menyebut Android Keystore.
@@ -17,6 +19,11 @@ interface ProvisioningKeys {
     /** Public key Ed25519 raw 32 byte, Base64. */
     fun ensureEd25519KeyPair(): String
     fun unwrapper(): RsaUnwrapper
+    fun unwrapTr34(packageResponse: KeyPackageResponse): List<TerminalKeyMaterial> =
+        error("TR34_2019 belum didukung oleh key adapter")
+    fun certificateChain(): List<String> = emptyList()
+    fun krdCsr(): String = certificateChain().firstOrNull().orEmpty()
+    fun signActivation(bytes: ByteArray): ByteArray
     fun clearAll()
 }
 

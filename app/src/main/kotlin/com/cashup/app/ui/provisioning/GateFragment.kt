@@ -20,8 +20,7 @@ class GateFragment : Fragment(R.layout.fragment_gate) {
         super.onViewCreated(view, savedInstanceState)
         val container = (requireActivity().application as CashupApp).container
         if (container.isProvisioned()) {
-            // TODO(App Shell): arahkan ke Home begitu layar itu ada.
-            findNavController().navigate(R.id.to_scan)
+            findNavController().navigate(R.id.to_sale)
         } else {
             findNavController().navigate(R.id.to_scan)
         }

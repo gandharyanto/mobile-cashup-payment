@@ -10,6 +10,7 @@ data class IdentityState(
     val serialNumber: String,
     val deviceId: String,
     val credentialKeyVersion: Int,
+    val certificateChain: List<String> = emptyList(),
 )
 
 /**

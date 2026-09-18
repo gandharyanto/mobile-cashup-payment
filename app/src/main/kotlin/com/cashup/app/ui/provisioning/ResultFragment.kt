@@ -22,21 +22,26 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
 
         when (val state = viewModel.state.value) {
             is ProvisioningUiState.Success -> {
-                binding.title.setText(R.string.result_success_title)
+                binding.title.setText(if (state.identityOnly) R.string.result_identity_refreshed else R.string.result_success_title)
                 binding.detail.text = buildString {
                     append(getString(R.string.result_serial, state.serialNumber))
-                    append('\n')
-                    append(getString(R.string.result_order, state.orderId))
+                    if (!state.identityOnly) {
+                        append('\n')
+                        append(getString(R.string.result_order, state.orderId))
+                    }
                 }
                 // Perlindungan tiap purpose ditampilkan, tidak disembunyikan:
                 // tidak semua key mendapat modul aman vendor (spec §4.3), dan
                 // itu harus terlihat teknisi, bukan hanya tercatat di log.
-                binding.backings.text = state.installed.joinToString("\n") {
-                    "${it.purpose}: ${it.backing.name}"
-                }
+                binding.backings.text = if (state.identityOnly) getString(R.string.result_keys_unchanged)
+                    else state.installed.joinToString("\n") { "${it.purpose}: ${it.backing.name}" }
                 showJournal(binding, state.journalText)
                 binding.action.setText(R.string.result_continue)
-                binding.action.setOnClickListener { requireActivity().finish() }
+                binding.action.setOnClickListener {
+                    val container = (requireActivity().application as CashupApp).container
+                    if (container.isProvisioned()) findNavController().navigate(R.id.to_sale)
+                    else requireActivity().finish()
+                }
             }
 
             is ProvisioningUiState.Failure -> {

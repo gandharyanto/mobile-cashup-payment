@@ -49,7 +49,7 @@ class StoredDeviceSigner(
         inFlightSerialNumber = serial
     }
 
-    override fun deviceId(): String? = inFlightSerialNumber ?: state.current()?.serialNumber
+    override fun deviceId(): String? = state.identity()?.deviceId
 
     override fun sign(canonicalBytes: ByteArray): ByteArray = signBytes(canonicalBytes)
 }

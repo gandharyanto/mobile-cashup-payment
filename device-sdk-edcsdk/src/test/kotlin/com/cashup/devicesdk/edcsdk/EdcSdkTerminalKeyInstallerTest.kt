@@ -62,7 +62,7 @@ class EdcSdkTerminalKeyInstallerTest {
             assertEquals(KeyBacking.TEE_VAULT_ONLY, it.backing)
         }
         assertEquals(1, gateway.vendorWrites.size)
-        assertEquals(listOf(10, 11, 12), gateway.vaultWrites)
+        assertEquals(listOf(10, 11, 13), gateway.vaultWrites)
     }
 
     @Test
@@ -75,7 +75,7 @@ class EdcSdkTerminalKeyInstallerTest {
         val outcomes = (result as TerminalKeyInstallResult.Installed).outcomes
         assertTrue(outcomes.all { it.backing == KeyBacking.TEE_VAULT_ONLY })
         assertEquals(0, gateway.vendorWrites.size)
-        assertEquals(listOf(10, 11, 12, 13), gateway.vaultWrites)
+        assertEquals(listOf(10, 12, 11, 13), gateway.vaultWrites)
     }
 
     @Test

@@ -3,6 +3,9 @@
     <string name="app_name">Cashup Payment</string>
 
     <string name="scan_title">Pindai QR Provisioning</string>
+    <string name="serial_loading">Serial number: memuat…</string>
+    <string name="serial_value">Serial number: %1$s</string>
+    <string name="serial_unavailable">Serial number: tidak tersedia</string>
     <string name="scan_hint">Arahkan ke kode QR dari Cashup backoffice</string>
     <string name="scan_manual_label">Atau ketik kode provisioning</string>
     <string name="scan_manual_action">Lanjut</string>
@@ -12,6 +15,8 @@
     <string name="processing_step">Langkah: %1$s</string>
 
     <string name="result_success_title">Provisioning berhasil</string>
+    <string name="result_identity_refreshed">Identitas perangkat diperbarui</string>
+    <string name="result_keys_unchanged">Tidak ada paket key DUKPT baru dari backend.</string>
     <string name="result_failure_title">Provisioning gagal</string>
     <string name="result_serial">Serial: %1$s</string>
     <string name="result_order">Order: %1$s</string>

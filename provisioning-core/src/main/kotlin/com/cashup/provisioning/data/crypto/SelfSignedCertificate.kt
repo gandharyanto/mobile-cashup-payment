@@ -2,7 +2,6 @@ package com.cashup.provisioning.crypto
 
 import java.math.BigInteger
 import java.security.KeyPair
-import java.time.Instant
 import java.util.Date
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
@@ -32,18 +31,18 @@ object SelfSignedCertificate {
     fun build(keyPair: KeyPair, subjectCn: String = "cashup-edc-device"): ByteArray {
         BcProvider.ensureInstalled()
         val subject = X500Name("CN=$subjectCn")
-        val now = Instant.now()
+        val now = System.currentTimeMillis()
         val builder = JcaX509v3CertificateBuilder(
             subject,
-            BigInteger.valueOf(now.toEpochMilli()),
-            Date.from(now.minusSeconds(60)),
-            Date.from(now.plusSeconds(VALIDITY_DAYS * 86_400)),
+            BigInteger.valueOf(now),
+            Date(now - 60_000L),
+            Date(now + VALIDITY_DAYS * 86_400_000L),
             subject,
             keyPair.public,
         )
-        val signer = JcaContentSignerBuilder("SHA256withRSA")
-            .setProvider(BcProvider.NAME)
-            .build(keyPair.private)
+        // Let JCA choose AndroidKeyStore when the private key is a hardware handle.
+        // Explicit BC cannot sign with a non-extractable AndroidKeyStore key.
+        val signer = JcaContentSignerBuilder("SHA256withRSA").build(keyPair.private)
         return JcaX509CertificateConverter()
             .setProvider(BcProvider.NAME)
             .getCertificate(builder.build(signer))

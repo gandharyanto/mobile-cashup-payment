@@ -57,6 +57,7 @@ class ProvisioningViewModel(
                         orderId = outcome.orderId,
                         installed = outcome.installed,
                         journalText = outcome.journalText,
+                        identityOnly = outcome.identityOnly,
                     )
                     is ProvisioningOutcome.Failure -> ProvisioningUiState.Failure(
                         code = outcome.code,

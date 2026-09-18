@@ -36,9 +36,36 @@ class ScanQrFragment : Fragment(R.layout.fragment_scan_qr) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val binding = FragmentScanQrBinding.bind(view)
+        val container = (requireActivity().application as CashupApp).container
+        viewLifecycleOwner.lifecycleScope.launch {
+            val serial = runCatching { container.serialNumbers.serialNumber() }.getOrNull()
+            binding.serialNumber.text = if (serial.isNullOrBlank()) getString(R.string.serial_unavailable)
+                else getString(R.string.serial_value, serial)
+        }
 
         binding.manualSubmit.setOnClickListener {
             viewModel.provision(binding.manualCode.text.toString())
+        }
+
+        binding.decryptRsa.setOnClickListener {
+            val ciphertext = binding.rsaCiphertext.text.toString()
+            if (ciphertext.isBlank()) {
+                binding.decryptResult.text = "Ciphertext wajib diisi"
+            } else {
+                runCatching { container.decryptRsaBase64(ciphertext).toString(Charsets.UTF_8) }
+                    .onSuccess { binding.decryptResult.text = "Plaintext: $it" }
+                    .onFailure { binding.decryptResult.text = "Decrypt gagal: ${it.message ?: it.javaClass.simpleName}" }
+            }
+        }
+        binding.signEd25519.setOnClickListener {
+            val message = binding.ed25519Message.text.toString()
+            if (message.isBlank()) {
+                binding.signatureResult.text = "Pesan wajib diisi"
+            } else {
+                runCatching { container.signEd25519Base64(message) }
+                    .onSuccess { binding.signatureResult.text = "Signature Base64: $it" }
+                    .onFailure { binding.signatureResult.text = "Signing gagal: ${it.message ?: it.javaClass.simpleName}" }
+            }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {

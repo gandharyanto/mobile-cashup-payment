@@ -1,12 +1,18 @@
 package com.cashup.provisioning.crypto
 
 import android.content.Context
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyInfo
+import android.security.keystore.KeyProperties
 import com.cashup.provisioning.data.local.SecurePrefs
 import java.security.KeyFactory
 import java.security.KeyPairGenerator
+import java.security.KeyStore
 import java.security.Signature
+import java.security.spec.ECGenParameterSpec
 import java.security.spec.PKCS8EncodedKeySpec
 import android.util.Base64
+import android.util.Log
 
 /**
  * Keypair Ed25519 yang menandatangani setiap request setelah provisioning.
@@ -26,17 +32,52 @@ import android.util.Base64
  */
 class Ed25519KeyStore(context: Context) {
 
+    private val appContext = context.applicationContext
+
     private val prefs by lazy { SecurePrefs.open(context.applicationContext, PREFS) }
 
-    fun hasKeyPair(): Boolean = prefs.contains(KEY_PRIVATE)
+    fun hasKeyPair(): Boolean = keystore().containsAlias(ALIAS) || prefs.contains(KEY_PRIVATE)
+
+    fun storageDescription(): String =
+        if (keystore().containsAlias(ALIAS)) "AndroidKeyStore" else "EncryptedSharedPreferences"
 
     /** Public key raw 32 byte, Base64 — bentuk yang diharapkan backend. */
     @Synchronized
     fun ensureKeyPair(): String {
-        prefs.getString(KEY_PUBLIC_RAW, null)?.let { return it }
+        keystore().getCertificate(ALIAS)?.let { certificate ->
+            verifyKeystoreKey()
+            val rawBase64 = Base64.encodeToString(rawFromX509(certificate.publicKey.encoded), Base64.NO_WRAP)
+            Log.d(TAG, "Ed25519 key reused from Android Keystore; non-exportable=${keystorePrivateKey()?.encoded == null}")
+            return rawBase64
+        }
+        prefs.getString(KEY_PUBLIC_RAW, null)?.let {
+            Log.d(TAG, "Ed25519 key reused from encrypted app storage; hardware StrongBox is unavailable for this algorithm")
+            return it
+        }
 
+        try {
+            val generator = KeyPairGenerator.getInstance("EC", "AndroidKeyStore")
+            generator.initialize(KeyGenParameterSpec.Builder(
+                ALIAS,
+                KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY,
+            ).setDigests(KeyProperties.DIGEST_NONE).setAlgorithmParameterSpec(ECGenParameterSpec("Ed25519")).build())
+            val pair = generator.generateKeyPair()
+            verifyKeystoreKey()
+            val rawBase64 = Base64.encodeToString(rawFromX509(pair.public.encoded), Base64.NO_WRAP)
+            Log.i(TAG, "Ed25519 key generated in Android Keystore; non-exportable=true")
+            return rawBase64
+        } catch (failure: Exception) {
+            runCatching { keystore().deleteEntry(ALIAS) }
+            Log.w(TAG, "Android Keystore Ed25519 unavailable; using encrypted software fallback", failure)
+        }
+
+        Log.d(TAG, "Generating Ed25519 key with BouncyCastle encrypted software fallback")
         BcProvider.ensureInstalled()
         val pair = KeyPairGenerator.getInstance("Ed25519", BcProvider.NAME).generateKeyPair()
+        val privateEncoded = pair.private.encoded
+        Log.d("ED25519", "Private format = ${pair.private.format}")
+        Log.d("ED25519", "Private encoded available = ${privateEncoded != null}, length = ${privateEncoded?.size ?: 0}")
+        Log.d("ED25519", "Public format = ${pair.public.format}")
         val raw = rawFromX509(pair.public.encoded)
         val rawBase64 = Base64.encodeToString(raw, Base64.NO_WRAP)
 
@@ -44,10 +85,18 @@ class Ed25519KeyStore(context: Context) {
             .putString(KEY_PRIVATE, Base64.encodeToString(pair.private.encoded, Base64.NO_WRAP))
             .putString(KEY_PUBLIC_RAW, rawBase64)
             .commit()
+        Log.d(TAG, "Ed25519 key generated and stored encrypted; private material was not logged")
         return rawBase64
     }
 
     fun sign(bytes: ByteArray): ByteArray {
+        keystorePrivateKey()?.let { privateKey ->
+            return Signature.getInstance("Ed25519").run {
+                initSign(privateKey)
+                update(bytes)
+                sign()
+            }
+        }
         val stored = prefs.getString(KEY_PRIVATE, null)
             ?: error("Keypair Ed25519 belum dibuat")
         BcProvider.ensureInstalled()
@@ -60,9 +109,45 @@ class Ed25519KeyStore(context: Context) {
         }
     }
 
+    /** Debug verification using the public key held by the same provider. */
+    fun verify(bytes: ByteArray, signature: ByteArray): Boolean {
+        val publicEncoded = keystore().getCertificate(ALIAS)?.publicKey?.encoded ?: run {
+            val stored = prefs.getString(KEY_PUBLIC_RAW, null) ?: return false
+            val raw = Base64.decode(stored, Base64.NO_WRAP)
+            byteArrayOf(0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00) + raw
+        }
+        BcProvider.ensureInstalled()
+        val publicKey = KeyFactory.getInstance("Ed25519", BcProvider.NAME)
+            .generatePublic(java.security.spec.X509EncodedKeySpec(publicEncoded))
+        return Signature.getInstance("Ed25519", BcProvider.NAME).run {
+            initVerify(publicKey)
+            update(bytes)
+            verify(signature)
+        }
+    }
+
     @Synchronized
     fun clear() {
+        keystore().deleteEntry(ALIAS)
         prefs.edit().remove(KEY_PRIVATE).remove(KEY_PUBLIC_RAW).commit()
+    }
+
+    private fun keystore(): KeyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+
+    private fun keystorePrivateKey() = keystore().getKey(ALIAS, null) as? java.security.PrivateKey
+
+    private fun verifyKeystoreKey() {
+        val privateKey = keystorePrivateKey() ?: error("Ed25519 Android Keystore private key missing")
+        val encoded = privateKey.encoded
+        Log.d("ED25519", "Private format = ${privateKey.format}")
+        Log.d("ED25519", "Private encoded available = ${encoded != null}, length = ${encoded?.size ?: 0}")
+        val publicKey = keystore().getCertificate(ALIAS).publicKey
+        Log.d("ED25519", "Public format = ${publicKey.format}")
+        check(encoded == null) { "Ed25519 private key encoded tersedia; key tidak non-exportable" }
+        runCatching {
+            val info = KeyFactory.getInstance("EC", "AndroidKeyStore").getKeySpec(privateKey, KeyInfo::class.java)
+            Log.d(TAG, "Ed25519 Android Keystore security: insideSecureHardware=${info.isInsideSecureHardware}")
+        }.onFailure { Log.w(TAG, "Ed25519 KeyInfo unavailable; non-exportability still verified by encoded=null", it) }
     }
 
     /**
@@ -74,8 +159,10 @@ class Ed25519KeyStore(context: Context) {
         encoded.copyOfRange(encoded.size - 32, encoded.size)
 
     private companion object {
+        const val TAG = "CashupKeyStore"
         const val PREFS = "provisioning_ed25519"
         const val KEY_PRIVATE = "private_key"
         const val KEY_PUBLIC_RAW = "public_key_raw"
+        const val ALIAS = "cashup_provisioning_ed25519_keystore_v1"
     }
 }

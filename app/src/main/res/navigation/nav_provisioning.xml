@@ -9,6 +9,8 @@
         android:name="com.cashup.app.ui.provisioning.GateFragment">
         <action android:id="@+id/to_scan" app:destination="@id/scanQrFragment"
             app:popUpTo="@id/gateFragment" app:popUpToInclusive="true" />
+        <action android:id="@+id/to_sale" app:destination="@id/saleFragment"
+            app:popUpTo="@id/gateFragment" app:popUpToInclusive="true" />
     </fragment>
 
     <fragment
@@ -31,5 +33,13 @@
         android:name="com.cashup.app.ui.provisioning.ResultFragment">
         <action android:id="@+id/to_scan" app:destination="@id/scanQrFragment"
             app:popUpTo="@id/resultFragment" app:popUpToInclusive="true" />
+        <action android:id="@+id/to_sale" app:destination="@id/saleFragment"
+            app:popUpTo="@id/resultFragment" app:popUpToInclusive="true" />
+    </fragment>
+    <fragment android:id="@+id/saleFragment"
+        android:name="com.cashup.app.ui.sale.SaleFragment"
+        tools:layout="@layout/fragment_sale"
+        xmlns:tools="http://schemas.android.com/tools">
+        <action android:id="@+id/to_scan" app:destination="@id/scanQrFragment" />
     </fragment>
 </navigation>
