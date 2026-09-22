@@ -15,6 +15,9 @@ dan biner itu **tidak** di-commit.
 | `nexgo-release-core_1.0.63.aar` | `:device-sdk-edcsdk` |
 | `topwize-release-core_1.0.63.aar` | `:device-sdk-edcsdk` |
 | `szanfu-release-core_1.0.63.aar` | `:device-sdk-edcsdk` |
+| `other-release-core_1.0.63.aar` | `:device-sdk-mpos` — `DeviceConnectionManager`, `Channel`, `BrandRegistry`, `MposReaderDevice` |
+| `newland-mpos-release-core_1.0.63.aar` | `:device-sdk-mpos` — `NewlandBlueHelper` |
+| `topwise-mpos-release-core_1.0.63.aar` | `:device-sdk-mpos` — `TopwiseBlueHelper` |
 
 ## Memperbarui
 
@@ -22,5 +25,8 @@ Build ulang di `edc-sdk` lalu salin hasilnya ke sini. Naikkan nomor versi di
 `device-sdk-edcsdk/build.gradle.kts` bersamaan — nama berkas adalah koordinat
 dependensinya.
 
-Feitian, Urovo, Newland, dan Tianyu tidak punya AAR di sini dan tidak punya
-implementasi `SystemKey` di `edc-sdk`.
+Feitian, Urovo, dan Tianyu tidak punya AAR di sini dan tidak punya implementasi
+`SystemKey` di `edc-sdk` — tidak didukung sebagai EDC terminal built-in. Newland
+**hanya** didukung lewat mPOS Bluetooth eksternal (`:device-sdk-mpos`), bukan
+lewat `:device-sdk-edcsdk` — `edc-sdk` tidak punya modul `newland` (terminal
+built-in) untuk vendor ini, hanya `newland-mpos`.
