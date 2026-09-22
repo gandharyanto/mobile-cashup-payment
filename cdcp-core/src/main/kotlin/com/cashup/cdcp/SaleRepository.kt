@@ -5,6 +5,8 @@ import com.cashup.common.network.ApiResult
 import com.cashup.common.network.RequestHeadersInterceptor
 import com.cashup.common.network.safeEnvelopeCall
 import com.cashup.devicesdk.DukptKeyProvider
+import com.cashup.devicesdk.CardTransactionData
+import com.cashup.devicesdk.CardType
 import com.cashup.signing.DeviceSigner
 import com.cashup.signing.SigningInterceptor
 import com.google.gson.Gson
@@ -40,6 +42,24 @@ class SaleRepository private constructor(
         val request = if (pending?.first == idempotencyKey) pending!!.second else
             SaleRequest("051", payloads.build(deviceId, keySetVersion, card, amount, tipAmount, pin))
                 .also { pending = idempotencyKey to it }
+        val result = safeEnvelopeCall(gson) { api.sale(idempotencyKey, request) }
+        if (result is ApiResult.Success) pending = null
+        return result
+    }
+
+    suspend fun sale(deviceId: String, keySetVersion: Int, card: CardTransactionData,
+                     amount: BigDecimal, tipAmount: BigDecimal = BigDecimal.ZERO,
+                     idempotencyKey: String): ApiResult<SaleResponse> {
+        require(idempotencyKey.isNotBlank()) { "Idempotency key wajib per aksi pembayaran" }
+        val request = if (pending?.first == idempotencyKey) pending!!.second else {
+            val entryMode = when (card.cardType) {
+                CardType.CHIP -> "051"
+                CardType.TAP -> "071"
+                CardType.SWIPE -> "021"
+            }
+            SaleRequest(entryMode, payloads.build(deviceId, keySetVersion, card, amount, tipAmount))
+                .also { pending = idempotencyKey to it }
+        }
         val result = safeEnvelopeCall(gson) { api.sale(idempotencyKey, request) }
         if (result is ApiResult.Success) pending = null
         return result

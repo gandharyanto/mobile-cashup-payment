@@ -1,6 +1,10 @@
 package com.cashup.devicesdk.fake
 
 import com.cashup.devicesdk.CardReadResult
+import com.cashup.devicesdk.CardAuthorization
+import com.cashup.devicesdk.CardTransactionData
+import com.cashup.devicesdk.CardTransactionListener
+import com.cashup.devicesdk.CardTransactionRequest
 import com.cashup.devicesdk.CardType
 import com.cashup.devicesdk.PrintResult
 import com.cashup.devicesdk.ReceiptContent
@@ -28,11 +32,14 @@ class FakeDeviceSdkTest {
     @Test
     fun `FakeCardReader returns the configured result and tracks cancel`() = runSuspend {
         val reader = FakeCardReader()
-        reader.setNextResult(CardReadResult.Success("track-data", CardType.CHIP))
+        val authorization = CardAuthorization(true, "00")
+        reader.setNextResult(CardReadResult.Success(authorization))
 
-        val result = reader.waitForCard(1000)
+        val result = reader.transact(CardTransactionRequest(10_000, 1000), object : CardTransactionListener {
+            override suspend fun authorize(card: CardTransactionData) = authorization
+        })
 
-        assertEquals(CardReadResult.Success("track-data", CardType.CHIP), result)
+        assertEquals(CardReadResult.Success(authorization), result)
         assertFalse(reader.cancelCalled)
         reader.cancel()
         assertTrue(reader.cancelCalled)
