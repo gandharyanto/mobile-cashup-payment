@@ -30,4 +30,9 @@
     <string name="err_device_unknown">Perangkat tidak dikenali SDK vendor mana pun.</string>
     <string name="err_package_invalid">Paket key dari backend tidak lolos pemeriksaan. Tidak ada key yang dipasang.</string>
     <string name="err_key_install_failed">Gagal memasang key ke perangkat. Semua key sudah dibersihkan.</string>
+
+    <string name="home_tab_home">Beranda</string>
+    <string name="home_tab_history">Riwayat</string>
+    <string name="home_tab_features">Fitur</string>
+    <string name="home_tab_device">Device</string>
 </resources>

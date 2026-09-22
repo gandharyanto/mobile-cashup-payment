@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="light_100">#FFFFFF</color>
+    <color name="mode_selector_container_bg">#F0F0F0</color>
+    <color name="mode_selector_selected_bg">#1A652A</color>
+    <color name="mode_selector_text_selected">#FFFFFF</color>
+    <color name="mode_selector_text_unselected">#575757</color>
+</resources>
