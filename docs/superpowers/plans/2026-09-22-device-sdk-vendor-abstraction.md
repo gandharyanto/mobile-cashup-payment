@@ -114,10 +114,10 @@ git commit -m "build: vendor other/newland-mpos/topwise-mpos AARs from edc-sdk 1
 package com.cashup.devicesdk
 
 import kotlinx.coroutines.test.runTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 
 class PairableCardReaderTest {
     private class FakePairableReader : PairableCardReader {
@@ -1163,9 +1163,14 @@ class DeviceSdkFactory internal constructor(
             // Exception = "vendor ini bilang tidak", lanjut ke kandidat
             // berikutnya. Error (mis. AAR salah dikonfigurasi) sengaja TIDAK
             // ditangkap di sini -- harus meledakkan build/CI, bukan diam-diam
-            // dianggap "vendor tidak ada" (spec §6).
+            // dianggap "vendor tidak ada" (spec §6). CancellationException
+            // dilempar ulang: itu bukan "vendor bilang tidak", itu coroutine
+            // scope pemanggil yang dibatalkan -- menelannya di sini akan
+            // melanggar cooperative cancellation.
             val result = try {
                 candidate()
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
             } catch (unavailable: Exception) {
                 null
             }
@@ -1277,12 +1282,19 @@ tasks.register("checkModuleBoundaries") {
 
             if (p.path in noApiScope) {
                 val api = p.configurations.findByName("api")
+                // Project dependency pada device-sdk-api itu SAH dan wajib --
+                // EdcSdkCardReader/MposCardReader publicly implement
+                // CardReader/PairableCardReader dari device-sdk-api, jadi
+                // konsumen butuh tipe itu di compile classpath mereka.
+                // Yang dilarang cuma AAR vendor mentah (bukan ProjectDependency)
+                // yang bocor lewat api -- itu satu-satunya yang boleh gagal di sini.
                 val leaked = api?.dependencies
                     ?.filterNot { it.group == "org.jetbrains.kotlin" }
+                    ?.filterNot { it is org.gradle.api.artifacts.ProjectDependency }
                     ?.map { "${it.group ?: ""}:${it.name}" }
                     .orEmpty()
                 if (leaked.isNotEmpty()) {
-                    violations += "${p.path}: uses 'api' scope for ${leaked.joinToString()}. Vendor modules must keep their SDK implementation-scoped so it cannot leak to consumers."
+                    violations += "${p.path}: uses 'api' scope for ${leaked.joinToString()}. Vendor AAR dependencies must stay implementation-scoped so they cannot leak to consumers."
                 }
             }
         }
