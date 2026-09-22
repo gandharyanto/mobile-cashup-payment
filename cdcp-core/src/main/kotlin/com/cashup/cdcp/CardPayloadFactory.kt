@@ -16,7 +16,15 @@ internal class CardPayloadFactory(private val keys: DukptKeyProvider) {
               amount: BigDecimal, tip: BigDecimal, pin: String?): CardPayloadRequest {
         val pinBlock = pin?.let { PinBlock.build(it, card.pan) }
         return try {
-            build(deviceId, keySetVersion, card.track2(), amount, tip, pinBlock, null)
+            build(
+                deviceId = deviceId,
+                keySetVersion = keySetVersion,
+                track2 = card.track2(),
+                amount = amount,
+                tip = tip,
+                pinBlock = pinBlock,
+                iccData = null,
+            )
         } finally {
             pinBlock?.fill(0)
         }
@@ -31,22 +39,28 @@ internal class CardPayloadFactory(private val keys: DukptKeyProvider) {
             amount = amount,
             tip = tip,
             pinBlock = card.pinBlock,
+            pinKsn = card.pinKsn,
             iccData = card.iccData,
         )
 
     private fun build(deviceId: String, keySetVersion: Int, track2: String,
                       amount: BigDecimal, tip: BigDecimal, pinBlock: ByteArray?,
-                      iccData: String?): CardPayloadRequest {
+                      pinKsn: ByteArray? = null, iccData: String?): CardPayloadRequest {
         require(deviceId.isNotBlank() && keySetVersion > 0)
         require(amount.signum() > 0 && amount.scale() <= 0 && amount.toPlainString().length <= 12)
         require(tip.signum() >= 0 && tip.scale() <= 0 && tip.toPlainString().length <= 12)
         require(track2.isNotBlank()) { "Track 2 kartu kosong" }
         require(pinBlock == null || pinBlock.size == 8) { "PIN block dari secure PIN pad tidak valid" }
+        require(pinKsn == null || pinKsn.size == Dukpt.KSN_LENGTH) { "KSN PIN dari secure PIN pad tidak valid" }
+        require(pinKsn == null || pinBlock != null) { "KSN PIN tersedia tanpa PIN block" }
         val counter = keys.nextCounter() // persist before any encryption or HTTP request
         val index = Dukpt.ksnIndex(counter)
         val track = requireNotNull(keys.load("TRACK")) { "Key TRACK belum terpasang" }
         val amountKey = requireNotNull(keys.load("AMOUNT")) { "Key AMOUNT belum terpasang" }
-        val pinKey = if (pinBlock != null) requireNotNull(keys.load("PIN")) { "Key PIN belum terpasang" } else null
+        val pinKey = if (pinBlock != null && pinKsn == null) {
+            requireNotNull(keys.load("PIN")) { "Key PIN belum terpasang" }
+        } else null
+        val emvKey = if (iccData != null) requireNotNull(keys.load("EMV")) { "Key EMV belum terpasang" } else null
         try {
             fun ksn(material: TerminalKeyMaterial) = Dukpt.composeKsn(material.ksn, index)
             fun encryptAmount(value: BigDecimal): String {
@@ -62,22 +76,24 @@ internal class CardPayloadFactory(private val keys: DukptKeyProvider) {
                 baseAmountEnc = encryptAmount(amount),
                 amountKsnIndex = index,
                 tipAmountEnc = tip.takeIf { it.signum() > 0 }?.let(::encryptAmount),
-                pinblockEnc = pinBlock?.let { Dukpt.encryptPinBlock(it, ksn(pinKey!!), pinKey.ipek).toHex() },
-                pinKsnIndex = pinBlock?.let { index },
+                pinblockEnc = pinBlock?.let {
+                    if (pinKsn != null) it.toHex()
+                    else Dukpt.encryptPinBlock(it, ksn(pinKey!!), pinKey.ipek).toHex()
+                },
+                pinKsnIndex = pinBlock?.let {
+                    pinKsn?.let(Dukpt::transactionCounter)?.toInt()?.let(Dukpt::ksnIndex) ?: index
+                },
                 emvReqEnc = iccData?.let {
                     val bytes = it.hexToBytes().let { raw ->
                         if (raw.size % 8 == 0) raw else raw.copyOf(((raw.size + 7) / 8) * 8)
                     }
-                    // Kontrak provisioning aktif hanya memiliki TRACK/AMOUNT/PIN.
-                    // ICC/EMV adalah bagian dari data kartu, sehingga memakai purpose TRACK,
-                    // bukan meminta key "EMV" bayangan yang tidak pernah diprovision backend.
-                    Dukpt.encryptData(bytes, ksn(track), track.ipek).toHex()
+                    Dukpt.encryptData(bytes, ksn(emvKey!!), emvKey.ipek).toHex()
                 },
                 emvReqLen = iccData?.length,
                 emvKsnIndex = iccData?.let { index },
             )
         } finally {
-            track.zeroize(); amountKey.zeroize(); pinKey?.zeroize()
+            track.zeroize(); amountKey.zeroize(); pinKey?.zeroize(); emvKey?.zeroize()
         }
     }
 }

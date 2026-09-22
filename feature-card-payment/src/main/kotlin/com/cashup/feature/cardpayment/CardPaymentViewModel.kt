@@ -45,9 +45,17 @@ class CardPaymentViewModel(private val dependencies: CardPaymentDependencies) : 
     private var pendingFingerprint: String? = null
     private var idempotencyKey: String? = null
     private var hostResult: ApiResult<SaleResponse>? = null
+    private var suspendedDuringTransaction = false
 
     fun start(amountText: String, tipText: String) {
         if (transactionJob?.isActive == true) return
+        if (!dependencies.isTransactionAllowed()) {
+            mutableState.value = CardPaymentUiState(
+                stage = PaymentStage.FAILURE,
+                message = DEVICE_SUSPENDED_MESSAGE,
+            )
+            return
+        }
         val amount = amountText.toBigDecimalOrNull()
         val tip = tipText.ifBlank { "0" }.toBigDecimalOrNull()
         if (amount == null || tip == null || amount.signum() <= 0 || tip.signum() < 0 ||
@@ -132,6 +140,7 @@ class CardPaymentViewModel(private val dependencies: CardPaymentDependencies) : 
 
     private suspend fun transact(amount: BigDecimal, tip: BigDecimal) {
         hostResult = null
+        suspendedDuringTransaction = false
         val result = requireNotNull(reader).transact(
             CardTransactionRequest(amount.longValueExact()),
             object : CardTransactionListener {
@@ -154,6 +163,10 @@ class CardPaymentViewModel(private val dependencies: CardPaymentDependencies) : 
 
                 override suspend fun authorize(card: CardTransactionData): CardAuthorization {
                     return try {
+                        if (!dependencies.isTransactionAllowed()) {
+                            suspendedDuringTransaction = true
+                            return CardAuthorization(approved = false, responseCode = "57")
+                        }
                         val response = dependencies.authorize(
                             card, amount, tip, requireNotNull(idempotencyKey),
                         ).also { hostResult = it }
@@ -171,6 +184,10 @@ class CardPaymentViewModel(private val dependencies: CardPaymentDependencies) : 
                 }
             },
         )
+        if (suspendedDuringTransaction) {
+            fail(DEVICE_SUSPENDED_MESSAGE)
+            return
+        }
         when (result) {
             is CardReadResult.Success -> renderHostResult(result.authorization)
             is CardReadResult.Failure -> fail(result.reason)
@@ -208,5 +225,9 @@ class CardPaymentViewModel(private val dependencies: CardPaymentDependencies) : 
     class Factory(private val dependencies: CardPaymentDependencies) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T = CardPaymentViewModel(dependencies) as T
+    }
+
+    private companion object {
+        const val DEVICE_SUSPENDED_MESSAGE = "Perangkat dinonaktifkan. Transaksi tidak dapat dilakukan."
     }
 }

@@ -12,8 +12,10 @@ data class CardTransactionData(
     val track2: String,
     val cardType: CardType,
     val iccData: String? = null,
-    /** ISO-9564 PIN block clear dari secure PIN pad; tidak pernah berisi digit PIN. */
+    /** ISO-9564 PIN block. Sudah terenkripsi DUKPT jika [pinKsn] terisi. */
     val pinBlock: ByteArray? = null,
+    /** KSN hardware untuk [pinBlock] terenkripsi; null berarti PIN block masih clear. */
+    val pinKsn: ByteArray? = null,
 )
 
 data class CardAuthorization(

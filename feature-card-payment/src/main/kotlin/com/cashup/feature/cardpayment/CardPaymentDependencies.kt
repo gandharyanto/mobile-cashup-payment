@@ -7,6 +7,9 @@ import com.cashup.devicesdk.CardReader
 import java.math.BigDecimal
 
 interface CardPaymentDependencies {
+    /** Re-read at transaction boundaries so a remote device suspension takes effect immediately. */
+    fun isTransactionAllowed(): Boolean = true
+
     suspend fun cardReader(): CardReader
     suspend fun authorize(
         card: CardTransactionData,

@@ -1,5 +1,59 @@
 # Session Log
 
+## Status terkini — 2026-09-22 (update 5, online PIN DUKPT Topwise berhasil)
+
+Commit UI/transaksi modular `15e1baa` sudah dipush ke
+`origin/feat/provisioning-edc-mobile-adoption`. Sesudah commit itu, jalur online PIN Topwise
+diperbaiki lintas repo.
+
+Perubahan di repo sibling `edc-sdk` (belum dicatat di bagian riwayat lama):
+
+- `CardData` membawa `pinKsn` untuk menandai bahwa PIN block sudah dienkripsi DUKPT hardware.
+- Topwise `PinParam` memakai `systemKey.keyIndex` dan `KEYTYPE_DUKPT_DES` untuk online PIN,
+  bukan slot static `PEK`.
+- KSN dinaikkan sebelum PIN entry dan divalidasi sepanjang 10 byte.
+- Pemanggilan `KeyManager.decrypt(PIN_KEY)` dihapus; clear PIN block tidak pernah masuk aplikasi.
+- Logging PAN, offline PIN block, KEK, PIK, dan IPEK pada modul Topwise dihapus/redaksi.
+- Perubahan lokal yang sudah ada di modul `other` pada repo sibling tidak disentuh.
+
+Perubahan lanjutan di project ini:
+
+- `CardTransactionData` menerima `pinKsn`.
+- `EmvGateway` membaca encrypted PIN block dan KSN dari `edc-sdk`.
+- `CardPayloadFactory` meneruskan PIN block hardware tanpa enkripsi ulang dan menurunkan
+  `pinKsnIndex` dari KSN hardware. Reader lama tanpa `pinKsn` tetap memakai fallback enkripsi
+  software agar vendor lain kompatibel.
+- ICC sekarang memakai purpose provisioning `EMV`; test provisioning dan payload diselaraskan
+  dengan empat purpose `TRACK`, `AMOUNT`, `PIN`, `EMV`.
+
+Verifikasi unit/build berhasil:
+
+```text
+gradlew.bat :provisioning-core:testDebugUnitTest :cdcp-core:testDebugUnitTest \
+  :device-sdk-edcsdk:testDebugUnitTest :feature-card-payment:testDebugUnitTest \
+  :app:assembleDebug checkModuleBoundaries
+BUILD SUCCESSFUL (179 tasks)
+
+edc-sdk: gradlew.bat :core:assembleRelease :topwize:assembleRelease
+BUILD SUCCESSFUL (79 tasks)
+
+gradlew.bat build
+BUILD SUCCESSFUL (658 tasks; debug/release, unit tests, lint, dan module boundaries)
+```
+
+Uji terminal fisik online PIN pukul `16:12` juga berhasil melewati titik lama:
+
+- Tidak ada `PIK tidak ditemukan`, uncaught Binder exception, atau crash.
+- `EMV_CardHolderVerify = 0` dan proses lanjut ke online authorization.
+- Request memiliki `pinblockEnc` serta `pinKsnIndex=00004`; counter PIN hardware terpisah dari
+  counter data `0000D`, sesuai kontrak DUKPT per-purpose.
+- Host membalas `503 ACQUIRER_HOST_UNAVAILABLE` dengan `deliveryState=NOT_SENT`. Ini kegagalan
+  eksternal acquirer, bukan kegagalan PIN/EMV/payload.
+
+AAR lokal yang dipakai project ini sudah diganti dengan hasil build tersebut, tetapi `aarlib/*.aar`
+memang di-ignore Git. Reproduksi dari clone baru memerlukan build/publikasi artefak `edc-sdk` yang
+memuat patch di atas.
+
 ## Status terkini — 2026-09-22 (update 4, handoff Binder/PIK)
 
 Permintaan terakhir user: lanjutkan integrasi transaksi EDC dengan UI **persis** seperti

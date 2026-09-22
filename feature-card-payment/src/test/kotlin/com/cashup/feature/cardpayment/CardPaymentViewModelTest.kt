@@ -82,4 +82,24 @@ class CardPaymentViewModelTest {
         assertEquals(PaymentStage.FAILURE, viewModel.state.value.stage)
         assertTrue(!opened)
     }
+
+    @Test fun `suspended device cannot start a transaction`() = runTest {
+        var opened = false
+        val dependencies = object : CardPaymentDependencies {
+            override fun isTransactionAllowed() = false
+            override suspend fun cardReader(): CardReader {
+                opened = true
+                error("must not be called")
+            }
+            override suspend fun authorize(card: CardTransactionData, amount: BigDecimal, tip: BigDecimal,
+                                           idempotencyKey: String): ApiResult<SaleResponse> = error("must not be called")
+        }
+
+        val viewModel = CardPaymentViewModel(dependencies)
+        viewModel.start("10000", "0")
+
+        assertEquals(PaymentStage.FAILURE, viewModel.state.value.stage)
+        assertEquals("Perangkat dinonaktifkan. Transaksi tidak dapat dilakukan.", viewModel.state.value.message)
+        assertTrue(!opened)
+    }
 }

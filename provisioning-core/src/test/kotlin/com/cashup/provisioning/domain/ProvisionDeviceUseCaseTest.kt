@@ -70,7 +70,7 @@ class ProvisionDeviceUseCaseTest {
     private fun useCase(gateway: Gateway, state: State, keys: Keys, installer: FakeTerminalKeyInstaller) =
         ProvisionDeviceUseCase(gateway, FakeSerialNumberProvider("SN-1"), keys, installer, state,
             unwrapperFactory = { object : PackageUnwrapper(RsaUnwrapper { it }) {
-                override fun unwrap(packageResponse: KeyPackageResponse) = listOf("TRACK", "AMOUNT", "PIN")
+                override fun unwrap(packageResponse: KeyPackageResponse) = listOf("TRACK", "AMOUNT", "PIN", "EMV")
                     .map { TerminalKeyMaterial(it, ByteArray(16) { 1 }, ByteArray(10) { 2 }) }
             } })
 
@@ -82,7 +82,7 @@ class ProvisionDeviceUseCaseTest {
         val outcome = useCase(gateway, state, keys, installer)("AB-CD")
         assertTrue(outcome.toString(), outcome is ProvisioningOutcome.Success)
         assertEquals("ABCD", gateway.redeemRequest?.qrToken)
-        assertEquals(setOf("TRACK", "AMOUNT", "PIN"), gateway.redeemRequest?.purposes)
+        assertEquals(setOf("TRACK", "AMOUNT", "PIN", "EMV"), gateway.redeemRequest?.purposes)
         assertEquals(listOf("cert"), gateway.redeemRequest?.deviceCertificateChain)
         assertEquals("uuid-1", state.identity()?.deviceId)
         assertEquals("uuid-1", state.dukpt()?.deviceId)

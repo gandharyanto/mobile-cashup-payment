@@ -126,6 +126,7 @@ internal class RealEmvGateway(context: Context) : EmvGateway {
             pinBlock = emv.cardData.pinBlock
                 ?.takeUnless { it.equals("FFFFFFFFFFFFFFFF", ignoreCase = true) }
                 ?.hexToBytesOrNull(),
+            pinKsn = emv.cardData.pinKsn?.hexToBytesOrNull(),
         )
     }
 

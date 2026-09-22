@@ -131,6 +131,11 @@ class AppContainer(context: Context) : CardPaymentDependencies {
             debugLogging = BuildConfig.DEBUG)
     }
 
+    @Suppress("DEPRECATION")
+    override fun isTransactionAllowed(): Boolean = runCatching {
+        appContext.packageManager.getApplicationInfo(appContext.packageName, 0).enabled
+    }.getOrDefault(false)
+
     override suspend fun cardReader(): CardReader =
         requireNotNull(deviceSdkFactory.connect().cardReader) { "SDK device tidak menyediakan card reader" }
 
