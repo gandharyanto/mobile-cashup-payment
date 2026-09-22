@@ -52,6 +52,8 @@ class MposCardReader internal constructor(
             val session = connectionManager.connect(Channel.MPOS, candidate)
             gateway = RealMposEmvGateway(session)
             session.isAlive
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (unavailable: Exception) {
             gateway = null
             false
