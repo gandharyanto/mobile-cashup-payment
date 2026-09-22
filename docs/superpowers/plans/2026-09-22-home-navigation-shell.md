@@ -819,8 +819,15 @@ Update `HomeFragment.kt`'s `onViewCreated`:
 
         binding.toolbar.btnSimple.setOnClickListener { selectMode(pos = false) }
         binding.toolbar.btnPos.setOnClickListener { selectMode(pos = true) }
+
+        // Simple mode is active on first render. `android:selected` is not a valid layout XML
+        // attribute on View, so the initial visual state must be set here rather than declaratively.
+        binding.toolbar.btnSimple.isSelected = true
+        binding.toolbar.btnPos.isSelected = false
     }
 ```
+
+Note: this keeps the `btnSimple`/`btnPos` initial-`isSelected` lines and their comment that Task 2's implementer already added (a correct fix to a plan bug — `android:selected` isn't a real View attribute) — this step only inserts the `navHostFragment`/`NavigationUI.setupWithNavController` block before them and does not remove anything Task 2 committed. Read the file's current content before editing to confirm this, rather than pasting over it blind.
 
 - [ ] **Step 2: Verify build**
 
