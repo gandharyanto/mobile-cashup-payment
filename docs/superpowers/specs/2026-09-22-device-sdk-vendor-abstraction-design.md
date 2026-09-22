@@ -1,7 +1,8 @@
 # Device SDK — Abstraksi Multi-Vendor ala TMS (EDC Built-in + mPOS Bluetooth) — Design Spec
 
 **Tanggal:** 2026-09-22
-**Status:** disetujui, siap dijadikan implementation plan
+**Status:** disetujui, implementation plan ditulis di `docs/superpowers/plans/2026-09-22-device-sdk-vendor-abstraction.md`
+**Errata (ditemukan saat planning, 2026-09-22):** (1) `PairableCardReader.pairedDevices()` di §4 harus `suspend` — scan Bluetooth (`DeviceConnectionManager.scan`) makan waktu ~8 detik, tidak sinkron. (2) AAR mPOS di §3 **dibangun ulang dari `edc-sdk` (modul `:other`/`:newland-mpos`/`:topwise-mpos`) di versi `1.0.63`** — bukan disalin dari `mobile-apps-cashlez/aarlib`. `core-release_1.0.63.aar` yang sudah dipakai project ini terbukti (decompile) tidak berisi framework channel/pairing (`com.lib.device.*`) yang dipakai `mobile-apps-cashlez` — itu ada di modul `edc-sdk:other` yang terpisah dari `:core`, belum pernah divendor ke project ini. `mobile-apps-cashlez` sendiri memakai lineage SDK yang lebih tua (`core-release_${coreVersion}.jar`, beda dari `SDKManager` versi 1.0.63 di sini). Detail lengkap di plan-nya.
 **Bagian dari inisiatif lebih besar:** adopsi UI `app-v3` (`mobile-apps-cashlez`) + perbaikan logic transaksi dari `mobile-apps-cashlez` tanpa function redundan. Sub-project ini adalah **yang pertama** dari tiga: vendor SDK abstraction → (berikutnya, spec terpisah) UI parity dengan app-v3 → (berikutnya, spec terpisah) refactor transaction logic. Dua sub-project berikutnya **tidak** dibahas di sini.
 
 ---
@@ -52,7 +53,7 @@ device-sdk-edcsdk   device-sdk-mpos     <- implementasi, saling TIDAK boleh depe
 ```
 
 - **`device-sdk-edcsdk`** (sudah ada, tidak diubah selain menambah satu fungsi baru — lihat §4): implementasi EDC terminal built-in, membungkus AAR `edc-sdk`.
-- **`device-sdk-mpos`** (baru, Android library): implementasi mPOS Bluetooth eksternal, membungkus AAR proprietary `com.lib.device.channel.mpos.*` (dipindah dari `mobile-apps-cashlez/aarlib` ke `aarlib/` project ini). Semua dependency AAR `implementation`-scoped, tidak pernah `api` — sama seperti aturan boundary `tms-device-pax`/`tms-device-topwise` di `edc-tms-agent`.
+- **`device-sdk-mpos`** (baru, Android library): implementasi mPOS Bluetooth eksternal, membungkus AAR proprietary `com.lib.device.channel.mpos.*`, **dibangun ulang dari `edc-sdk` (modul `:other`, `:newland-mpos`, `:topwise-mpos`) di versi `1.0.63`** — bukan disalin dari `mobile-apps-cashlez/aarlib` (lihat errata di atas). Semua dependency AAR `implementation`-scoped, tidak pernah `api` — sama seperti aturan boundary `tms-device-pax`/`tms-device-topwise` di `edc-tms-agent`.
 - **`device-sdk-factory`** (baru, Android library): satu-satunya titik fan-out runtime. Depends on `device-sdk-api`, `device-sdk-edcsdk`, `device-sdk-mpos`.
 
 Aturan boundary (ditegakkan lewat Gradle task `checkModuleBoundaries`, §6):
@@ -74,7 +75,7 @@ package com.cashup.devicesdk
 data class PairedDeviceInfo(val id: String, val name: String)
 
 interface PairableCardReader {
-    fun pairedDevices(): List<PairedDeviceInfo>
+    suspend fun pairedDevices(): List<PairedDeviceInfo>
     suspend fun selectDevice(id: String): Boolean
 }
 ```
