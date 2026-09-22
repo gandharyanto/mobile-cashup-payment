@@ -16,6 +16,13 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         val binding = FragmentHomeBinding.bind(view)
         this.binding = binding
 
+        val navHostFragment = childFragmentManager
+            .findFragmentById(R.id.homeNavHost) as androidx.navigation.fragment.NavHostFragment
+        androidx.navigation.ui.NavigationUI.setupWithNavController(
+            binding.bottomNavigationView,
+            navHostFragment.navController,
+        )
+
         binding.toolbar.btnSimple.setOnClickListener { selectMode(pos = false) }
         binding.toolbar.btnPos.setOnClickListener { selectMode(pos = true) }
 
