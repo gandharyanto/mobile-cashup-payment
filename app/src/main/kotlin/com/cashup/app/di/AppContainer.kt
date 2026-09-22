@@ -12,6 +12,7 @@ import com.cashup.devicesdk.edcsdk.EdcSdkScanner
 import com.cashup.devicesdk.edcsdk.EdcSdkSerialNumberProvider
 import com.cashup.devicesdk.edcsdk.EdcSdkTerminalKeyInstaller
 import com.cashup.devicesdk.edcsdk.EdcSdkDukptKeyProvider
+import com.cashup.devicesdk.factory.DeviceSdkFactory
 import com.cashup.provisioning.AndroidProvisioningKeys
 import com.cashup.provisioning.StoredDeviceSigner
 import com.cashup.provisioning.audit.Evidence
@@ -89,6 +90,16 @@ class AppContainer(context: Context) {
     val serialNumbers = EdcSdkSerialNumberProvider(appContext)
 
     val vendorScanner = EdcSdkScanner(appContext)
+
+    /**
+     * Pemilihan CardReader multi-vendor (EDC built-in atau mPOS Bluetooth).
+     * `connect()`-nya suspend dan melakukan I/O nyata -- panggil dari
+     * coroutine scope pemanggil (mis. viewModelScope alur sale), bukan di
+     * sini. Scanner/SerialNumberProvider/TerminalKeyInstaller/DukptKeyProvider
+     * TIDAK lewat sini (spec §5/§8) -- tetap wiring langsung ke
+     * device-sdk-edcsdk seperti di atas.
+     */
+    val deviceSdkFactory = DeviceSdkFactory(appContext)
 
     fun isProvisioned(): Boolean {
         val identity = stateStore.identity() ?: return false
