@@ -27,6 +27,10 @@ dependencies {
     api(project(":device-sdk-api"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("androidx.core:core-ktx:1.10.1")
+    // AAR logger milik edc-sdk (dipakai bersama device-sdk-edcsdk) membawa
+    // layout yang merujuk atribut AppCompat (selectableItemBackgroundBorderless,
+    // dst) -- gagal link resource release tanpa ini, sama seperti device-sdk-edcsdk.
+    implementation("androidx.appcompat:appcompat:1.6.1")
 
     // AAR vendor dari edc-sdk (Task 1). Selalu implementation, tidak pernah
     // api: tipe com.lib.core.*/com.lib.device.* tidak boleh bocor melewati
