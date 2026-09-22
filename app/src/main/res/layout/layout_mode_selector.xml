@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/toolbar"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardBackgroundColor="@color/light_100"
+    app:cardElevation="0dp">
+
+    <LinearLayout
+        android:id="@+id/modeSelector"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/mode_selector_height"
+        android:layout_marginStart="@dimen/mode_selector_margin_horizontal"
+        android:layout_marginTop="@dimen/mode_selector_padding_top"
+        android:layout_marginEnd="@dimen/mode_selector_margin_horizontal"
+        android:layout_marginBottom="@dimen/mode_selector_padding_bottom"
+        android:background="@drawable/mode_selector_container_background"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="@dimen/mode_selector_inner_padding">
+
+        <LinearLayout
+            android:id="@+id/btnSimple"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/mode_selector_item_background"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:minWidth="@dimen/mode_selector_item_min_width"
+            android:orientation="horizontal"
+            android:paddingHorizontal="@dimen/mode_selector_item_padding_horizontal">
+
+            <ImageView
+                android:layout_width="@dimen/mode_selector_icon_size"
+                android:layout_height="@dimen/mode_selector_icon_size"
+                android:duplicateParentState="true"
+                android:src="@drawable/ic_revamp_transaction"
+                app:tint="@color/mode_selector_icon_selector" />
+
+            <TextView
+                android:id="@+id/tvSimpleMode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/mode_selector_icon_gap"
+                android:duplicateParentState="true"
+                android:fontFamily="@font/instrument_sans_semibold"
+                android:includeFontPadding="false"
+                android:text="Transaksi"
+                android:textColor="@color/mode_selector_text_selector"
+                android:textSize="@dimen/mode_selector_text_size" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnPos"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/mode_selector_item_background"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:minWidth="@dimen/mode_selector_item_min_width"
+            android:orientation="horizontal"
+            android:paddingHorizontal="@dimen/mode_selector_item_padding_horizontal">
+
+            <ImageView
+                android:layout_width="@dimen/mode_selector_icon_size"
+                android:layout_height="@dimen/mode_selector_icon_size"
+                android:duplicateParentState="true"
+                android:src="@drawable/ic_revamp_cashier"
+                app:tint="@color/mode_selector_icon_selector" />
+
+            <TextView
+                android:id="@+id/tvPosMode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/mode_selector_icon_gap"
+                android:duplicateParentState="true"
+                android:fontFamily="@font/instrument_sans_semibold"
+                android:includeFontPadding="false"
+                android:text="Kasir"
+                android:textColor="@color/mode_selector_text_selector"
+                android:textSize="@dimen/mode_selector_text_size" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F6F6F6">
+
+    <TextView
+        android:id="@+id/tvHeaderTitle"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/home_header_min_height"
+        android:background="@color/light_100"
+        android:gravity="center"
+        android:fontFamily="@font/instrument_sans_semibold"
+        android:text="Cashup"
+        android:textColor="#252D63"
+        android:textSize="18sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <include
+        android:id="@+id/toolbar"
+        layout="@layout/layout_mode_selector"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvHeaderTitle" />
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/homeNavHost"
+        android:name="androidx.navigation.fragment.NavHostFragment"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:defaultNavHost="false"
+        app:layout_constraintBottom_toTopOf="@id/bottomNavigationView"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:navGraph="@navigation/nav_home" />
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavigationView"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/bottom_nav_height"
+        android:minHeight="@dimen/bottom_nav_min_height"
+        android:background="@color/light_100"
+        android:paddingStart="@dimen/bottom_nav_padding_horizontal"
+        android:paddingTop="@dimen/bottom_nav_padding_top"
+        android:paddingEnd="@dimen/bottom_nav_padding_horizontal"
+        android:paddingBottom="@dimen/bottom_nav_padding_bottom"
+        app:elevation="0dp"
+        app:itemActiveIndicatorStyle="@null"
+        app:itemIconSize="@dimen/bottom_nav_icon_size"
+        app:itemIconTint="@color/bottom_navigation_selector"
+        app:itemTextColor="@color/bottom_navigation_selector"
+        app:labelVisibilityMode="labeled"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:menu="@menu/bottom_nav_menu" />
+</androidx.constraintlayout.widget.ConstraintLayout>
