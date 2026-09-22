@@ -13,6 +13,12 @@ import com.cashup.devicesdk.edcsdk.EdcSdkSerialNumberProvider
 import com.cashup.devicesdk.edcsdk.EdcSdkTerminalKeyInstaller
 import com.cashup.devicesdk.edcsdk.EdcSdkDukptKeyProvider
 import com.cashup.devicesdk.factory.DeviceSdkFactory
+import com.cashup.devicesdk.CardReader
+import com.cashup.devicesdk.CardTransactionData
+import com.cashup.common.network.ApiResult
+import com.cashup.cdcp.SaleResponse
+import com.cashup.feature.cardpayment.CardPaymentDependencies
+import java.math.BigDecimal
 import com.cashup.provisioning.AndroidProvisioningKeys
 import com.cashup.provisioning.StoredDeviceSigner
 import com.cashup.provisioning.audit.Evidence
@@ -30,7 +36,7 @@ import com.cashup.provisioning.domain.ProvisionDeviceUseCase
  * Hilt akan menambah kapt/ksp dan biaya startup demi keuntungan yang tidak
  * terasa pada app sekecil ini, sementara targetnya terminal 1 GB (spec §6).
  */
-class AppContainer(context: Context) {
+class AppContainer(context: Context) : CardPaymentDependencies {
 
     private val appContext = context.applicationContext
 
@@ -123,6 +129,20 @@ class AppContainer(context: Context) {
     val saleRepository: SaleRepository by lazy {
         SaleRepository.create(config.baseUrl, deviceSigner, EdcSdkDukptKeyProvider(appContext),
             debugLogging = BuildConfig.DEBUG)
+    }
+
+    override suspend fun cardReader(): CardReader =
+        requireNotNull(deviceSdkFactory.connect().cardReader) { "SDK device tidak menyediakan card reader" }
+
+    override suspend fun authorize(
+        card: CardTransactionData,
+        amount: BigDecimal,
+        tip: BigDecimal,
+        idempotencyKey: String,
+    ): ApiResult<SaleResponse> {
+        val deviceId = requireNotNull(activeDeviceId()) { "Identitas device belum tersedia" }
+        val keySetVersion = requireNotNull(activeKeySetVersion()) { "Key DUKPT provisioning belum aktif" }
+        return saleRepository.sale(deviceId, keySetVersion, card, amount, tip, idempotencyKey)
     }
 
     fun provisionDeviceUseCase(): ProvisionDeviceUseCase {

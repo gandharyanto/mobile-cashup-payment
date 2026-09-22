@@ -1,11 +1,12 @@
 package com.cashup.devicesdk.mpos
 
+import android.content.Context
 import com.cashup.devicesdk.CardTransactionData
 import com.cashup.devicesdk.CardType
-import com.lib.core.SDKManager
 import com.lib.core.emv.BaseEmvConfiguration
 import com.lib.core.emv.CardModeType
 import com.lib.core.emv.CvmEnum
+import com.lib.core.emv.EmvDataConfig
 import com.lib.core.emv.PinConfig
 import com.lib.core.emv.PinInputListener
 import com.lib.core.emv.TrackData
@@ -23,18 +24,19 @@ internal interface EmvCallback {
 }
 
 internal interface MposEmvGateway {
-    fun start(amount: Long, callback: EmvCallback)
+    /** [amountMinorUnits] adalah nominal ISO-8583 dalam minor unit (rupiah x 100). */
+    fun start(amountMinorUnits: Long, callback: EmvCallback)
     fun stop()
     fun selectApplet(index: Int)
 }
 
 /** Adapter EMV di atas [DeviceSession] mPOS yang sudah terhubung (lihat [MposCardReader]). */
-internal class RealMposEmvGateway(private val session: DeviceSession) : MposEmvGateway {
+internal class RealMposEmvGateway(context: Context, private val session: DeviceSession) : MposEmvGateway {
+    private val appContext = context.applicationContext
     private val emv: BaseEmvConfiguration
         get() = requireNotNull(session.emv) { "Device session mPOS ini tidak menyediakan EMV" }
 
-    override fun start(amount: Long, callback: EmvCallback) {
-        val activity = SDKManager.getCurrentActivity()
+    override fun start(amountMinorUnits: Long, callback: EmvCallback) {
         val response = object : TransactionResponse {
             override fun onSearchCard(cardType: CardModeType, trackData: TrackData, iccData: String?) {
                 callback.onCard(snapshot(cardType, trackData, iccData))
@@ -81,17 +83,22 @@ internal class RealMposEmvGateway(private val session: DeviceSession) : MposEmvG
             override fun appletSelect(list: List<String>) = callback.onAppletSelection(list)
         }
 
-        if (emv.isConfiguration || activity == null) {
-            emv.startReadCard(amount, response)
-        } else {
-            emv.configuration(activity, { emv.startReadCard(amount, response) }) {
-                callback.onError(EMV_CONFIG_FAILED, "Konfigurasi EMV gagal")
-            }
+        if (!emv.isConfiguration) {
+            session.loadParams(
+                aids = EmvDataConfig.getMapConfigs(appContext, "emv_parameters.format.json"),
+                aidcls = EmvDataConfig.getMapConfigs(appContext, "emvcl_paremeters.format.json"),
+                capks = EmvDataConfig.getMapConfigs(appContext, "capks.format.json"),
+            )
         }
+        emv.startReadCard(amountMinorUnits, response)
     }
 
     override fun stop() {
-        runCatching { emv.stopEmv() }
+        try {
+            emv.stopEmv()
+        } catch (_: Exception) {
+            // Binder vendor boleh sudah putus saat cleanup. Error tetap dipropagasi.
+        }
     }
 
     override fun selectApplet(index: Int) {
@@ -128,7 +135,6 @@ internal class RealMposEmvGateway(private val session: DeviceSession) : MposEmvG
     }
 
     private companion object {
-        const val EMV_CONFIG_FAILED = -10_001
         const val PIN_TIMEOUT = -10_002
         const val PIN_CANCELLED = -10_003
     }

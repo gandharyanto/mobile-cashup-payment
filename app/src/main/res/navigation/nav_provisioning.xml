@@ -37,8 +37,8 @@
             app:popUpTo="@id/resultFragment" app:popUpToInclusive="true" />
     </fragment>
     <fragment android:id="@+id/saleFragment"
-        android:name="com.cashup.app.ui.sale.SaleFragment"
-        tools:layout="@layout/fragment_sale"
+        android:name="com.cashup.feature.cardpayment.CardPaymentFragment"
+        tools:layout="@layout/fragment_card_payment"
         xmlns:tools="http://schemas.android.com/tools">
         <action android:id="@+id/to_scan" app:destination="@id/scanQrFragment" />
     </fragment>

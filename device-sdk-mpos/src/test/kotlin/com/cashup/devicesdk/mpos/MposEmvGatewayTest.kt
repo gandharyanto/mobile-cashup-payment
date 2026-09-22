@@ -1,5 +1,6 @@
 package com.cashup.devicesdk.mpos
 
+import android.content.Context
 import com.cashup.devicesdk.CardTransactionData
 import com.lib.core.emv.BaseEmvConfiguration
 import com.lib.core.emv.TransactionResponse
@@ -16,11 +17,13 @@ class MposEmvGatewayTest {
     @Test
     fun `start forwards to session emv startReadCard with the same amount`() {
         val emv = mockk<BaseEmvConfiguration>(relaxed = true)
+        every { emv.isConfiguration } returns true
         val session = mockk<DeviceSession> { every { this@mockk.emv } returns emv }
         val responseSlot = slot<TransactionResponse>()
         every { emv.startReadCard(10_000L, capture(responseSlot)) } returns Unit
 
-        val gateway: MposEmvGateway = RealMposEmvGateway(session)
+        val context = mockk<Context> { every { applicationContext } returns this }
+        val gateway: MposEmvGateway = RealMposEmvGateway(context, session)
         gateway.start(10_000L, NoopEmvCallback)
 
         verify { emv.startReadCard(10_000L, any()) }
@@ -28,12 +31,13 @@ class MposEmvGatewayTest {
     }
 
     @Test
-    fun `stop calls session emv stopEmv and swallows exceptions`() {
+    fun `stop calls session emv stopEmv and swallows ordinary binder exceptions`() {
         val emv = mockk<BaseEmvConfiguration>(relaxed = true)
         every { emv.stopEmv() } throws IllegalStateException("kernel sudah berhenti")
         val session = mockk<DeviceSession> { every { this@mockk.emv } returns emv }
 
-        val gateway: MposEmvGateway = RealMposEmvGateway(session)
+        val context = mockk<Context> { every { applicationContext } returns this }
+        val gateway: MposEmvGateway = RealMposEmvGateway(context, session)
         gateway.stop() // must not throw
     }
 

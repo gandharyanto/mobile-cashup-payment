@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="CardPaymentCalcButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">55dp</item>
+        <item name="android:layout_columnWeight">1</item>
+        <item name="android:fontFamily">@font/nunito</item>
+        <item name="android:textSize">21sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/card_payment_muted</item>
+        <item name="strokeWidth">0.5dp</item>
+        <item name="strokeColor">@color/card_payment_keypad_border</item>
+        <item name="cornerRadius">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:backgroundTint">@android:color/white</item>
+    </style>
+
+    <style name="CardPaymentCalcButtonOperator" parent="CardPaymentCalcButton">
+        <item name="android:backgroundTint">@color/card_payment_keypad_operator</item>
+    </style>
+
+    <style name="CardPaymentCalculatorTheme" parent="ThemeOverlay.MaterialComponents">
+        <item name="fontFamily">@font/nunito</item>
+        <item name="android:fontFamily">@font/nunito</item>
+        <item name="colorPrimary">@color/card_payment_accent</item>
+    </style>
+</resources>

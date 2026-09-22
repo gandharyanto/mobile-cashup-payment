@@ -39,7 +39,9 @@ class EdcSdkCardReader internal constructor(private val gateway: EmvGateway) : C
             withTimeout(request.timeoutMillis) {
                 suspendCancellableCoroutine { continuation ->
                     active = continuation
-                    continuation.invokeOnCancellation { gateway.stop() }
+                    continuation.invokeOnCancellation {
+                        if (completed.compareAndSet(false, true)) gateway.stop()
+                    }
                     listener.onEvent(CardTransactionEvent.Connecting)
                     gateway.connect { connected ->
                         if (!continuation.isActive) return@connect
@@ -54,7 +56,6 @@ class EdcSdkCardReader internal constructor(private val gateway: EmvGateway) : C
                 }
             }
         } catch (_: TimeoutCancellationException) {
-            gateway.stop()
             CardReadResult.Failure("Waktu membaca kartu habis")
         } finally {
             active = null
@@ -62,8 +63,7 @@ class EdcSdkCardReader internal constructor(private val gateway: EmvGateway) : C
     }
 
     override fun cancel() {
-        gateway.stop()
-        finish(CardReadResult.Cancelled)
+        finish(CardReadResult.Cancelled, stopGateway = true)
     }
 
     private fun callbacks(listener: CardTransactionListener) = object : EmvCallback {
@@ -79,16 +79,20 @@ class EdcSdkCardReader internal constructor(private val gateway: EmvGateway) : C
         override fun onPinProgress(length: Int) = listener.onEvent(CardTransactionEvent.PinProgress(length))
 
         override fun onAppletSelection(applets: List<String>) {
+            if (applets.isEmpty()) {
+                finish(CardReadResult.Failure("Kernel EMV tidak mengirim pilihan aplikasi kartu"))
+                return
+            }
             val selected = listener.selectApplet(applets).coerceIn(applets.indices)
             gateway.selectApplet(selected)
         }
 
         override fun onOnline(data: CardTransactionData): String? {
             listener.onEvent(CardTransactionEvent.Authorizing)
-            val result = runCatching {
+            val result = try {
                 runBlocking(Dispatchers.IO) { listener.authorize(data) }
-            }.getOrElse {
-                finish(CardReadResult.Failure(it.message ?: "Otorisasi transaksi gagal"))
+            } catch (failure: Exception) {
+                finish(CardReadResult.Failure(failure.message ?: "Otorisasi transaksi gagal"))
                 return declineTlv("96")
             }
             authorization = result
@@ -97,15 +101,19 @@ class EdcSdkCardReader internal constructor(private val gateway: EmvGateway) : C
         }
 
         override fun onError(code: Int, message: String?) {
-            gateway.stop()
-            finish(CardReadResult.Failure(message?.takeIf(String::isNotBlank) ?: "EMV gagal ($code)"))
+            finish(
+                CardReadResult.Failure(message?.takeIf(String::isNotBlank) ?: "EMV gagal ($code)"),
+                stopGateway = true,
+            )
         }
 
         override fun onFinish() {
-            gateway.stop()
             val result = authorization
-            finish(if (result == null) CardReadResult.Failure("EMV selesai tanpa otorisasi host")
-            else CardReadResult.Success(result))
+            finish(
+                if (result == null) CardReadResult.Failure("EMV selesai tanpa otorisasi host")
+                else CardReadResult.Success(result),
+                stopGateway = true,
+            )
         }
     }
 
@@ -114,8 +122,12 @@ class EdcSdkCardReader internal constructor(private val gateway: EmvGateway) : C
         return "8A02" + rc.toByteArray(Charsets.US_ASCII).joinToString("") { "%02X".format(it) }
     }
 
-    private fun finish(result: CardReadResult) {
+    private fun finish(result: CardReadResult, stopGateway: Boolean = false) {
         if (!completed.compareAndSet(false, true)) return
+        // Kunci status terminal sebelum cleanup. SDK Topwise memanggil callback
+        // onError lagi secara sinkron dari stopEmv(); tanpa urutan ini callback
+        // akan re-entrant sampai service Binder vendor mati.
+        if (stopGateway) gateway.stop()
         val continuation = active
         if (continuation != null) {
             active = null

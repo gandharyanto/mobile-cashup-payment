@@ -23,12 +23,14 @@ val allowedProjectDeps: Map<String, Set<String>> = mapOf(
 
     ":provisioning-core" to setOf(":common-core", ":device-sdk-api", ":signing-core"),
     ":cdcp-core" to setOf(":common-core", ":device-sdk-api", ":signing-core"),
+    ":feature-card-payment" to setOf(":common-core", ":device-sdk-api", ":cdcp-core"),
 
     // Shell -- wiring saja. device-sdk-edcsdk tetap ada di sini untuk
     // TerminalKeyInstaller/DukptKeyProvider/Scanner/SerialNumberProvider, yang
     // TIDAK lewat device-sdk-factory (spec §5/§8 -- di luar scope factory ini).
     ":app" to setOf(
         ":provisioning-core", ":cdcp-core", ":device-sdk-edcsdk", ":device-sdk-factory",
+        ":feature-card-payment",
     ),
 )
 
@@ -43,6 +45,15 @@ val declarableSuffixes = listOf("implementation", "api", "compileOnly", "runtime
 
 fun isDeclarable(name: String): Boolean = declarableSuffixes.any { suffix ->
     name == suffix || name.endsWith(suffix.replaceFirstChar { it.uppercaseChar() })
+}
+
+// Boundary verification is part of the normal verification lifecycle.
+gradle.projectsEvaluated {
+    rootProject.subprojects.forEach { project ->
+        project.tasks.matching { it.name == "check" }.configureEach {
+            dependsOn(rootProject.tasks.named("checkModuleBoundaries"))
+        }
+    }
 }
 
 tasks.register("checkModuleBoundaries") {

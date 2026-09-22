@@ -10,8 +10,10 @@ Android EDC app dengan UI XML dan modul terpisah untuk provisioning serta sale C
 4. Install TRACK, AMOUNT, PIN lewat `device-sdk-edcsdk`; `POST .../activate` dengan KCV dan proof RSA. Simpan state DUKPT setelah aktivasi berhasil.
 5. `POST v1/cdcp/sales` dengan payload TRACK/AMOUNT/PIN terenkripsi DUKPT, signature device, dan `Idempotency-Key` per aksi pembayaran. Retry mengirim body dan key yang sama selama proses masih hidup.
 
-`app` berisi navigasi dan tampilan XML; `provisioning-core` menangani provisioning; `cdcp-core` menangani payload dan HTTP sale; `device-sdk-api` serta `device-sdk-edcsdk` menangani vault dan adapter vendor; `signing-core` menandatangani request; `common-core` menyediakan kontrak jaringan.
+`app` hanya menjadi composition root dan navigasi. `feature-card-payment` memiliki UI serta state transaksi secara terisolasi; `provisioning-core` menangani provisioning; `cdcp-core` menangani payload DUKPT dan HTTP sale; `device-sdk-api`, `device-sdk-edcsdk`, serta `device-sdk-mpos` menangani kontrak dan adapter vendor; `device-sdk-factory` menjadi satu-satunya titik pemilihan vendor; `signing-core` menandatangani request; `common-core` menyediakan kontrak jaringan.
 
-Layar sale saat ini memakai katalog **kartu uji** seperti project `edc-mobile copy`. Integrasi pembacaan kartu fisik belum tersedia pada adapter SDK project ini, sehingga layar tersebut belum menjadi alur kartu produksi. Validasi akhir terhadap backend dan terminal fisik juga masih diperlukan.
+Layar pembayaran kartu mengikuti desain `mobile-apps-cashlez/app-v3` dan memakai pembacaan kartu fisik dari SDK vendor. AID, contactless AID, CAPK production, dan tag profile diadopsi dari assets `app-v3`. Data TRACK, AMOUNT, PIN block, dan ICC diproses dengan key DUKPT hasil provisioning; ICC memakai purpose TRACK karena kontrak provisioning hanya menyediakan TRACK/AMOUNT/PIN. Fake reader hanya berada di test fixtures dan tidak ikut runtime produksi.
 
-Verifikasi lokal: `gradlew.bat :provisioning-core:testDebugUnitTest :cdcp-core:testDebugUnitTest :device-sdk-edcsdk:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug --offline`.
+Validasi akhir terhadap backend dan terminal fisik tetap diperlukan sebelum rilis produksi.
+
+Verifikasi lokal: `gradlew.bat :device-sdk-edcsdk:testDebugUnitTest :device-sdk-mpos:testDebugUnitTest :device-sdk-factory:testDebugUnitTest :cdcp-core:testDebugUnitTest :feature-card-payment:testDebugUnitTest :app:assembleDebug checkModuleBoundaries`.

@@ -47,7 +47,6 @@ internal class CardPayloadFactory(private val keys: DukptKeyProvider) {
         val track = requireNotNull(keys.load("TRACK")) { "Key TRACK belum terpasang" }
         val amountKey = requireNotNull(keys.load("AMOUNT")) { "Key AMOUNT belum terpasang" }
         val pinKey = if (pinBlock != null) requireNotNull(keys.load("PIN")) { "Key PIN belum terpasang" } else null
-        val emvKey = if (iccData != null) requireNotNull(keys.load("EMV")) { "Key EMV belum terpasang" } else null
         try {
             fun ksn(material: TerminalKeyMaterial) = Dukpt.composeKsn(material.ksn, index)
             fun encryptAmount(value: BigDecimal): String {
@@ -69,13 +68,16 @@ internal class CardPayloadFactory(private val keys: DukptKeyProvider) {
                     val bytes = it.hexToBytes().let { raw ->
                         if (raw.size % 8 == 0) raw else raw.copyOf(((raw.size + 7) / 8) * 8)
                     }
-                    Dukpt.encryptData(bytes, ksn(emvKey!!), emvKey.ipek).toHex()
+                    // Kontrak provisioning aktif hanya memiliki TRACK/AMOUNT/PIN.
+                    // ICC/EMV adalah bagian dari data kartu, sehingga memakai purpose TRACK,
+                    // bukan meminta key "EMV" bayangan yang tidak pernah diprovision backend.
+                    Dukpt.encryptData(bytes, ksn(track), track.ipek).toHex()
                 },
                 emvReqLen = iccData?.length,
                 emvKsnIndex = iccData?.let { index },
             )
         } finally {
-            track.zeroize(); amountKey.zeroize(); pinKey?.zeroize(); emvKey?.zeroize()
+            track.zeroize(); amountKey.zeroize(); pinKey?.zeroize()
         }
     }
 }

@@ -11,6 +11,7 @@ import com.lib.device.core.manager.DeviceConnectionManager
 import com.lib.device.core.model.DeviceCandidate
 import com.lib.device.core.session.DeviceSession
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -54,6 +55,28 @@ class MposCardReaderTest {
         reader.pairedDevices()
 
         assertTrue(reader.selectDevice("AA:BB"))
+    }
+
+    @Test
+    fun `dead session is closed and is not retained as the active gateway`() = runTest {
+        val candidate = DeviceCandidate(id = "AA:BB", name = "Reader mati", channel = Channel.MPOS)
+        val session = mockk<DeviceSession>(relaxed = true) { every { isAlive } returns false }
+        val connectionManager = mockk<DeviceConnectionManager> {
+            coEvery { scan(Channel.MPOS, any()) } returns listOf(candidate)
+            coEvery { connect(Channel.MPOS, candidate) } returns session
+        }
+        val reader = MposCardReader(context = mockk(relaxed = true), connectionManager = connectionManager)
+        reader.pairedDevices()
+
+        assertFalse(reader.selectDevice("AA:BB"))
+        coVerify(exactly = 1) { session.close() }
+        val result = reader.transact(
+            CardTransactionRequest(10_000),
+            object : CardTransactionListener {
+                override suspend fun authorize(card: CardTransactionData) = CardAuthorization(true, "00")
+            },
+        )
+        assertEquals(CardReadResult.Failure("Belum ada reader mPOS terpilih"), result)
     }
 
     @Test

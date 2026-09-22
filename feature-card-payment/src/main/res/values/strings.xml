@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="card_payment_title">Menunggu Pembayaran</string>
+    <string name="card_payment_amount_label">Total Pembayaran</string>
+    <string name="card_payment_amount_hint">Nominal (IDR)</string>
+    <string name="card_payment_tip_hint">Tip (opsional)</string>
+    <string name="card_payment_continue">Bayar dengan kartu</string>
+    <string name="card_payment_change">Ganti Metode Pembayaran</string>
+    <string name="card_payment_retry">Coba lagi</string>
+    <string name="card_payment_new">Transaksi baru</string>
+    <string name="card_payment_remaining">Sisa Waktu  %1$02d:%2$02d</string>
+    <string name="card_payment_back">Kembali</string>
+    <string name="card_payment_ok">OK</string>
+    <string name="card_payment_zero">Rp 0</string>
+    <string name="card_payment_insert_or_tap">Tap atau Dip kartu \nke mesin EDC untuk bayar</string>
+    <string name="card_payment_insert_mpos">Masukkan kartu ke perangkat MPOS</string>
+    <string name="card_payment_invalid_amount">Total pembayaran harus lebih dari nol</string>
+    <string name="card_payment_online">Online</string>
+</resources>

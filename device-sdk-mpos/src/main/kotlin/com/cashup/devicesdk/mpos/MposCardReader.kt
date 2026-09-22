@@ -50,8 +50,14 @@ class MposCardReader internal constructor(
         val candidate = lastScan.find { it.id == id } ?: return false
         return try {
             val session = connectionManager.connect(Channel.MPOS, candidate)
-            gateway = RealMposEmvGateway(session)
-            session.isAlive
+            if (!session.isAlive) {
+                session.close()
+                gateway = null
+                false
+            } else {
+                gateway = RealMposEmvGateway(context.applicationContext, session)
+                true
+            }
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (unavailable: Exception) {
@@ -108,16 +114,21 @@ class MposCardReader internal constructor(
         override fun onPinProgress(length: Int) = listener.onEvent(CardTransactionEvent.PinProgress(length))
 
         override fun onAppletSelection(applets: List<String>) {
+            if (applets.isEmpty()) {
+                finish(CardReadResult.Failure("Kernel EMV tidak mengirim pilihan aplikasi kartu"))
+                return
+            }
             val selected = listener.selectApplet(applets).coerceIn(applets.indices)
-            gateway?.selectApplet(selected)
+            val gw = gateway ?: return finish(CardReadResult.Failure("Sesi mPOS terputus"))
+            gw.selectApplet(selected)
         }
 
         override fun onOnline(data: CardTransactionData): String? {
             listener.onEvent(CardTransactionEvent.Authorizing)
-            val result = runCatching {
+            val result = try {
                 runBlocking(Dispatchers.IO) { listener.authorize(data) }
-            }.getOrElse {
-                finish(CardReadResult.Failure(it.message ?: "Otorisasi transaksi gagal"))
+            } catch (failure: Exception) {
+                finish(CardReadResult.Failure(failure.message ?: "Otorisasi transaksi gagal"))
                 return declineTlv("96")
             }
             authorization = result

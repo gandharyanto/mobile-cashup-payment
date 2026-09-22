@@ -30,7 +30,7 @@ class ProvisionDeviceUseCase(
     private val unwrapperFactory: (RsaUnwrapper) -> PackageUnwrapper = { PackageUnwrapper(it) },
     private val journal: ProvisioningJournal = ProvisioningJournal(),
 ) {
-    val PURPOSES = setOf("TRACK", "AMOUNT", "PIN")
+    val PURPOSES = setOf("TRACK", "AMOUNT", "PIN", "EMV")
 
     suspend operator fun invoke(rawChallengeCode: String, onStep: (ProvisioningStep) -> Unit = {}): ProvisioningOutcome {
         journal.clear()

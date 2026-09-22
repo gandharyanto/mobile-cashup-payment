@@ -1,6 +1,7 @@
 package com.cashup.devicesdk.factory
 
 import android.content.Context
+import android.util.Log
 import com.cashup.devicesdk.DeviceSdk
 import com.cashup.devicesdk.edcsdk.EdcSdkConnector
 import com.cashup.devicesdk.mpos.MposConnector
@@ -15,16 +16,20 @@ class NoDeviceSdkAvailableException : Exception("Tidak ada device SDK yang terse
  */
 class DeviceSdkFactory internal constructor(
     private val candidates: List<suspend () -> DeviceSdk?>,
+    private val reportFailure: (Int, Exception) -> Unit = { _, _ -> },
 ) {
     constructor(context: Context) : this(
         listOf(
             { EdcSdkConnector.tryConnect(context) },
             { MposConnector.tryConnect(context) },
         ),
+        { index, failure ->
+            Log.w(TAG, "Device SDK candidate #$index tidak tersedia: ${failure.message}", failure)
+        },
     )
 
     suspend fun connect(): DeviceSdk {
-        for (candidate in candidates) {
+        for ((index, candidate) in candidates.withIndex()) {
             // Exception = "vendor ini bilang tidak", lanjut ke kandidat
             // berikutnya. Error (mis. AAR salah dikonfigurasi) sengaja TIDAK
             // ditangkap di sini -- harus meledakkan build/CI, bukan diam-diam
@@ -37,10 +42,15 @@ class DeviceSdkFactory internal constructor(
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
             } catch (unavailable: Exception) {
+                reportFailure(index, unavailable)
                 null
             }
             if (result != null) return result
         }
         throw NoDeviceSdkAvailableException()
+    }
+
+    private companion object {
+        const val TAG = "DeviceSdkFactory"
     }
 }

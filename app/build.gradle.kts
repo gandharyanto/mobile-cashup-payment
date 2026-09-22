@@ -61,6 +61,7 @@ dependencies {
     implementation(project(":provisioning-core"))
     implementation(project(":cdcp-core"))
     implementation(project(":device-sdk-edcsdk"))
+    implementation(project(":feature-card-payment"))
     implementation(project(":device-sdk-factory"))
 
     implementation("androidx.core:core-ktx:1.10.1")

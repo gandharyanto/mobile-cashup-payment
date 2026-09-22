@@ -6,6 +6,7 @@ import com.cashup.devicesdk.CardType
 import com.lib.core.SDKManager
 import com.lib.core.emv.CardModeType
 import com.lib.core.emv.CvmEnum
+import com.lib.core.emv.EmvDataConfig
 import com.lib.core.emv.PinConfig
 import com.lib.core.emv.PinInputListener
 import com.lib.core.emv.TrackData
@@ -37,8 +38,6 @@ internal class RealEmvGateway(context: Context) : EmvGateway {
 
     override fun start(amount: Long, callback: EmvCallback) {
         val emv = SDKManager.requireHelper().emv
-        val activity = SDKManager.getCurrentActivity()
-            ?: error("Activity aktif tidak tersedia untuk memulai EMV")
 
         val response = object : TransactionResponse {
             override fun onSearchCard(cardType: CardModeType, trackData: TrackData, iccData: String?) {
@@ -86,17 +85,24 @@ internal class RealEmvGateway(context: Context) : EmvGateway {
             override fun appletSelect(list: List<String>) = callback.onAppletSelection(list)
         }
 
-        val begin = {
-            // SDK memakai ISO amount 12 digit dalam minor unit. Rupiah tidak punya pecahan,
-            // sehingga nilai transaksi dikali 100 sebelum masuk kernel.
-            emv.startReadCard(Math.multiplyExact(amount, 100L), response)
+        if (!emv.isConfiguration) {
+            emv.loadParams(
+                EmvDataConfig.getMapConfigs(appContext, "emv_parameters.format.json"),
+                EmvDataConfig.getMapConfigs(appContext, "emvcl_paremeters.format.json"),
+                EmvDataConfig.getMapConfigs(appContext, "capks.format.json"),
+            )
         }
-        if (emv.isConfiguration) begin()
-        else emv.configuration(activity, begin) { callback.onError(EMV_CONFIG_FAILED, "Konfigurasi EMV gagal") }
+        // SDK memakai ISO amount 12 digit dalam minor unit. Rupiah tidak punya pecahan,
+        // sehingga nilai transaksi dikali 100 sebelum masuk kernel.
+        emv.startReadCard(Math.multiplyExact(amount, 100L), response)
     }
 
     override fun stop() {
-        runCatching { SDKManager.helper?.emv?.stopEmv() }
+        try {
+            SDKManager.helper?.emv?.stopEmv()
+        } catch (_: Exception) {
+            // Binder vendor boleh sudah putus saat cleanup. Error tetap dipropagasi.
+        }
     }
 
     override fun selectApplet(index: Int) {
@@ -134,7 +140,6 @@ internal class RealEmvGateway(context: Context) : EmvGateway {
     }
 
     private companion object {
-        const val EMV_CONFIG_FAILED = -10_001
         const val PIN_TIMEOUT = -10_002
         const val PIN_CANCELLED = -10_003
     }

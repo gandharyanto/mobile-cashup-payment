@@ -1,5 +1,155 @@
 # Session Log
 
+## Status terkini — 2026-09-22 (update 4, handoff Binder/PIK)
+
+Permintaan terakhir user: lanjutkan integrasi transaksi EDC dengan UI **persis** seperti
+`mobile-apps-cashlez/app-v3`, memakai key DUKPT hasil provisioning. Sesi dihentikan atas
+permintaan user setelah investigasi transaksi fisik di Topwise
+`HI14593000255`; lanjutkan dari poin di bawah, jangan mengulang riset UI.
+
+### UI dan build yang sudah selesai
+
+- `feature-card-payment` sekarang memiliki dua layar terpisah sesuai app-v3:
+  simple calculator dari `feature/pos/activity_calculator.xml`, lalu waiting-card dari
+  `app-v3/activity_payment_with_credit_debit.xml` setelah tombol `OK`.
+- Asset, font, warna, ukuran utama, teks, background, logo, ikon, dan GIF diambil dari
+  app-v3. Calculator logic berada di `SimpleCalculator` dan sudah memiliki unit test.
+- Implementasi sale lama di `:app` dihapus; feature baru tetap modular dan menjadi satu-satunya
+  pemilik state/UI transaksi kartu.
+- Verifikasi terakhir sebelum handoff:
+
+```text
+gradlew.bat :device-sdk-edcsdk:testDebugUnitTest :feature-card-payment:testDebugUnitTest :app:assembleDebug
+BUILD SUCCESSFUL (168 tasks)
+```
+
+APK hasil build tersebut sudah dipasang ke terminal fisik dengan `adb install -r`.
+
+### Masalah Binder pertama — SUDAH diperbaiki
+
+Log lama pukul `14:54:16` menunjukkan loop callback re-entrant:
+
+```text
+PinInputListener.onError
+ -> EdcSdkCardReader.onError
+ -> RealEmvGateway.stop
+ -> EmvConfiguration.stopEmv / stopGetPin
+ -> PinInputListener.onError (berulang)
+ -> android.os.DeadObjectException
+```
+
+Penyebabnya: `gateway.stop()` dipanggil sebelum flag `completed` dikunci. `stopEmv()` milik
+Topwise memanggil `onError` lagi secara sinkron, sehingga service Binder vendor akhirnya mati.
+
+Perbaikan **belum di-commit** ada di
+`device-sdk-edcsdk/.../EdcSdkCardReader.kt`: completion sekarang melakukan CAS terlebih dahulu,
+baru cleanup gateway; cancellation juga mengunci completion sebelum `stop()`. Ditambahkan test
+regresi `EdcSdkCardReaderTest` dengan fake gateway yang memanggil `onError` kembali dari `stop()`;
+test membuktikan `stop()` hanya dipanggil sekali. Jangan revert perbaikan ini.
+
+### Masalah Binder kedua — BELUM selesai, akar masalah sudah pasti
+
+Pada build terbaru proses aplikasi tetap hidup (`pid 7625`) dan tidak ada `FATAL EXCEPTION` atau
+entry `data_app_crash`. Potongan user `Binder.execTransact(Binder.java:1244)` berasal dari exception
+callback Binder pinpad, tetapi baris penting tepat di atasnya adalah:
+
+```text
+09-22 14:59:38.619 E/JavaBinder: *** Uncaught remote exception!
+09-22 14:59:38.619 E/JavaBinder: java.lang.Exception: PIK tidak ditemukan
+09-22 14:59:38.619 E/JavaBinder:   at com.lib.core.KeyManager.getKey(...)
+09-22 14:59:38.619 E/JavaBinder:   at com.lib.core.KeyManager.decrypt(...)
+09-22 14:59:38.619 E/JavaBinder:   at ...topwize.emv.EmvConfiguration...onConfirmInput(EmvConfiguration.kt:238)
+09-22 14:59:38.619 E/JavaBinder:   at ...GetPinListener$Stub.onTransact(...)
+```
+
+AID/CAPK sudah bekerja: kartu Mastercard terdeteksi, AID `A0000000041010` dan CAPK index `06`
+berhasil ditemukan; kegagalan baru terjadi setelah user mengonfirmasi PIN.
+
+Temuan source reference:
+
+- `edc-sdk/core/KeyManager.kt` menyediakan `writePIK()` terpisah dari `writeIPEK()` dan
+  `decrypt()` melempar `PIK tidak ditemukan` jika static PIK belum tersedia.
+- `edc-sdk/topwize/.../EmvConfiguration.kt:230-238` mendekripsi hasil PIN pad melalui jalur PIK.
+- app-v3 mengisi PIK hardcoded melalui `KeyManager.writePIK(Util.pinKey())` di
+  `SplashActivity.kt:590`; **jangan menyalin pola hardcoded ini**, karena user eksplisit meminta
+  key transaksi berasal dari provisioning DUKPT.
+- Installer project ini saat ini hanya memanggil `KeyManager.writeIPEK(ipek, ksn)` untuk purpose
+  `PIN`; itu tidak mengisi slot PIK yang dicari `KeyManager.decrypt()`.
+
+Next action: selesaikan boundary antara PIN pad Topwise (yang saat ini meminta static PIK) dan
+material `PIN` DUKPT provisioning. Periksa penuh `KeyManager.decrypt`, implementasi Topwise
+`SystemKey`, dan kontrak pinpad vendor sebelum mengubahnya. Solusi tidak boleh memakai
+`Util.pinKey()`, test key, atau key hardcoded. Idealnya edc-sdk menghasilkan PIN block langsung di
+bawah DUKPT hardware menggunakan IPEK/KSN provisioning; jika API vendor hanya mendukung static
+PIK, perubahan perlu dilakukan di repo `edc-sdk`/adapter dengan desain key lifecycle eksplisit,
+bukan diam-diam menganggap IPEK sebagai PIK.
+
+### Bukti transaksi dip tanpa PIN — BERHASIL
+
+Sesudah error PIN di atas, transaksi dip lain pada `15:09:41` berhasil sampai backend:
+
+```text
+POST /v1/cdcp/sales -> HTTP 200
+entryMode: 071
+keySetVersion: 3
+trackKsnIndex / amountKsnIndex / emvKsnIndex: 0000A
+status: AUTHORIZED
+responseCode: 00
+transactionId: 01a0c829-e1d7-71fa-8ff1-9feb1ded5440
+```
+
+Ini membuktikan reader chip, AID/CAPK, ICC extraction, DUKPT TRACK/AMOUNT/EMV payload,
+request signing, dan endpoint CDCP sudah interoperable. Request tersebut **tidak** membawa
+`pinblockEnc` atau `pinKsnIndex`, sehingga merupakan transaksi tanpa PIN/PIN bypass dan tidak
+membatalkan finding `PIK tidak ditemukan`. Acceptance berikutnya wajib memakai kartu atau nominal
+yang benar-benar meminta online PIN dan memastikan payload memiliki kedua field PIN tersebut.
+
+### Catatan working tree yang wajib dipertahankan
+
+- Working tree memang besar dan belum di-commit; semua perubahan UI/transaksi adalah bagian task
+  aktif. Jangan membersihkan/reset file yang tidak dibuat sendiri.
+- `ProvisionDeviceUseCase.PURPOSES` berubah dari tiga purpose menjadi
+  `TRACK, AMOUNT, PIN, EMV` saat sesi berjalan. Ini dianggap **perubahan user/concurrent** dan tidak
+  ditimpa. Akibatnya full `gradlew build` terakhir gagal pada test provisioning lama yang masih
+  mengembalikan tiga material. Targeted SDK/feature/app build tetap hijau.
+- `CardPayloadFactory` masih mengenkripsi ICC memakai purpose `TRACK` berdasarkan kontrak lama tiga
+  key. Setelah kontrak backend `EMV` dikonfirmasi, sinkronkan installer, provider, payload factory,
+  dan seluruh test sebagai satu perubahan; jangan hanya membuat test lama hijau secara kosmetik.
+- Perbaikan loop Binder dan test regresinya juga belum di-commit.
+
+## Status terkini — 2026-09-22 (update 3, transaksi kartu terintegrasi)
+
+Working tree berisi implementasi yang belum di-commit untuk alur transaksi kartu produksi.
+
+- Ditambahkan modul `feature-card-payment`. UI mengikuti layar pembayaran kartu `mobile-apps-cashlez/app-v3`, sedangkan state transaksi, pemilihan reader mPOS, retry/idempotency, dan cleanup PIN block berada sepenuhnya di feature tersebut. Implementasi sale lama di `:app` dihapus agar logic tidak rangkap.
+- `AppContainer` hanya menjadi composition root: `DeviceSdkFactory` menyediakan `CardReader`, lalu `SaleRepository` mengirim transaksi memakai `deviceId` dan `keySetVersion` provisioning yang aktif.
+- Payload transaksi memakai key DUKPT hasil provisioning dengan tiga purpose resmi: `TRACK`, `AMOUNT`, dan `PIN`. ICC/EMV dienkripsi dengan purpose `TRACK`; key `EMV` bayangan yang tidak pernah diprovision sudah dihapus.
+- AID (`emv_parameters.format.json`), contactless AID (`emvcl_paremeters.format.json`), CAPK production (`capks.format.json`), dan tag profile disalin dari `mobile-apps-cashlez/app-v3`. Adapter built-in EDC dan mPOS memuat parameter ini secara eksplisit sebelum memulai kernel EMV.
+- Findings review vendor #2–#6 sudah ditangani: dead mPOS session tidak disimpan, parameter kernel wajib dimuat, unit nominal didokumentasikan, kegagalan factory dilog, dan probe EDC diberi reentrancy/cancellation guard. `checkModuleBoundaries` juga terhubung ke task `check` dan mencakup feature module.
+- Fake reader/key installer tetap hanya test fixture; tidak ada fake yang masuk ke runtime produksi.
+
+Verifikasi terakhir berhasil:
+
+```text
+gradlew.bat :device-sdk-edcsdk:testDebugUnitTest :device-sdk-mpos:testDebugUnitTest :device-sdk-factory:testDebugUnitTest :cdcp-core:testDebugUnitTest :feature-card-payment:testDebugUnitTest :app:assembleDebug checkModuleBoundaries
+BUILD SUCCESSFUL (184 tasks; module boundaries: 10 modules checked)
+
+gradlew.bat build
+BUILD SUCCESSFUL (658 tasks; debug/release, unit tests, lint, dan resource verification)
+```
+
+Yang masih perlu dilakukan sebelum produksi: uji end-to-end pada terminal fisik untuk insert/tap/swipe, online PIN, AID selection, host approval/decline, serta validasi parameter AID/CAPK dengan acquirer yang digunakan.
+
+### Koreksi UI parity app-v3
+
+UI awal yang dibuat pada update ini hanya meniru gaya umum app-v3 dan masih menggabungkan input nominal dengan waiting-card. Setelah review user, flow dikoreksi mengikuti sumber sebenarnya:
+
+- State awal sekarang merupakan simple calculator 4×5 dari `feature/pos/activity_calculator.xml`: header putih/logo/status online, expression, total Rupiah, tombol `C`, `%`, operator, `000`, `=`, backspace, dan `OK`.
+- Setelah `OK`, baru tampil waiting-card dari `app-v3/activity_payment_with_credit_debit.xml`: `bg_container.webp`, header “Menunggu Pembayaran”, card putih radius 28dp, `anfu.gif`, prompt, countdown, dan tombol outlined ganti metode.
+- Font Instrument Sans, logo Cashup, dan background container disalin langsung dari app-v3. Calculator logic berada di `SimpleCalculator`, bukan di Fragment, serta memiliki unit test untuk evaluasi dan batas nominal sembilan digit.
+- APK debug dipasang dan calculator diperiksa langsung pada terminal `HI14593000255`. Terminal terputus dari ADB ketika inisialisasi SDK reader dimulai setelah `OK`, sehingga validasi visual waiting-card dilakukan dari resource/layout dan build; pengujian transaksi fisik tetap diperlukan.
+- Full `gradlew.bat build` setelah koreksi UI berhasil (658 tasks), termasuk debug/release, unit test, lint, dan resource verification.
+
 ## Status terkini — 2026-09-22 (update 2, akhir sesi — lanjut di sesi berikutnya karena limit)
 
 Branch: `feat/provisioning-edc-mobile-adoption`. Working tree **bersih** (semua yang disebut di bawah sudah di-commit) kecuali kerjaan Anda sendiri yang mungkin belum di-commit di luar scope ini — cek `git status` saat resume.
