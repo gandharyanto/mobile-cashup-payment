@@ -7,4 +7,16 @@
     <fragment
         android:id="@+id/nav_home"
         android:name="com.cashup.feature.cardpayment.CardPaymentFragment" />
+
+    <fragment
+        android:id="@+id/nav_history"
+        android:name="com.cashup.app.ui.home.HistoryFragment" />
+
+    <fragment
+        android:id="@+id/nav_features"
+        android:name="com.cashup.app.ui.home.FeaturesFragment" />
+
+    <fragment
+        android:id="@+id/nav_merchant_info"
+        android:name="com.cashup.app.ui.home.MerchantInfoFragment" />
 </navigation>
