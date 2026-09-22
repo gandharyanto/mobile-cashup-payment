@@ -211,7 +211,7 @@ Note: `home_tab_device` is intentionally NOT `title_account_profile`/"Profil" â€
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/res/android">
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/nav_home"
         android:icon="@drawable/ic_nav_home_selector"
@@ -522,18 +522,14 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         val binding = FragmentHomeBinding.bind(view)
         this.binding = binding
 
-        val toolbar = binding.toolbar
-        val btnSimple = toolbar.findViewById<View>(R.id.btnSimple)
-        val btnPos = toolbar.findViewById<View>(R.id.btnPos)
-
-        btnSimple.setOnClickListener { selectMode(pos = false) }
-        btnPos.setOnClickListener { selectMode(pos = true) }
+        binding.toolbar.btnSimple.setOnClickListener { selectMode(pos = false) }
+        binding.toolbar.btnPos.setOnClickListener { selectMode(pos = true) }
     }
 
     private fun selectMode(pos: Boolean) {
         val toolbar = binding?.toolbar ?: return
-        toolbar.findViewById<View>(R.id.btnSimple).isSelected = !pos
-        toolbar.findViewById<View>(R.id.btnPos).isSelected = pos
+        toolbar.btnSimple.isSelected = !pos
+        toolbar.btnPos.isSelected = pos
         if (pos) {
             Toast.makeText(requireContext(), "Mode Kasir â€” segera hadir", Toast.LENGTH_SHORT).show()
         }
@@ -821,12 +817,8 @@ Update `HomeFragment.kt`'s `onViewCreated`:
             navHostFragment.navController,
         )
 
-        val toolbar = binding.toolbar
-        val btnSimple = toolbar.findViewById<View>(R.id.btnSimple)
-        val btnPos = toolbar.findViewById<View>(R.id.btnPos)
-
-        btnSimple.setOnClickListener { selectMode(pos = false) }
-        btnPos.setOnClickListener { selectMode(pos = true) }
+        binding.toolbar.btnSimple.setOnClickListener { selectMode(pos = false) }
+        binding.toolbar.btnPos.setOnClickListener { selectMode(pos = true) }
     }
 ```
 
