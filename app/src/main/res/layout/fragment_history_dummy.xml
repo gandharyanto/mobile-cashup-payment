@@ -11,7 +11,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="@font/instrument_sans_semibold"
-        android:text="Belum ada transaksi"
+        android:text="@string/home_history_empty"
         android:textColor="#252D63"
         android:textSize="16sp" />
 </LinearLayout>

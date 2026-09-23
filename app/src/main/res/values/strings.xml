@@ -35,4 +35,17 @@
     <string name="home_tab_history">Riwayat</string>
     <string name="home_tab_features">Fitur</string>
     <string name="home_tab_device">Device</string>
+
+    <string name="home_header_title">Cashup</string>
+    <string name="mode_selector_transaction">Transaksi</string>
+    <string name="mode_selector_cashier">Kasir</string>
+    <string name="home_history_empty">Belum ada transaksi</string>
+    <string name="home_features_placeholder">Fitur lain segera hadir</string>
+    <string name="home_pos_mode_toast">Mode Kasir — segera hadir</string>
+    <string name="device_info_id_label">Device ID</string>
+    <string name="device_info_serial_label">Serial</string>
+    <string name="device_info_status_label">Status</string>
+    <string name="device_info_status_provisioned">Terprovisioning</string>
+    <string name="device_info_status_not_provisioned">Belum terprovisioning</string>
+    <string name="device_info_unknown">-</string>
 </resources>

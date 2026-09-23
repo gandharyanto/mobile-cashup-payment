@@ -34,10 +34,11 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
     private fun selectMode(pos: Boolean) {
         val toolbar = binding?.toolbar ?: return
-        toolbar.btnSimple.isSelected = !pos
-        toolbar.btnPos.isSelected = pos
+        val (simpleSelected, posSelected) = modeSelectionState(pos)
+        toolbar.btnSimple.isSelected = simpleSelected
+        toolbar.btnPos.isSelected = posSelected
         if (pos) {
-            Toast.makeText(requireContext(), "Mode Kasir — segera hadir", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.home_pos_mode_toast), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -46,3 +47,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         binding = null
     }
 }
+
+/** Pure toggle rule: which of Simple/POS should be visually selected. Returns (simpleSelected, posSelected). */
+internal fun modeSelectionState(pos: Boolean): Pair<Boolean, Boolean> = Pair(!pos, pos)
