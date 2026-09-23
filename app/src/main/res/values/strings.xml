@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="home_merchant_name">Cashup Merchant</string>
+    <string name="home_merchant_address">Lokasi Merchant</string>
+    <string name="home_environment">UAT</string>
     <string name="app_name">Cashup Payment</string>
 
     <string name="scan_title">Pindai QR Provisioning</string>

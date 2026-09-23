@@ -12,4 +12,15 @@
     <color name="card_payment_keypad_border">#91919F</color>
     <color name="card_payment_backspace">#FCBB3C</color>
     <color name="card_payment_online">#00A86B</color>
+    <color name="card_payment_hint">#687A96</color>
+    <color name="card_payment_amount_empty">#949494</color>
+    <color name="card_payment_divider">#E1E3E6</color>
+    <color name="card_payment_key_text">#2B588C</color>
+    <color name="card_payment_key_background">#EDF2FA</color>
+    <color name="card_payment_operator_text">#616161</color>
+    <color name="card_payment_operator_background">#F0F0F0</color>
+    <color name="card_payment_toggle_background">#E9F1EC</color>
+    <color name="card_payment_other_background">#C8DAEF</color>
+    <color name="card_payment_green">#176D2F</color>
+    <color name="card_payment_clear">#EB2428</color>
 </resources>

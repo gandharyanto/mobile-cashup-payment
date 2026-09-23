@@ -3,6 +3,7 @@ package com.cashup.feature.cardpayment
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
+import android.os.Build
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.StyleSpan
@@ -42,8 +43,15 @@ class CardPaymentFragment : Fragment(R.layout.fragment_card_payment) {
         val insetsController = WindowInsetsControllerCompat(window, window.decorView)
         previousStatusBarColor = window.statusBarColor
         previousLightStatusBar = insetsController.isAppearanceLightStatusBars
-        window.statusBarColor = Color.WHITE
-        insetsController.isAppearanceLightStatusBars = true
+        window.statusBarColor = Color.rgb(0, 77, 64)
+        insetsController.isAppearanceLightStatusBars = false
+        binding.cardAnimation.setImageResource(cardAnimationForModel(Build.MODEL))
+        val simpleKeys = mapOf(
+            binding.simpleKey1 to "1", binding.simpleKey2 to "2", binding.simpleKey3 to "3",
+            binding.simpleKey4 to "4", binding.simpleKey5 to "5", binding.simpleKey6 to "6",
+            binding.simpleKey7 to "7", binding.simpleKey8 to "8", binding.simpleKey9 to "9",
+            binding.simpleKey000 to "000", binding.simpleKey0 to "0",
+        )
         val calculatorKeys = mapOf(
             binding.keyClear to "C", binding.keyPercent to "%", binding.keyDivide to "/",
             binding.keyMultiply to "x", binding.key1 to "1", binding.key2 to "2",
@@ -53,9 +61,18 @@ class CardPaymentFragment : Fragment(R.layout.fragment_card_payment) {
             binding.key0 to "0", binding.key000 to "000", binding.keyEquals to "=",
             binding.keyBackspace to "←",
         )
+        simpleKeys.forEach { (button, key) ->
+            button.setOnClickListener { renderCalculator(binding, calculator.press(key)) }
+        }
         calculatorKeys.forEach { (button, key) ->
             button.setOnClickListener { renderCalculator(binding, calculator.press(key)) }
         }
+        binding.keyBackspace.setOnClickListener { renderCalculator(binding, calculator.press("←")) }
+        binding.amountBackspace.setOnClickListener { renderCalculator(binding, calculator.press("←")) }
+        binding.showCalculator.setOnClickListener { showCalculator(binding, true) }
+        binding.hideCalculator.setOnClickListener { showCalculator(binding, false) }
+        binding.payQris.setOnClickListener { showUnavailable() }
+        binding.otherPayment.setOnClickListener { showUnavailable() }
         renderCalculator(binding, calculator.current())
         binding.pay.setOnClickListener {
             val amount = calculator.current().amount
@@ -129,9 +146,31 @@ class CardPaymentFragment : Fragment(R.layout.fragment_card_payment) {
     }
 
     private fun renderCalculator(binding: FragmentCardPaymentBinding, display: CalculatorDisplay) {
-        binding.calculatorExpression.text = display.expression
+        binding.calculatorExpression.text = if (display.expression == "0") {
+            getString(R.string.card_payment_amount_hint)
+        } else display.expression
         binding.calculatorTotal.text = display.amount.rupiah()
+        binding.calculatorTotal.setTextColor(
+            requireContext().getColor(
+                if (display.amount == 0L) R.color.card_payment_amount_empty else R.color.card_payment_navy,
+            ),
+        )
         display.error?.let { Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show() }
+    }
+
+    private fun showCalculator(binding: FragmentCardPaymentBinding, visible: Boolean) {
+        binding.simpleKeypad.isVisible = !visible
+        binding.calculatorKeypad.isVisible = visible
+    }
+
+    private fun showUnavailable() {
+        Toast.makeText(requireContext(), R.string.card_payment_not_available, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun cardAnimationForModel(model: String): Int = when {
+        model.equals("T6", ignoreCase = true) -> R.drawable.anim_cdcp_t6
+        model.equals("T1", ignoreCase = true) -> R.drawable.anim_cdcp_t1
+        else -> R.drawable.card_payment_anfu
     }
 
     private fun startCountdown(binding: FragmentCardPaymentBinding) {

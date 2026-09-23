@@ -5,19 +5,66 @@
     android:layout_height="match_parent"
     android:background="#F6F6F6">
 
-    <TextView
-        android:id="@+id/tvHeaderTitle"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/merchantHeader"
         android:layout_width="0dp"
         android:layout_height="@dimen/home_header_min_height"
-        android:background="@color/light_100"
-        android:gravity="center"
-        android:fontFamily="@font/instrument_sans_semibold"
-        android:text="@string/home_header_title"
-        android:textColor="#252D63"
-        android:textSize="18sp"
+        android:background="@drawable/bg_merchant_header"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/tvHeaderTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:fontFamily="@font/instrument_sans_regular"
+            android:text="@string/home_merchant_name"
+            android:textColor="@color/light_100"
+            android:textSize="16sp"
+            app:layout_constraintBottom_toTopOf="@id/tvMerchantAddress"
+            app:layout_constraintEnd_toStartOf="@id/environmentBadge"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_chainStyle="packed" />
+
+        <TextView
+            android:id="@+id/tvMerchantAddress"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:fontFamily="@font/instrument_sans_regular"
+            android:maxLines="1"
+            android:text="@string/home_merchant_address"
+            android:textColor="@color/light_100"
+            android:textSize="11sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/environmentBadge"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvHeaderTitle" />
+
+        <TextView
+            android:id="@+id/environmentBadge"
+            android:layout_width="77dp"
+            android:layout_height="28dp"
+            android:background="#337C4A"
+            android:gravity="center"
+            android:text="@string/home_environment"
+            android:textColor="#AFC2AE"
+            android:textSize="10sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <View
+            android:layout_width="17dp"
+            android:layout_height="17dp"
+            android:layout_marginEnd="17dp"
+            android:background="@drawable/bg_home_online_dot"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/environmentBadge" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <include
         android:id="@+id/toolbar"
@@ -26,7 +73,7 @@
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvHeaderTitle" />
+        app:layout_constraintTop_toBottomOf="@id/merchantHeader" />
 
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/homeNavHost"

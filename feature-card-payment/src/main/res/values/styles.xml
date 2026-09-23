@@ -1,28 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="CardPaymentCalcButton" parent="Widget.MaterialComponents.Button">
-        <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">55dp</item>
-        <item name="android:layout_columnWeight">1</item>
-        <item name="android:fontFamily">@font/nunito</item>
-        <item name="android:textSize">21sp</item>
-        <item name="android:textAllCaps">false</item>
-        <item name="android:textColor">@color/card_payment_muted</item>
-        <item name="strokeWidth">0.5dp</item>
-        <item name="strokeColor">@color/card_payment_keypad_border</item>
-        <item name="cornerRadius">0dp</item>
-        <item name="android:insetBottom">0dp</item>
-        <item name="android:insetTop">0dp</item>
-        <item name="android:backgroundTint">@android:color/white</item>
-    </style>
-
-    <style name="CardPaymentCalcButtonOperator" parent="CardPaymentCalcButton">
-        <item name="android:backgroundTint">@color/card_payment_keypad_operator</item>
-    </style>
-
-    <style name="CardPaymentCalculatorTheme" parent="ThemeOverlay.MaterialComponents">
-        <item name="fontFamily">@font/nunito</item>
-        <item name="android:fontFamily">@font/nunito</item>
-        <item name="colorPrimary">@color/card_payment_accent</item>
-    </style>
+    <style name="CardPaymentKeypadRow"><item name="android:layout_width">match_parent</item><item name="android:layout_height">0dp</item><item name="android:layout_weight">1</item><item name="android:orientation">horizontal</item></style>
+    <style name="CardPaymentKeyGap"><item name="android:layout_width">9dp</item><item name="android:layout_height">1dp</item></style>
+    <style name="CardPaymentCalcGap"><item name="android:layout_width">8dp</item><item name="android:layout_height">1dp</item></style>
+    <style name="CardPaymentRowGap"><item name="android:layout_width">1dp</item><item name="android:layout_height">9dp</item></style>
+    <style name="CardPaymentCalcRowGap"><item name="android:layout_width">1dp</item><item name="android:layout_height">7dp</item></style>
+    <style name="CardPaymentKeyButton" parent="Widget.Material3.Button"><item name="android:layout_width">0dp</item><item name="android:layout_height">match_parent</item><item name="android:layout_weight">1</item><item name="android:minWidth">0dp</item><item name="android:minHeight">0dp</item><item name="android:fontFamily">@font/instrument_sans_semibold</item><item name="android:textSize">20sp</item><item name="android:textColor">@color/card_payment_key_text</item><item name="android:textAllCaps">false</item><item name="backgroundTint">@color/card_payment_key_background</item><item name="cornerRadius">14dp</item><item name="android:insetTop">0dp</item><item name="android:insetBottom">0dp</item></style>
+    <style name="CardPaymentOperatorButton" parent="CardPaymentKeyButton"><item name="android:textColor">@color/card_payment_operator_text</item><item name="backgroundTint">@color/card_payment_operator_background</item><item name="iconTint">@color/card_payment_operator_text</item><item name="iconGravity">textStart</item><item name="iconPadding">0dp</item></style>
+    <style name="CardPaymentClearButton" parent="CardPaymentOperatorButton"><item name="android:textColor">@android:color/white</item><item name="backgroundTint">@color/card_payment_clear</item></style>
+    <style name="CardPaymentEqualsButton" parent="CardPaymentOperatorButton"><item name="android:textColor">@android:color/white</item><item name="backgroundTint">@color/card_payment_green</item></style>
+    <style name="CardPaymentToggleButton" parent="CardPaymentKeyButton"><item name="backgroundTint">@color/card_payment_toggle_background</item><item name="iconTint">@color/card_payment_green</item><item name="iconGravity">textStart</item><item name="iconPadding">0dp</item><item name="iconSize">28dp</item></style>
+    <style name="CardPaymentPayButton" parent="Widget.Material3.Button"><item name="android:layout_width">0dp</item><item name="android:layout_height">match_parent</item><item name="android:layout_weight">1</item><item name="android:minHeight">0dp</item><item name="android:textAllCaps">false</item><item name="android:textSize">14sp</item><item name="android:textColor">@android:color/white</item><item name="android:fontFamily">@font/instrument_sans_regular</item><item name="backgroundTint">@color/card_payment_navy</item><item name="cornerRadius">13dp</item><item name="iconTint">@android:color/white</item><item name="iconSize">20dp</item><item name="iconPadding">6dp</item><item name="android:insetTop">0dp</item><item name="android:insetBottom">0dp</item></style>
+    <style name="CardPaymentOtherButton" parent="CardPaymentPayButton"><item name="android:textColor">@color/card_payment_navy</item><item name="backgroundTint">@color/card_payment_other_background</item><item name="iconTint">@color/card_payment_navy</item></style>
 </resources>

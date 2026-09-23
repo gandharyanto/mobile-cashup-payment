@@ -5,245 +5,428 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Simple calculator: struktur dan warna mengikuti feature/pos app-v3. -->
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/calculatorScreen"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@android:color/white"
-        android:fitsSystemWindows="true"
-        android:orientation="vertical"
-        android:theme="@style/CardPaymentCalculatorTheme">
-
-        <androidx.appcompat.widget.Toolbar
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:background="@android:color/white"
-            android:elevation="0dp"
-            android:padding="0dp"
-            app:contentInsetEnd="0dp">
-
-            <ImageView
-                android:layout_width="40dp"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/card_payment_title"
-                android:scaleType="centerInside"
-                android:src="@drawable/logo_cashup" />
-
-            <FrameLayout
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:layout_gravity="end|top"
-                android:layout_marginEnd="14dp"
-                android:contentDescription="@string/card_payment_online">
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="@drawable/bg_calculator_status_outer" />
-
-                <View
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:background="@drawable/bg_calculator_status_inner" />
-            </FrameLayout>
-        </androidx.appcompat.widget.Toolbar>
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp">
 
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:gravity="bottom|end"
+            android:id="@+id/amountPanel"
+            android:layout_width="0dp"
+            android:layout_height="86dp"
             android:orientation="vertical"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
-            android:paddingBottom="8dp">
+            android:paddingStart="8dp"
+            android:paddingTop="11dp"
+            android:paddingEnd="8dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
             <TextView
                 android:id="@+id/calculatorExpression"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="0"
-                android:textColor="@color/card_payment_text"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                tools:text="1.500 + 1.500" />
+                android:fontFamily="@font/instrument_sans_regular"
+                android:text="@string/card_payment_amount_hint"
+                android:textColor="@color/card_payment_hint"
+                android:textSize="13sp" />
 
-            <TextView
-                android:id="@+id/calculatorTotal"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingBottom="4dp"
-                android:text="@string/card_payment_zero"
-                android:textColor="@color/card_payment_muted"
-                android:textSize="28sp"
-                android:textStyle="bold"
-                tools:text="Rp 3.000" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/calculatorTotal"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/instrument_sans_semibold"
+                    android:text="@string/card_payment_zero"
+                    android:textColor="@color/card_payment_amount_empty"
+                    android:textSize="25sp" />
+
+                <ImageButton
+                    android:id="@+id/amountBackspace"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/card_payment_backspace"
+                    android:padding="7dp"
+                    android:src="@drawable/ic_backspace"
+                    app:tint="@color/card_payment_amount_empty" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/card_payment_divider" />
         </LinearLayout>
 
-        <GridLayout
-            android:id="@+id/keypadGrid"
-            android:layout_width="match_parent"
+        <LinearLayout
+            android:id="@+id/simpleKeypad"
+            android:layout_width="0dp"
+            android:layout_height="407dp"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/amountPanel">
+
+            <LinearLayout style="@style/CardPaymentKeypadRow">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/simpleKey1"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="1" />
+
+                <Space style="@style/CardPaymentKeyGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/simpleKey2"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="2" />
+
+                <Space style="@style/CardPaymentKeyGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/simpleKey3"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="3" />
+            </LinearLayout>
+
+            <Space style="@style/CardPaymentRowGap" />
+
+            <LinearLayout style="@style/CardPaymentKeypadRow">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/simpleKey4"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="4" />
+
+                <Space style="@style/CardPaymentKeyGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/simpleKey5"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="5" />
+
+                <Space style="@style/CardPaymentKeyGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/simpleKey6"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="6" />
+            </LinearLayout>
+
+            <Space style="@style/CardPaymentRowGap" />
+
+            <LinearLayout style="@style/CardPaymentKeypadRow">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/simpleKey7"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="7" />
+
+                <Space style="@style/CardPaymentKeyGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/simpleKey8"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="8" />
+
+                <Space style="@style/CardPaymentKeyGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/simpleKey9"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="9" />
+            </LinearLayout>
+
+            <Space style="@style/CardPaymentRowGap" />
+
+            <LinearLayout style="@style/CardPaymentKeypadRow">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/showCalculator"
+                    style="@style/CardPaymentToggleButton"
+                    app:icon="@drawable/ic_payment_calculator" />
+
+                <Space style="@style/CardPaymentKeyGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/simpleKey000"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="000" />
+
+                <Space style="@style/CardPaymentKeyGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/simpleKey0"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="0" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/calculatorKeypad"
+            android:layout_width="0dp"
+            android:layout_height="407dp"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/amountPanel">
+
+            <LinearLayout style="@style/CardPaymentKeypadRow">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/keyClear"
+                    style="@style/CardPaymentClearButton"
+                    android:text="C" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/keyBackspace"
+                    style="@style/CardPaymentOperatorButton"
+                    app:icon="@drawable/ic_backspace" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/keyPercent"
+                    style="@style/CardPaymentOperatorButton"
+                    android:text="%" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/keyDivide"
+                    style="@style/CardPaymentOperatorButton"
+                    android:text="÷" />
+            </LinearLayout>
+
+            <Space style="@style/CardPaymentCalcRowGap" />
+
+            <LinearLayout style="@style/CardPaymentKeypadRow">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/key1"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="1" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/key2"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="2" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/key3"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="3" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/keyMultiply"
+                    style="@style/CardPaymentOperatorButton"
+                    android:text="×" />
+            </LinearLayout>
+
+            <Space style="@style/CardPaymentCalcRowGap" />
+
+            <LinearLayout style="@style/CardPaymentKeypadRow">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/key4"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="4" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/key5"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="5" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/key6"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="6" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/keyMinus"
+                    style="@style/CardPaymentOperatorButton"
+                    android:text="−" />
+            </LinearLayout>
+
+            <Space style="@style/CardPaymentCalcRowGap" />
+
+            <LinearLayout style="@style/CardPaymentKeypadRow">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/key7"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="7" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/key8"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="8" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/key9"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="9" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/keyPlus"
+                    style="@style/CardPaymentOperatorButton"
+                    android:text="+" />
+            </LinearLayout>
+
+            <Space style="@style/CardPaymentCalcRowGap" />
+
+            <LinearLayout style="@style/CardPaymentKeypadRow">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/hideCalculator"
+                    style="@style/CardPaymentOperatorButton"
+                    app:icon="@drawable/ic_payment_keypad" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/key000"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="000" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/key0"
+                    style="@style/CardPaymentKeyButton"
+                    android:text="0" />
+
+                <Space style="@style/CardPaymentCalcGap" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/keyEquals"
+                    style="@style/CardPaymentEqualsButton"
+                    android:text="=" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <androidx.constraintlayout.widget.Barrier
+            android:id="@+id/keypadBottom"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:alignmentMode="alignMargins"
-            android:background="@drawable/bg_calculator_grid"
-            android:columnCount="4"
-            android:rowCount="5"
-            android:useDefaultMargins="false">
+            app:barrierDirection="bottom"
+            app:constraint_referenced_ids="simpleKeypad,calculatorKeypad" />
+
+        <LinearLayout
+            android:id="@+id/paymentButtons"
+            android:layout_width="0dp"
+            android:layout_height="116dp"
+            android:layout_marginTop="10dp"
+            android:orientation="vertical"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/keypadBottom">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/pay"
+                    style="@style/CardPaymentPayButton"
+                    android:layout_marginEnd="4dp"
+                    android:text="@string/card_payment_debit_credit"
+                    app:icon="@drawable/ic_card_contactless" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/payQris"
+                    style="@style/CardPaymentPayButton"
+                    android:layout_marginStart="4dp"
+                    android:text="QRIS"
+                    app:icon="@drawable/ic_payment_qris" />
+            </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/keyClear" style="@style/CardPaymentCalcButtonOperator"
-                android:layout_row="0" android:layout_column="0" android:text="C"
-                android:textColor="@android:color/white" android:backgroundTint="@color/card_payment_error" />
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/keyPercent" style="@style/CardPaymentCalcButtonOperator"
-                android:layout_row="0" android:layout_column="1" android:text="%" />
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/keyDivide" style="@style/CardPaymentCalcButtonOperator"
-                android:layout_row="0" android:layout_column="2" android:text="/" />
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/keyMultiply" style="@style/CardPaymentCalcButtonOperator"
-                android:layout_row="0" android:layout_column="3" android:text="x" />
+                android:id="@+id/otherPayment"
+                style="@style/CardPaymentOtherButton"
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:layout_marginTop="8dp"
+                android:text="@string/card_payment_other"
+                app:icon="@drawable/ic_payment_other" />
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <com.google.android.material.button.MaterialButton android:id="@+id/key1" style="@style/CardPaymentCalcButton" android:layout_row="1" android:layout_column="0" android:text="1" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/key2" style="@style/CardPaymentCalcButton" android:layout_row="1" android:layout_column="1" android:text="2" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/key3" style="@style/CardPaymentCalcButton" android:layout_row="1" android:layout_column="2" android:text="3" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/keyMinus" style="@style/CardPaymentCalcButtonOperator" android:layout_row="1" android:layout_column="3" android:text="-" />
-
-            <com.google.android.material.button.MaterialButton android:id="@+id/key4" style="@style/CardPaymentCalcButton" android:layout_row="2" android:layout_column="0" android:text="4" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/key5" style="@style/CardPaymentCalcButton" android:layout_row="2" android:layout_column="1" android:text="5" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/key6" style="@style/CardPaymentCalcButton" android:layout_row="2" android:layout_column="2" android:text="6" />
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/keyPlus" style="@style/CardPaymentCalcButtonOperator"
-                android:layout_width="0dp" android:layout_height="110dp"
-                android:layout_row="2" android:layout_column="3" android:layout_rowSpan="2"
-                android:layout_gravity="fill" android:text="+" />
-
-            <com.google.android.material.button.MaterialButton android:id="@+id/key7" style="@style/CardPaymentCalcButton" android:layout_row="3" android:layout_column="0" android:text="7" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/key8" style="@style/CardPaymentCalcButton" android:layout_row="3" android:layout_column="1" android:text="8" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/key9" style="@style/CardPaymentCalcButton" android:layout_row="3" android:layout_column="2" android:text="9" />
-
-            <com.google.android.material.button.MaterialButton android:id="@+id/key0" style="@style/CardPaymentCalcButton" android:layout_row="4" android:layout_column="0" android:text="0" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/key000" style="@style/CardPaymentCalcButton" android:layout_row="4" android:layout_column="1" android:text="000" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/keyEquals" style="@style/CardPaymentCalcButton" android:layout_row="4" android:layout_column="2" android:text="=" />
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/keyBackspace" style="@style/CardPaymentCalcButtonOperator"
-                android:layout_row="4" android:layout_column="3" android:text="←"
-                android:backgroundTint="@color/card_payment_backspace"
-                android:gravity="center" android:paddingStart="0dp" android:paddingEnd="21dp"
-                android:textColor="@color/card_payment_backspace"
-                app:icon="@drawable/ic_backspace" app:iconGravity="end"
-                app:iconTint="@android:color/white" />
-        </GridLayout>
-
-        <Button
-            android:id="@+id/pay"
-            style="@style/CardPaymentCalcButton"
-            android:layout_width="match_parent"
-            android:layout_height="55dp"
-            android:backgroundTint="@color/card_payment_accent"
-            android:fontFamily="@font/instrument_sans_semibold"
-            android:text="@string/card_payment_ok"
-            android:textAllCaps="false"
-            android:textColor="@android:color/white"
-            android:textSize="18sp" />
-    </LinearLayout>
-
-    <!-- Waiting-card screen: mengikuti activity_payment_with_credit_debit app-v3. -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/paymentScreen"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@drawable/bg_container"
-        android:fitsSystemWindows="true"
         android:visibility="gone">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/paymentHeader"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
-            app:layout_constraintEnd_toEndOf="parent"
+        <ImageButton
+            android:id="@+id/back"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_margin="12dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/card_payment_back"
+            android:padding="10dp"
+            android:src="@drawable/ic_back_white"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <ImageButton
-                android:id="@+id/back"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/card_payment_back"
-                android:padding="6dp"
-                android:src="@drawable/ic_back_white"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:fontFamily="@font/instrument_sans_semibold"
-                android:text="@string/card_payment_title"
-                android:textColor="@android:color/white"
-                android:textSize="16sp"
-                app:layout_constraintBottom_toBottomOf="@id/back"
-                app:layout_constraintStart_toEndOf="@id/back"
-                app:layout_constraintTop_toTopOf="@id/back" />
-
-            <FrameLayout
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent">
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="@drawable/bg_online_dot" />
-
-                <View
-                    android:layout_width="17dp"
-                    android:layout_height="17dp"
-                    android:layout_gravity="center"
-                    android:background="@drawable/bg_calculator_status_inner"
-                    android:contentDescription="@string/card_payment_online" />
-            </FrameLayout>
-        </androidx.constraintlayout.widget.ConstraintLayout>
+            app:layout_constraintTop_toTopOf="parent" />
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/paymentCard"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="28dp"
-            android:layout_marginEnd="28dp"
+            android:layout_margin="28dp"
             app:cardBackgroundColor="@android:color/white"
             app:cardCornerRadius="28dp"
             app:cardElevation="0dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/paymentHeader"
-            app:layout_constraintVertical_bias="0.33">
+            app:layout_constraintTop_toTopOf="parent">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_horizontal"
                 android:orientation="vertical"
-                android:paddingStart="24dp"
-                android:paddingTop="28dp"
-                android:paddingEnd="24dp"
-                android:paddingBottom="20dp">
+                android:padding="24dp">
 
                 <TextView
-                    android:id="@+id/amountLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/instrument_sans_semibold"
                     android:text="@string/card_payment_amount_label"
                     android:textColor="@color/card_payment_text"
                     android:textSize="11sp" />
@@ -252,18 +435,17 @@
                     android:id="@+id/amountValue"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
                     android:fontFamily="@font/instrument_sans_semibold"
                     android:textColor="@color/card_payment_text"
                     android:textSize="20sp"
                     tools:text="Rp 134.600" />
 
                 <pl.droidsonroids.gif.GifImageButton
+                    android:id="@+id/cardAnimation"
                     android:layout_width="160dp"
                     android:layout_height="160dp"
-                    android:layout_marginTop="14dp"
+                    android:layout_marginTop="12dp"
                     android:background="@android:color/transparent"
-                    android:contentDescription="@string/card_payment_title"
                     android:scaleType="centerInside"
                     android:src="@drawable/card_payment_anfu" />
 
@@ -271,22 +453,18 @@
                     android:id="@+id/prompt"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/instrument_sans_semibold"
                     android:gravity="center"
-                    android:maxLines="1"
                     android:text="@string/card_payment_insert_or_tap"
                     android:textColor="@color/card_payment_blue"
-                    android:textSize="11sp" />
+                    android:textSize="12sp" />
 
                 <TextView
                     android:id="@+id/remaining"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:fontFamily="@font/nunito"
                     android:textColor="@color/card_payment_muted"
-                    android:textSize="10sp"
-                    tools:text="Sisa waktu 00:50" />
+                    android:textSize="10sp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/secondaryAction"
@@ -294,20 +472,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="44dp"
                     android:layout_marginTop="14dp"
-                    android:fontFamily="@font/instrument_sans_semibold"
-                    android:maxLines="1"
                     android:text="@string/card_payment_change"
                     android:textAllCaps="false"
-                    android:textColor="@color/card_payment_blue"
-                    android:textSize="10sp"
-                    android:textStyle="bold"
-                    app:cornerRadius="12dp"
-                    app:icon="@drawable/ic_switch_horizontal"
-                    app:iconGravity="textStart"
-                    app:iconSize="16dp"
-                    app:iconTint="@color/card_payment_blue"
-                    app:strokeColor="@color/card_payment_blue"
-                    app:strokeWidth="1dp" />
+                    app:cornerRadius="12dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
     </androidx.constraintlayout.widget.ConstraintLayout>
