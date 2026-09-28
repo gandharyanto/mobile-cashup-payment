@@ -307,17 +307,7 @@ class PaymentStatusWaiter(private val transport: PaymentNotificationTransport) {
         val fromMqtt = async { transport.messages.mapNotNull(matches).first() }
         val fromPoll = async {
             delay(timeoutMs)
-            while (true) {
-                val result = try {
-                    statusCheck()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    null
-                }
-                if (result != null) return@async result
-                delay(pollIntervalMs)
-            }
+            pollUntilFound(pollIntervalMs, statusCheck)
         }
         val winner = select<T> {
             fromMqtt.onAwait { it }
@@ -326,6 +316,25 @@ class PaymentStatusWaiter(private val transport: PaymentNotificationTransport) {
         fromMqtt.cancel()
         fromPoll.cancel()
         winner
+    }
+
+    // Named suspend function with a declared return type, NOT an inline `while(true)` tail
+    // expression inside the `async { }` lambda above -- a lambda literal's inferred type comes
+    // from its tail expression (`while(true)` types as Unit, not Nothing, in that position), so
+    // inlining this loop into the async block fails to compile against `T`. A block-bodied
+    // function with a declared return type doesn't have that restriction.
+    private suspend fun <T> pollUntilFound(pollIntervalMs: Long, statusCheck: suspend () -> T?): T {
+        while (true) {
+            val result: T? = try {
+                statusCheck()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            if (result != null) return result
+            delay(pollIntervalMs)
+        }
     }
 }
 ```
