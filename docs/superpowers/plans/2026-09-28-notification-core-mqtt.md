@@ -33,7 +33,7 @@
 **Interfaces:**
 - Produces: a buildable, empty `:notification-core` module other tasks add real files into.
 
-- [ ] **Step 1: Register the module in `settings.gradle.kts`**
+- [x] **Step 1: Register the module in `settings.gradle.kts`**
 
 Add after the existing `include(...)` lines (before `include(":app")`, matching the existing top-to-bottom dependency order):
 
@@ -41,7 +41,7 @@ Add after the existing `include(...)` lines (before `include(":app")`, matching 
 include(":notification-core")
 ```
 
-- [ ] **Step 2: Create `notification-core/build.gradle.kts`**
+- [x] **Step 2: Create `notification-core/build.gradle.kts`**
 
 ```kotlin
 // PERINGATAN API LEVEL -- berlaku untuk seluruh source set `main` module ini.
@@ -81,7 +81,7 @@ kotlin {
 }
 ```
 
-- [ ] **Step 3: Add `:notification-core` to `gradle/module-boundaries.gradle.kts`**
+- [x] **Step 3: Add `:notification-core` to `gradle/module-boundaries.gradle.kts`**
 
 In the `allowedProjectDeps` map, add it to the "Kontrak murni" group (alongside `:common-core`/`:device-sdk-api`/`:signing-core`):
 
@@ -94,7 +94,7 @@ In the `allowedProjectDeps` map, add it to the "Kontrak murni" group (alongside 
 
 Leave `:app`'s allowed-deps entry untouched — nothing in this plan adds `implementation(project(":notification-core"))` to `:app` yet (wiring is out of scope per spec §8), so granting that edge now would be an unused permission. Add it in the future plan that does the wiring.
 
-- [ ] **Step 4: Create a placeholder so Gradle sees a non-empty module, and a scaffold test**
+- [x] **Step 4: Create a placeholder so Gradle sees a non-empty module, and a scaffold test**
 
 Create `notification-core/src/main/kotlin/com/cashup/notification/.gitkeep` (empty file — deleted in Task 2 step 1 once `RawNotification.kt` exists in that package).
 
@@ -114,12 +114,12 @@ class ModuleScaffoldTest {
 }
 ```
 
-- [ ] **Step 5: Run the build to verify wiring**
+- [x] **Step 5: Run the build to verify wiring**
 
 Run: `gradlew.bat :notification-core:test checkModuleBoundaries`
 Expected: `BUILD SUCCESSFUL`, `ModuleScaffoldTest` passes, `checkModuleBoundaries` logs `Module boundaries OK: N modules checked.`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add settings.gradle.kts gradle/module-boundaries.gradle.kts notification-core/
@@ -138,7 +138,7 @@ git commit -m "feat(notification-core): scaffold new pure-JVM module"
 - Consumes: nothing (leaf types).
 - Produces: `RawNotification(topic: String, payload: String)`, `interface PaymentNotificationTransport { val isConnected: Boolean; fun connect(deviceId: String); val messages: Flow<RawNotification>; fun disconnect() }` — Task 3 (`PaymentStatusWaiter`) and Task 4 (`MqttNotificationTransport`) both depend on these exact names/types.
 
-- [ ] **Step 1: Delete the scaffold placeholder and create the contract file**
+- [x] **Step 1: Delete the scaffold placeholder and create the contract file**
 
 Delete `notification-core/src/main/kotlin/com/cashup/notification/.gitkeep`.
 
@@ -174,12 +174,12 @@ interface PaymentNotificationTransport {
 }
 ```
 
-- [ ] **Step 2: Compile to verify**
+- [x] **Step 2: Compile to verify**
 
 Run: `gradlew.bat :notification-core:compileKotlin`
 Expected: `BUILD SUCCESSFUL`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add notification-core/
@@ -198,7 +198,7 @@ git commit -m "feat(notification-core): add PaymentNotificationTransport contrac
 - Consumes: `RawNotification`, `PaymentNotificationTransport` (Task 2).
 - Produces: `class PaymentStatusWaiter(transport: PaymentNotificationTransport) { suspend fun <T> await(timeoutMs: Long = 5_000L, pollIntervalMs: Long = 1_000L, matches: (RawNotification) -> T?, statusCheck: suspend () -> T?): T }` — this is the type future wiring (out of scope of this plan) will call from `:feature-card-payment`/QRIS.
 
-- [ ] **Step 1: Write the test file with a fake transport and the first test**
+- [x] **Step 1: Write the test file with a fake transport and the first test**
 
 Create `notification-core/src/test/kotlin/com/cashup/notification/PaymentStatusWaiterTest.kt`:
 
@@ -255,12 +255,12 @@ class PaymentStatusWaiterTest {
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `gradlew.bat :notification-core:test --tests "com.cashup.notification.PaymentStatusWaiterTest"`
 Expected: FAIL — `PaymentStatusWaiter` is unresolved (class does not exist yet).
 
-- [ ] **Step 3: Implement `PaymentStatusWaiter`**
+- [x] **Step 3: Implement `PaymentStatusWaiter`**
 
 Create `notification-core/src/main/kotlin/com/cashup/notification/PaymentStatusWaiter.kt`:
 
@@ -339,12 +339,12 @@ class PaymentStatusWaiter(private val transport: PaymentNotificationTransport) {
 }
 ```
 
-- [ ] **Step 4: Run the first test to verify it passes**
+- [x] **Step 4: Run the first test to verify it passes**
 
 Run: `gradlew.bat :notification-core:test --tests "com.cashup.notification.PaymentStatusWaiterTest"`
 Expected: PASS
 
-- [ ] **Step 5: Add the remaining scenarios from spec §7 to the same test file**
+- [x] **Step 5: Add the remaining scenarios from spec §7 to the same test file**
 
 Add these test functions inside `PaymentStatusWaiterTest` (after the existing one):
 
@@ -463,12 +463,12 @@ import kotlinx.coroutines.test.advanceTimeBy
 
 (already imported in Step 1 — no change needed if Step 1 was followed exactly; verify it's present.)
 
-- [ ] **Step 6: Run the full test class**
+- [x] **Step 6: Run the full test class**
 
 Run: `gradlew.bat :notification-core:test --tests "com.cashup.notification.PaymentStatusWaiterTest"`
 Expected: PASS, 6 tests, 0 failures. Test run must complete in well under a second of wall-clock time per test — if any test seems to actually wait multiple real seconds, `runTest`'s virtual time isn't being used correctly; re-check that `advanceTimeBy` (not `delay`) drives time in the test body.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add notification-core/
@@ -487,7 +487,7 @@ git commit -m "feat(notification-core): add PaymentStatusWaiter wait/poll/race p
 - Consumes: `PaymentNotificationTransport`, `RawNotification` (Task 2).
 - Produces: `class MqttNotificationTransport(host: String, port: Int) : PaymentNotificationTransport` and `companion object { fun topicFor(deviceId: String): String }`.
 
-- [ ] **Step 1: Write the failing test for the pure topic-building logic**
+- [x] **Step 1: Write the failing test for the pure topic-building logic**
 
 This is the only piece of this class worth a real broker-free unit test — the rest (`connect`/`disconnect`/`messages`) is exercised manually against the dev broker per spec §7 (unrealistic to unit-test a live TCP MQTT connection in CI).
 
@@ -510,12 +510,12 @@ class MqttNotificationTransportTest {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `gradlew.bat :notification-core:test --tests "com.cashup.notification.MqttNotificationTransportTest"`
 Expected: FAIL — `MqttNotificationTransport` is unresolved.
 
-- [ ] **Step 3: Implement `MqttNotificationTransport`**
+- [x] **Step 3: Implement `MqttNotificationTransport`**
 
 Create `notification-core/src/main/kotlin/com/cashup/notification/MqttNotificationTransport.kt`:
 
@@ -589,24 +589,24 @@ class MqttNotificationTransport(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `gradlew.bat :notification-core:test --tests "com.cashup.notification.MqttNotificationTransportTest"`
 Expected: PASS
 
-- [ ] **Step 5: Run the full module test suite**
+- [x] **Step 5: Run the full module test suite**
 
 Run: `gradlew.bat :notification-core:test checkModuleBoundaries`
 Expected: `BUILD SUCCESSFUL`, all tests across the module pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add notification-core/
 git commit -m "feat(notification-core): add MqttNotificationTransport (Eclipse Paho)"
 ```
 
-- [ ] **Step 7: Manual smoke test against the dev broker (not part of the automated suite)**
+- [ ] **Step 7: Manual smoke test against the dev broker (not part of the automated suite) — NOT YET DONE, needs a human at the broker to trigger a real event**
 
 This step has no automated pass/fail — it is a one-time manual check per spec §7, and also the first real data point on `1883`/plain latency (spec §1 notes only `8883`/TLS was measured). Do this from a short Kotlin scratch script or a temporary `main()` inside a throwaway file (not committed):
 
@@ -637,7 +637,7 @@ Record the result (received or not, approximate latency) as a one-line note in `
 
 No automated test for this step: `baseUrl`, the property this mirrors exactly, has no unit test in this codebase either (`SharedPreferences`/`Context`-backed properties in `:app` aren't currently covered — testing them would need Robolectric or a `Context`/`SharedPreferences` mock that no existing test in this module sets up). Introducing a new testing pattern for two trivial getter/setter properties, inconsistent with the property they're copied from, is out of scope here. The deliverable is verified by compiling.
 
-- [ ] **Step 1: Add the two properties to `AppConfig`**
+- [x] **Step 1: Add the two properties to `AppConfig`**
 
 Read the current file first (`app/src/main/kotlin/com/cashup/app/AppConfig.kt`) to confirm line numbers haven't shifted, then edit it to:
 
@@ -689,12 +689,12 @@ class AppConfig(context: Context) {
 }
 ```
 
-- [ ] **Step 2: Compile to verify**
+- [x] **Step 2: Compile to verify**
 
 Run: `gradlew.bat :app:compileDebugKotlin`
 Expected: `BUILD SUCCESSFUL`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add app/src/main/kotlin/com/cashup/app/AppConfig.kt
@@ -705,5 +705,5 @@ git commit -m "feat(app): add MQTT host/port config for notification-core"
 
 ## Final verification (after all tasks)
 
-- [ ] Run: `gradlew.bat :notification-core:test :app:assembleDebug checkModuleBoundaries`
+- [x] Run: `gradlew.bat :notification-core:test :app:assembleDebug checkModuleBoundaries`
 - Expected: `BUILD SUCCESSFUL`, all `:notification-core` tests pass (11 total: 1 scaffold + 6 waiter + 1 topic + whatever `:app` already had), module boundaries clean, `:app` still assembles (no wiring added, so this is really just confirming `AppConfig`'s new properties don't break the app module build).
