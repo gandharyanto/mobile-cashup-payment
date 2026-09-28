@@ -12,6 +12,7 @@ val allowedProjectDeps: Map<String, Set<String>> = mapOf(
     ":common-core" to emptySet(),
     ":device-sdk-api" to emptySet(),
     ":signing-core" to emptySet(),
+    ":notification-core" to emptySet(),
 
     // Adapter vendor -- masing-masing lihat SATU port (device-sdk-api).
     ":device-sdk-edcsdk" to setOf(":device-sdk-api"),
