@@ -2,7 +2,7 @@
 
 **Tanggal:** 2026-09-28
 **Status:** disetujui, siap dijadikan implementation plan
-**Cakupan:** modul baru yang connect ke broker MQTT dan mengekspos pola "tunggu push N detik, fallback REST status-check sekali kalau timeout, koneksi MQTT tetap hidup sesudahnya" untuk status pembayaran. **Tidak** termasuk: wiring ke UI/ViewModel manapun (card payment atau QRIS), implementasi REST status-check API (belum ada di backend), atau payload/topic schema final dari backend.
+**Cakupan:** modul baru yang connect ke broker MQTT dan mengekspos pola "tunggu push 5 detik, lalu fallback REST status-check tiap 1 detik selamanya sampai dapat status final atau push menang duluan; koneksi MQTT tetap hidup & tetap bisa menang sepanjang polling berjalan" untuk status pembayaran. **Tidak** termasuk: wiring ke UI/ViewModel manapun (card payment atau QRIS), implementasi REST status-check API (belum ada di backend), atau payload/topic schema final dari backend.
 
 ---
 
@@ -79,23 +79,54 @@ package com.cashup.notification
 class PaymentStatusWaiter(private val transport: PaymentNotificationTransport) {
 
     /**
-     * @param matches dipanggil untuk tiap [RawNotification] yang masuk selama window
-     *   menunggu; kembalikan hasil ter-parse kalau pesan ini yang dicari, `null` kalau
-     *   bukan (mis. status device lain / invoice lain di topic yang sama).
-     * @param statusCheck dipanggil TEPAT SEKALI kalau tidak ada [matches] yang berhasil
-     *   dalam [timeoutMs]. Implementasi REST-nya disuntik caller — belum ada di repo ini.
-     * @return hasil dari [matches] (kalau push datang duluan) atau dari [statusCheck]
-     *   (kalau timeout), termasuk `null` kalau keduanya tidak menemukan apa-apa.
+     * @param matches dipanggil untuk tiap [RawNotification] yang masuk SELAMA SELURUH
+     *   pemanggilan [await] (bukan cuma [timeoutMs] pertama — race MQTT-vs-poll tetap
+     *   berlaku sepanjang polling REST berjalan, lihat di bawah); kembalikan hasil
+     *   ter-parse kalau pesan ini yang dicari, `null` kalau bukan (mis. status device
+     *   lain / invoice lain di topic yang sama).
+     * @param statusCheck dipanggil pertama kali persis saat [timeoutMs] terlampaui
+     *   tanpa [matches] yang berhasil, lalu diulang setiap [pollIntervalMs] SELAMANYA
+     *   sampai mengembalikan non-null atau [matches] menang duluan — tidak ada batas
+     *   jumlah percobaan/durasi (lihat §6 soal trade-off ini). Implementasi REST-nya
+     *   disuntik caller — belum ada di repo ini.
+     * @return hasil pertama yang non-null, dari [matches] ATAU dari salah satu
+     *   pemanggilan [statusCheck] — mana pun yang menang duluan. Begitu salah satu
+     *   menang, yang lain dibatalkan (polling berhenti, MQTT tetap subscribed —
+     *   lihat §5 soal kenapa subscription tidak ikut berhenti).
      */
     suspend fun <T> await(
         timeoutMs: Long = 5_000L,
+        pollIntervalMs: Long = 1_000L,
         matches: (RawNotification) -> T?,
         statusCheck: suspend () -> T?,
-    ): T?
+    ): T
 }
 ```
 
-Implementasi `await`: `race` antara `transport.messages.mapNotNull(matches).first()` dan `delay(timeoutMs)` (mis. lewat `select` coroutine atau `withTimeoutOrNull`). Kalau delay menang, panggil `statusCheck()` sekali dan kembalikan hasilnya — **tidak** memanggil `transport.disconnect()` di jalur manapun; disconnect murni tanggung jawab pemilik lifecycle (`:app`, lihat §5).
+Implementasi `await` — dua coroutine berjalan bersamaan lewat `coroutineScope` + `select`, yang menang membatalkan yang lain:
+
+```kotlin
+suspend fun <T> await(
+    timeoutMs: Long, pollIntervalMs: Long,
+    matches: (RawNotification) -> T?, statusCheck: suspend () -> T?,
+): T = coroutineScope {
+    val fromMqtt = async { transport.messages.mapNotNull(matches).first() }
+    val fromPoll = async {
+        delay(timeoutMs)
+        while (true) {
+            // §6: exception dari statusCheck diabaikan, retry lanjut -- KECUALI CancellationException,
+            // yang harus tetap propagate supaya cancel() dari luar (menang duluan / caller cancel) bekerja.
+            val result = try { statusCheck() } catch (e: CancellationException) { throw e } catch (e: Exception) { null }
+            if (result != null) return@async result
+            delay(pollIntervalMs)
+        }
+    }
+    select { fromMqtt.onAwait { it }; fromPoll.onAwait { it } }
+        .also { fromMqtt.cancel(); fromPoll.cancel() }
+}
+```
+
+`fromMqtt` mulai mendengarkan dari `t=0`, bukan cuma setelah timeout — kalau push datang di detik ke-7 saat polling REST sudah jalan, push tetap menang dan polling dibatalkan. `transport.disconnect()` **tidak pernah** dipanggil di jalur manapun dalam `await()` — disconnect murni tanggung jawab pemilik lifecycle (`:app`, lihat §5), lepas dari menang/kalahnya race ini.
 
 Generik `<T>` sengaja dipakai (bukan `PaymentStatusMessage` tetap dengan field `invoiceId` seperti sketsa awal di percakapan) karena schema payload backend belum final — lihat §8. Caller yang membangun `matches`/`statusCheck` yang menentukan tipe hasil apa yang mereka butuhkan (mis. status transaksi, atau raw JSON kalau schema belum ada parser-nya).
 
@@ -137,16 +168,20 @@ private companion object {
 
 - Koneksi gagal / drop: `automaticReconnect` Paho menangani retry; `messages` Flow tidak mengeluarkan error untuk drop transient — collector cukup terus menunggu, pesan berikutnya muncul setelah reconnect berhasil.
 - Pesan dengan payload yang gagal di-parse oleh `matches` (bukan JSON valid, dsb.): tanggung jawab `matches` sendiri untuk mengembalikan `null` (skip), **bukan** melempar exception yang membatalkan `await()` — didokumentasikan di KDoc §3, ditegakkan lewat test (§7).
-- `statusCheck()` melempar exception: **tidak ditangkap** oleh `PaymentStatusWaiter` — exception dari `statusCheck` propagate langsung ke caller `await()`. Caller yang memutuskan retry/fallback lanjutan, bukan modul ini (YAGNI — belum ada kebutuhan konkret untuk kebijakan retry di layer ini).
+- `statusCheck()` melempar exception **selama loop polling** (tiap `pollIntervalMs`): **ditangkap dan diabaikan** (log saja), loop lanjut ke percobaan berikutnya — bukan propagate/membatalkan `await()`. Ini beda dari keputusan versi sebelumnya (single-call, exception propagate) karena sekarang `statusCheck` sengaja dipanggil berulang tanpa batas (§3) — kalau satu error transient (timeout jaringan sesaat) langsung membatalkan seluruh `await()`, seluruh maksud "retry sampai dapat status" jadi percuma. Ini keputusan sesi ini, bukan permintaan eksplisit user — beri tahu kalau maunya beda (mis. propagate setelah N error beruntun).
+- Konsekuensi tidak adanya batas jumlah percobaan/durasi (§3, sesuai pilihan user): kalau backend tidak pernah mengembalikan status final untuk suatu invoice, `await()` akan polling selamanya dan tidak pernah return. Caller yang butuh batas atas (mis. mau tetap kembali ke UI setelah beberapa menit) membungkus pemanggilan `await()` dengan `withTimeout(...)` miliknya sendiri di sisi caller — `PaymentStatusWaiter` sendiri tidak menyediakan itu.
 
 ## 7. Testing
 
 Unit test JVM murni untuk `PaymentStatusWaiter` pakai fake `PaymentNotificationTransport` (backing `MutableSharedFlow`, tanpa broker sungguhan):
 
-- Pesan yang cocok (`matches` mengembalikan non-null) datang sebelum timeout → `await()` mengembalikan hasil itu, `statusCheck` **tidak** dipanggil.
-- Tidak ada pesan cocok dalam `timeoutMs` → `statusCheck()` dipanggil **tepat sekali**, hasilnya yang dikembalikan.
-- Pesan yang tidak cocok (`matches` mengembalikan `null`, mis. invoice/topic lain) tidak menghentikan menunggu — window tetap jalan sampai timeout atau pesan yang cocok datang.
-- Setelah timeout & fallback selesai, `transport.disconnect()` **tidak pernah dipanggil** oleh `PaymentStatusWaiter` (assert lewat fake yang mencatat pemanggilan).
+- Pesan yang cocok (`matches` mengembalikan non-null) datang sebelum `timeoutMs` → `await()` mengembalikan hasil itu, `statusCheck` **tidak pernah** dipanggil.
+- Tidak ada pesan cocok dalam `timeoutMs`, `statusCheck()` langsung mengembalikan non-null di percobaan pertama → dipanggil **tepat sekali** (persis di `timeoutMs`), hasilnya dikembalikan, polling tidak lanjut ke percobaan kedua.
+- `statusCheck()` mengembalikan `null` beberapa kali dulu (mis. 3x) baru non-null → dipanggil berulang dengan jarak `pollIntervalMs`, berhenti tepat di percobaan yang berhasil (assert jumlah pemanggilan persis N, bukan N-1 atau N+1).
+- Pesan MQTT yang cocok datang **di tengah-tengah polling** (mis. setelah percobaan poll ke-2, sebelum ke-3) → `await()` langsung mengembalikan hasil dari MQTT, polling berhenti di situ (assert `statusCheck` tidak dipanggil lagi setelahnya).
+- `statusCheck()` melempar exception di suatu percobaan → diabaikan (tertangkap, tidak membatalkan `await()`), percobaan berikutnya tetap jalan setelah `pollIntervalMs` (§6).
+- Pesan yang tidak cocok (`matches` mengembalikan `null`, mis. invoice/topic lain) tidak menghentikan menunggu — baik MQTT maupun polling tetap jalan sampai salah satu match atau caller sendiri yang membatalkan (lihat §6 soal tidak adanya batas atas bawaan).
+- Sepanjang skenario di atas, `transport.disconnect()` **tidak pernah dipanggil** oleh `PaymentStatusWaiter` (assert lewat fake yang mencatat pemanggilan).
 
 `MqttNotificationTransport` sendiri (wrapper Paho) di-exercise manual terhadap broker dev (`100.114.27.64:1883`) saat implementasi — sama seperti `AmqpBrokerClient` di spec `:broker-core` §10, tidak realistis unit-test koneksi TCP sungguhan di CI. Smoke-test manual ini juga kesempatan memverifikasi ulang latency di port `1883` (lihat §1 — belum ada data untuk port ini).
 
