@@ -25,6 +25,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.10.1")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.fragment:fragment-ktx:1.5.7")
+    implementation("androidx.navigation:navigation-fragment-ktx:2.5.3")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
     implementation("com.google.android.material:material:1.9.0")

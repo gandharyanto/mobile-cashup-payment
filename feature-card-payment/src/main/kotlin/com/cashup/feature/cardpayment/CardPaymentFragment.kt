@@ -2,6 +2,7 @@ package com.cashup.feature.cardpayment
 
 import android.graphics.Color
 import android.graphics.Typeface
+import android.net.Uri
 import android.os.Bundle
 import android.os.Build
 import android.text.Spannable
@@ -18,6 +19,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.fragment.findNavController
 import com.cashup.feature.cardpayment.databinding.FragmentCardPaymentBinding
 import java.math.BigDecimal
 import java.text.NumberFormat
@@ -71,7 +73,16 @@ class CardPaymentFragment : Fragment(R.layout.fragment_card_payment) {
         binding.amountBackspace.setOnClickListener { renderCalculator(binding, calculator.press("←")) }
         binding.showCalculator.setOnClickListener { showCalculator(binding, true) }
         binding.hideCalculator.setOnClickListener { showCalculator(binding, false) }
-        binding.payQris.setOnClickListener { showUnavailable() }
+        binding.payQris.setOnClickListener {
+            val amount = calculator.current().amount
+            if (amount <= 0) {
+                Toast.makeText(requireContext(), R.string.card_payment_invalid_amount, Toast.LENGTH_SHORT).show()
+            } else {
+                // Deep-link, bukan id navigasi: modul ini tidak boleh bergantung ke :feature-qris atau :app.
+                // Skema harus sama dengan <deepLink> nav_qris di app/src/main/res/navigation/nav_home.xml.
+                findNavController().navigate(Uri.parse("cashup://qris?amount=$amount"))
+            }
+        }
         binding.otherPayment.setOnClickListener { showUnavailable() }
         renderCalculator(binding, calculator.current())
         binding.pay.setOnClickListener {
