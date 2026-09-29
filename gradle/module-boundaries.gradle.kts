@@ -25,6 +25,7 @@ val allowedProjectDeps: Map<String, Set<String>> = mapOf(
     ":provisioning-core" to setOf(":common-core", ":device-sdk-api", ":signing-core"),
     ":cdcp-core" to setOf(":common-core", ":device-sdk-api", ":signing-core"),
     ":qris-core" to setOf(":common-core", ":signing-core", ":notification-core"),
+    ":feature-qris" to setOf(":common-core", ":qris-core"),
     ":feature-card-payment" to setOf(":common-core", ":device-sdk-api", ":cdcp-core"),
 
     // Shell -- wiring saja. device-sdk-edcsdk tetap ada di sini untuk

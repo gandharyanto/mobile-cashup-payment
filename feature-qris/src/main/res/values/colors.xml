@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="qris_surface">#FFFFFF</color>
+    <color name="qris_navy">#252D63</color>
+    <color name="qris_muted">#687A96</color>
+    <color name="qris_ok">#176D2F</color>
+    <color name="qris_error">#FD5662</color>
+</resources>

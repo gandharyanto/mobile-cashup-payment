@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="qris_title">Bayar dengan QRIS</string>
+    <string name="qris_back">Kembali</string>
+    <string name="qris_amount_label">Total Pembayaran</string>
+    <string name="qris_loading">Menyiapkan QRIS…</string>
+    <string name="qris_generating">Membuat kode QR…</string>
+    <string name="qris_select_app">Pilih penyedia QRIS</string>
+    <string name="qris_scan_hint">Minta pelanggan memindai kode QR ini</string>
+    <string name="qris_expires_in">Berlaku %1$s</string>
+    <string name="qris_paid">Pembayaran berhasil</string>
+    <string name="qris_expired">Kode QR kedaluwarsa</string>
+    <string name="qris_failed">Pembayaran gagal</string>
+    <string name="qris_new_qr">Buat QR baru</string>
+    <string name="qris_done">Selesai</string>
+    <string name="qris_no_dynamic">QRIS tidak tersedia untuk merchant ini</string>
+    <string name="qris_device_suspended">Terminal dinonaktifkan. Transaksi tidak dapat dilakukan.</string>
+    <string name="qris_invalid_amount">Nominal tidak valid</string>
+    <string name="qris_detail_issuer">Penerbit: %1$s</string>
+    <string name="qris_detail_rrn">RRN: %1$s</string>
+    <string name="qris_detail_approval">Kode persetujuan: %1$s</string>
+    <string name="qris_error_code_fmt">Kode: %1$s</string>
+    <string name="qris_error_generic">Terjadi kesalahan. Coba lagi.</string>
+    <string name="qris_error_network">Tidak ada koneksi. Coba lagi.</string>
+    <string name="qris_error_amount">Nominal di luar batas QRIS merchant.</string>
+    <string name="qris_error_unavailable">Terminal atau merchant tidak dapat memakai QRIS.</string>
+    <string name="qris_error_host">Penyedia QRIS tidak valid. Pilih ulang.</string>
+    <string name="qris_error_rejected">Ditolak oleh penyedia QRIS.</string>
+    <string name="qris_error_acquirer_down">Penyedia QRIS sedang gangguan. Coba lagi nanti.</string>
+    <string name="qris_error_clock">Jam terminal tidak sesuai. Periksa tanggal dan jam.</string>
+    <string name="qris_error_auth">Autentikasi terminal gagal. Hubungi teknisi.</string>
+</resources>
