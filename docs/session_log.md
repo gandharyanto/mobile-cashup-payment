@@ -1,5 +1,64 @@
 # Session Log
 
+## Status terkini — 2026-09-29 (QRIS Dynamic)
+
+Branch `worktree-qris-dynamic`. Tombol QRIS di layar nominal tidak lagi menampilkan toast
+"Fitur belum tersedia"; sekarang membuka alur QRIS Dynamic end-to-end (generate QR ber-amount,
+tampil di layar, tunggu konfirmasi lewat MQTT push + polling `inquiries`, lalu hasil
+dibayar / kedaluwarsa / gagal). Spec: `docs/superpowers/specs/2026-09-29-qris-dynamic-design.md`.
+
+Yang dibangun:
+
+- `:qris-core` — Retrofit + signing yang sama dengan CDCP, `QrisRepository`, dan
+  `QrisPaymentTracker` di atas `PaymentStatusWaiter`.
+- `:feature-qris` — `QrisFragment`, `QrisViewModel` (state machine), pesan error berdasarkan
+  `error.code`, dan render QR lewat ZXing (`QrCodeEncoder`); destinasi nav dengan deep-link
+  `cashup://qris?amount=...`.
+- Wiring `:app` — `AppQrisDependencies` dengan koneksi MQTT lazy (connect saat dibutuhkan),
+  `QrisDependenciesOwner` di `CashupApp`.
+- `CardPaymentFragment` — tombol QRIS membuka layar QRIS lewat deep-link, sehingga
+  `:feature-card-payment` tidak bergantung ke `:feature-qris`.
+
+Hasil verifikasi Step 1 (`./gradlew test checkModuleBoundaries assembleDebug --console=plain`,
+dijalankan nyata): BUILD SUCCESSFUL, tidak ada test gagal, tidak ada test yang di-skip.
+Jumlah test (varian debug): `:qris-core` 24 (QrisModelsTest 7, QrisPaymentTrackerTest 10,
+QrisRepositoryTest 7), `:feature-qris` 17 (QrCodeEncoderTest 2, QrisErrorMessagesTest 3,
+QrisViewModelTest 12), `:app` 22 (termasuk AppQrisDependenciesTest 4). Modul lain
+(`:cdcp-core`, `:feature-card-payment`, `:provisioning-core`, `:device-sdk-*`) hijau tanpa
+perubahan. `checkModuleBoundaries` hijau.
+
+Smoke test Step 2 terhadap dev server: **NOT RUN — needs a person with a provisioned device on
+the dev network.** Tidak ada device, dev server, maupun simulator pembayaran di sesi ini,
+sehingga tidak ada hasil yang diklaim. Semua item berikut belum dijalankan:
+
+- Nominal `15000` -> QRIS -> layar QRIS `Rp 15.000`, lalu QR / dialog pilihan pay-app: NOT RUN.
+- Request `pay-apps`/`qr-codes` diterima backend (bukan 401 `DEVICE_SIGNATURE_INVALID` / 400
+  `TIMESTAMP_*`): NOT RUN.
+- Endpoint `/v1/qris/*` terjawab dari `AppConfig.baseUrl` (`:8080`): NOT RUN.
+- Bayar via simulator -> "Pembayaran berhasil", catat detik dari bayar ke layar berubah: NOT RUN.
+- MQTT sengaja tidak terjangkau -> QR tetap tampil, terdeteksi lewat polling, tanpa crash: NOT RUN.
+- QR dibiarkan kedaluwarsa -> "Kode QR kedaluwarsa" -> "Buat QR baru": NOT RUN.
+- Nominal `0` -> toast nominal tidak valid, tidak berpindah layar: NOT RUN.
+
+Tiga pertanyaan terbuka spec §10 — semuanya MASIH TERBUKA:
+
+1. Host untuk `/v1/qris/*`: apakah dilayani dari `AppConfig.baseUrl` (`:8080`). Smoke test harus
+   memeriksa respons; bila 404/koneksi ditolak, tambah `AppConfig.qrisBaseUrl` sebagai
+   perubahan kecil terpisah dan pakai di `qrisDependencies` pada `AppContainer`.
+2. Presisi `X-Timestamp` yang diterima backend. Smoke test harus memastikan tidak ada 400
+   `TIMESTAMP_*` / 401 `DEVICE_SIGNATURE_INVALID` pada `pay-apps` dan `qr-codes`.
+3. Latensi push MQTT di port `1883` (plain). Smoke test harus mencatat detik dari pembayaran
+   sampai layar berubah dan membandingkan dengan 516 ms / 212 ms yang terukur di `8883`.
+
+Keterbatasan yang diketahui (spec §10):
+
+- Tidak ada cancel/refund di backend; tombol Batal hanya berhenti menunggu, QR di sisi backend
+  tetap hidup sampai kedaluwarsa.
+- QR statis di luar cakupan.
+- Base topic `cashup/staging/v1` di-hardcode; harus dibuat configurable sebelum produksi.
+- MQTT port `1883` plain `tcp://` anonymous hanya untuk dev (keputusan spec 2026-09-28 §1);
+  produksi perlu TLS/login.
+
 ## Status terkini — 2026-09-22 (update 5, online PIN DUKPT Topwise berhasil)
 
 Commit UI/transaksi modular `15e1baa` sudah dipush ke
