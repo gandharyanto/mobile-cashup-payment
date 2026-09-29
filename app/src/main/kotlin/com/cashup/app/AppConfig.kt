@@ -33,13 +33,13 @@ class AppConfig(context: Context) {
 
     private companion object {
         const val KEY_BASE_URL = "base_url"
-//        const val DEFAULT_BASE_URL = "http://192.168.90.46:8080" //local
-        const val DEFAULT_BASE_URL = "http://100.114.27.64:8080" //tailscale
+        const val DEFAULT_BASE_URL = "http://192.168.90.46:8080" //local
+//        const val DEFAULT_BASE_URL = "http://100.114.27.64:8080" //tailscale
 
         const val KEY_MQTT_HOST = "mqtt_host"
         const val KEY_MQTT_PORT = "mqtt_port"
-//        const val DEFAULT_MQTT_HOST = "192.168.90.46" // office LAN
-        const val DEFAULT_MQTT_HOST = "100.114.27.64" // tailscale
+        const val DEFAULT_MQTT_HOST = "192.168.90.46" // office LAN
+//        const val DEFAULT_MQTT_HOST = "100.114.27.64" // tailscale
         const val DEFAULT_MQTT_PORT = 1883
     }
 }
