@@ -18,6 +18,11 @@ import com.cashup.devicesdk.CardTransactionData
 import com.cashup.common.network.ApiResult
 import com.cashup.cdcp.SaleResponse
 import com.cashup.feature.cardpayment.CardPaymentDependencies
+import com.cashup.feature.qris.QrisDependencies
+import com.cashup.notification.MqttNotificationTransport
+import com.cashup.notification.PaymentStatusWaiter
+import com.cashup.qris.QrisPaymentTracker
+import com.cashup.qris.QrisRepository
 import java.math.BigDecimal
 import com.cashup.provisioning.AndroidProvisioningKeys
 import com.cashup.provisioning.StoredDeviceSigner
@@ -129,6 +134,18 @@ class AppContainer(context: Context) : CardPaymentDependencies {
     val saleRepository: SaleRepository by lazy {
         SaleRepository.create(config.baseUrl, deviceSigner, EdcSdkDukptKeyProvider(appContext),
             debugLogging = BuildConfig.DEBUG)
+    }
+
+    val qrisDependencies: QrisDependencies by lazy {
+        val gateway = QrisRepository.create(config.baseUrl, deviceSigner, debugLogging = BuildConfig.DEBUG)
+        val transport = MqttNotificationTransport(config.mqttHost, config.mqttPort)
+        AppQrisDependencies(
+            gateway = gateway,
+            tracker = QrisPaymentTracker(gateway, PaymentStatusWaiter(transport), transport),
+            transport = transport,
+            deviceId = this::activeDeviceId,
+            transactionAllowed = this::isTransactionAllowed,
+        )
     }
 
     @Suppress("DEPRECATION")

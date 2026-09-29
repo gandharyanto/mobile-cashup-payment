@@ -63,6 +63,9 @@ dependencies {
     implementation(project(":device-sdk-edcsdk"))
     implementation(project(":feature-card-payment"))
     implementation(project(":device-sdk-factory"))
+    implementation(project(":notification-core"))
+    implementation(project(":qris-core"))
+    implementation(project(":feature-qris"))
 
     implementation("androidx.core:core-ktx:1.10.1")
     implementation("androidx.appcompat:appcompat:1.6.1")

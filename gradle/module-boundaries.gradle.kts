@@ -33,7 +33,7 @@ val allowedProjectDeps: Map<String, Set<String>> = mapOf(
     // TIDAK lewat device-sdk-factory (spec §5/§8 -- di luar scope factory ini).
     ":app" to setOf(
         ":provisioning-core", ":cdcp-core", ":device-sdk-edcsdk", ":device-sdk-factory",
-        ":feature-card-payment",
+        ":feature-card-payment", ":notification-core", ":qris-core", ":feature-qris",
     ),
 )
 
