@@ -34,10 +34,12 @@ class QrisFragment : Fragment(R.layout.fragment_qris) {
     private var countdown: Job? = null
     private var appDialog: AlertDialog? = null
     private var renderedQr: String? = null
+    private var qrExpired = false
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val binding = FragmentQrisBinding.bind(view)
         renderedQr = null
+        qrExpired = false
         binding.back.setOnClickListener { findNavController().popBackStack() }
         binding.primaryAction.setOnClickListener {
             if (viewModel.state.value.stage == QrisStage.PAID) findNavController().popBackStack()
@@ -61,7 +63,7 @@ class QrisFragment : Fragment(R.layout.fragment_qris) {
         val stage = state.stage
         binding.amountValue.text = state.amount.rupiah()
         binding.progress.isVisible = stage == QrisStage.LOADING_APPS || stage == QrisStage.GENERATING
-        binding.qrImage.isVisible = stage == QrisStage.SHOWING_QR
+        binding.qrImage.isVisible = stage == QrisStage.SHOWING_QR && !qrExpired
         binding.countdown.isVisible = stage == QrisStage.SHOWING_QR
         binding.details.isVisible = stage == QrisStage.PAID
         binding.primaryAction.isVisible = stage == QrisStage.PAID || stage == QrisStage.EXPIRED || stage == QrisStage.FAILED
@@ -112,6 +114,8 @@ class QrisFragment : Fragment(R.layout.fragment_qris) {
     private fun showQr(binding: FragmentQrisBinding, content: String) {
         if (renderedQr == content) return
         renderedQr = content
+        qrExpired = false
+        binding.qrImage.isVisible = true
         viewLifecycleOwner.lifecycleScope.launch {
             val bitmap = withContext(Dispatchers.Default) { QrCodeEncoder.encode(content, QR_SIZE_PX).toBitmap() }
             binding.qrImage.setImageBitmap(bitmap)
@@ -124,7 +128,12 @@ class QrisFragment : Fragment(R.layout.fragment_qris) {
             while (true) {
                 val remaining = maxOf(0L, (deadline - monotonicMillis()) / 1_000L)
                 binding.countdown.text = getString(R.string.qris_expires_in, "%d:%02d".format(remaining / 60, remaining % 60))
-                if (remaining == 0L) break
+                if (remaining == 0L) {
+                    // Jangan biarkan QR yang mungkin sudah kedaluwarsa di server tetap bisa dipindai.
+                    qrExpired = true
+                    binding.qrImage.isVisible = false
+                    break
+                }
                 delay(1_000L)
             }
         }

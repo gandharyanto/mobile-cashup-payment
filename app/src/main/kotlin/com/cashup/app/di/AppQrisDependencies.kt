@@ -13,6 +13,8 @@ import java.math.BigDecimal
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -33,17 +35,23 @@ class AppQrisDependencies(
 
     override suspend fun ensureNotificationsConnected() {
         val id = deviceId() ?: return
-        withContext(io) {
-            try {
-                transport.connect(id)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Push hanyalah percepatan; tanpa MQTT tracker tetap jalan lewat polling 3 dtk.
-                Log.w(TAG, "MQTT connect gagal, memakai polling: ${e.message}")
+        // Serialisasi: connect Paho memblokir; dua client dengan id sama akan saling menendang di broker.
+        connectLock.withLock {
+            if (transport.isConnected) return
+            withContext(io) {
+                try {
+                    transport.connect(id)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Push hanyalah percepatan; tanpa MQTT tracker tetap jalan lewat polling 3 dtk.
+                    Log.w(TAG, "MQTT connect gagal, memakai polling: ${e.message}")
+                }
             }
         }
     }
+
+    private val connectLock = Mutex()
 
     override suspend fun payApps(): ApiResult<List<PayApp>> = gateway.payApps()
 

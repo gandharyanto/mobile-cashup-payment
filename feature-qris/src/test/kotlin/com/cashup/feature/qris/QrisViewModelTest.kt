@@ -132,6 +132,18 @@ class QrisViewModelTest {
         assertEquals(QrisStage.PAID, viewModel.state.value.stage)
     }
 
+    @Test fun `host error then retry reloads pay apps to re-pick the provider`() = runTest {
+        val deps = FakeDeps().apply {
+            generateResults += ApiResult.Failure(ApiError("QRIS_HOST_NOT_ACTIVE", "x", 422))
+        }
+        val viewModel = vm(deps)
+        assertEquals(QrisStage.FAILED, viewModel.state.value.stage)
+        assertEquals(1, deps.payAppsCalls)
+        viewModel.retry()
+        assertEquals(2, deps.payAppsCalls)
+        assertEquals(QrisStage.PAID, viewModel.state.value.stage)
+    }
+
     @Test fun `network failure then retry keeps the same attempt id`() = runTest {
         val deps = FakeDeps().apply {
             generateResults += ApiResult.Failure(ApiError("NETWORK", "timeout"))

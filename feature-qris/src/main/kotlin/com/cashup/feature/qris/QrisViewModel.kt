@@ -97,6 +97,7 @@ class QrisViewModel(
         when (generated) {
             is ApiResult.Failure -> {
                 if (generated.error.code != NETWORK) attemptId = null
+                if (generated.error.code in HOST_ERRORS) selectedApp = null // retry() harus memilih ulang
                 failWith(generated.error)
             }
             is ApiResult.Success -> {
@@ -141,5 +142,6 @@ class QrisViewModel(
     private companion object {
         const val NETWORK = "NETWORK"
         const val IN_PROGRESS = "IDEMPOTENCY_KEY_IN_PROGRESS"
+        val HOST_ERRORS = setOf("QRIS_HOST_NOT_ACTIVE", "QRIS_ACCOUNT_NOT_FOUND", "QRIS_HOST_AMBIGUOUS")
     }
 }

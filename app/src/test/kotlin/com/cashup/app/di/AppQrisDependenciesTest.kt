@@ -11,6 +11,7 @@ import com.cashup.qris.QrisPaymentResult
 import com.cashup.qris.QrisPaymentTracker
 import java.math.BigDecimal
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
@@ -61,6 +62,58 @@ class AppQrisDependenciesTest {
 
     @Test fun `a failing broker connection is swallowed so polling can take over`() = runBlocking {
         deps(FakeTransport(failOnConnect = true)).ensureNotificationsConnected()
+    }
+
+    private class SlowTransport : PaymentNotificationTransport {
+        val connectCalls = java.util.concurrent.atomic.AtomicInteger()
+        val release = java.util.concurrent.CountDownLatch(1)
+        @Volatile private var connected = false
+        override val isConnected get() = connected
+        override fun connect(deviceId: String) {
+            connectCalls.incrementAndGet()
+            release.await()
+            connected = true
+        }
+        override val messages: Flow<RawNotification> = emptyFlow()
+        override fun disconnect() = Unit
+    }
+
+    @Test fun `overlapping ensure calls connect the transport only once`() = runBlocking {
+        val transport = SlowTransport()
+        val deps = AppQrisDependencies(
+            gateway = NoopGateway,
+            tracker = QrisPaymentTracker(NoopGateway, PaymentStatusWaiter(FakeTransport()), FakeTransport()),
+            transport = transport,
+            deviceId = { "dev-1" },
+            transactionAllowed = { true },
+            io = Dispatchers.Default,
+        )
+        val first = async(Dispatchers.Default) { deps.ensureNotificationsConnected() }
+        val second = async(Dispatchers.Default) { deps.ensureNotificationsConnected() }
+        Thread.sleep(500) // let both calls reach connect / the lock while the first connect is blocked
+        transport.release.countDown()
+        first.await()
+        second.await()
+        assertEquals(1, transport.connectCalls.get())
+    }
+
+    @Test fun `cancellation from connect propagates`() {
+        val transport = object : PaymentNotificationTransport {
+            override val isConnected = false
+            override fun connect(deviceId: String) = throw kotlinx.coroutines.CancellationException("cancelled")
+            override val messages: Flow<RawNotification> = emptyFlow()
+            override fun disconnect() = Unit
+        }
+        val deps = AppQrisDependencies(
+            gateway = NoopGateway,
+            tracker = QrisPaymentTracker(NoopGateway, PaymentStatusWaiter(FakeTransport()), FakeTransport()),
+            transport = transport,
+            deviceId = { "dev-1" },
+            transactionAllowed = { true },
+            io = Dispatchers.Unconfined,
+        )
+        val thrown = runCatching { runBlocking { deps.ensureNotificationsConnected() } }.exceptionOrNull()
+        assertTrue(thrown is kotlinx.coroutines.CancellationException)
     }
 
     @Test fun `transaction permission is delegated`() {
