@@ -40,6 +40,9 @@ dependencies {
     implementation(group = "", name = "other-release-core_1.0.63", ext = "aar")
     implementation(group = "", name = "newland-mpos-release-core_1.0.63", ext = "aar")
     implementation(group = "", name = "topwise-mpos-release-core_1.0.63", ext = "aar")
+    // ANFU dipakai lewat anfu-bridge (jar hasil build repo anfu-bridge); AAR vendor-nya
+    // tetap harus ada di runtime karena bridge tidak membawanya.
+    implementation(group = "", name = "anfu-bridge_1.0.0", ext = "jar")
     implementation(group = "", name = "anfu-mpos-debug-core_1.0.68", ext = "aar")
 
     testImplementation("junit:junit:4.13.2")

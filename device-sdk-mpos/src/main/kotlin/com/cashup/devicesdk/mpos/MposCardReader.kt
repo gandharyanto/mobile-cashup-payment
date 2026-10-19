@@ -11,10 +11,7 @@ import com.cashup.devicesdk.CardTransactionRequest
 import com.cashup.devicesdk.PairableCardReader
 import com.cashup.devicesdk.PairedDeviceInfo
 import com.lib.device.channel.mpos.MPOSConnector
-import com.lib.device.core.channel.Channel
 import com.lib.device.core.manager.DeviceConnectionManager
-import com.lib.device.core.model.DeviceCandidate
-import com.lib.device.core.session.DeviceSession
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
@@ -25,10 +22,10 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 
 /** Reader mPOS Bluetooth eksternal (Newland/Topwise/ANFU). Perlu [selectDevice] sebelum [transact]. */
-class MposCardReader internal constructor(
-    private val context: Context,
-    private val connectionManager: DeviceConnectionManager,
-) : CardReader, PairableCardReader {
+class MposCardReader internal constructor(private val link: MposLink) : CardReader, PairableCardReader {
+
+    internal constructor(context: Context, connectionManager: DeviceConnectionManager) :
+        this(VendorMposLink(context, connectionManager))
 
     constructor(context: Context) : this(
         context,
@@ -39,31 +36,12 @@ class MposCardReader internal constructor(
     @Volatile private var active: Continuation<CardReadResult>? = null
     @Volatile private var authorization: CardAuthorization? = null
     private val completed = AtomicBoolean(false)
-    private var lastScan: List<DeviceCandidate> = emptyList()
 
-    override suspend fun pairedDevices(): List<PairedDeviceInfo> {
-        lastScan = connectionManager.scan(Channel.MPOS)
-        return lastScan.map { PairedDeviceInfo(it.id, it.name) }
-    }
+    override suspend fun pairedDevices(): List<PairedDeviceInfo> = link.scan()
 
     override suspend fun selectDevice(id: String): Boolean {
-        val candidate = lastScan.find { it.id == id } ?: return false
-        return try {
-            val session = connectionManager.connect(Channel.MPOS, candidate)
-            if (!session.isAlive) {
-                session.close()
-                gateway = null
-                false
-            } else {
-                gateway = RealMposEmvGateway(context.applicationContext, session)
-                true
-            }
-        } catch (cancelled: kotlinx.coroutines.CancellationException) {
-            throw cancelled
-        } catch (unavailable: Exception) {
-            gateway = null
-            false
-        }
+        gateway = link.select(id)
+        return gateway != null
     }
 
     override suspend fun transact(
