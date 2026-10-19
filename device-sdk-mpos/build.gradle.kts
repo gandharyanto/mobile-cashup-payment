@@ -40,6 +40,7 @@ dependencies {
     implementation(group = "", name = "other-release-core_1.0.63", ext = "aar")
     implementation(group = "", name = "newland-mpos-release-core_1.0.63", ext = "aar")
     implementation(group = "", name = "topwise-mpos-release-core_1.0.63", ext = "aar")
+    implementation(group = "", name = "anfu-mpos-debug-core_1.0.68", ext = "aar")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk:1.13.11")

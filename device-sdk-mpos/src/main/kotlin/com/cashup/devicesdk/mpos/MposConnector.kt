@@ -6,6 +6,9 @@ import com.cashup.devicesdk.Capability
 import com.cashup.devicesdk.DeviceSdk
 import com.cashup.devicesdk.Printer
 import com.cashup.devicesdk.Scanner
+import com.lib.core.pref.PREFERENCE_NAME
+import com.lib.core.pref.Prefs
+import com.lib.device.anfu.mpos.AnfuBlueHelper
 import com.lib.device.channel.mpos.BrandRegistry
 import com.lib.device.channel.mpos.MposReaderDevice
 import com.lib.device.newland.mpos.NewlandBlueHelper
@@ -24,6 +27,7 @@ object MposConnector {
     fun tryConnect(context: Context): DeviceSdk? {
         val appContext = context.applicationContext
         if (!hasBluetoothAdapter(appContext)) return null
+        initVendorPrefs(appContext)
         registerBrandsOnce()
         return MposDeviceSdk(appContext)
     }
@@ -32,6 +36,14 @@ object MposConnector {
         if (!registered.compareAndSet(false, true)) return
         BrandRegistry.register(MposReaderDevice.NEWLAND, provider = { NewlandBlueHelper() }, replace = true)
         BrandRegistry.register(MposReaderDevice.TOPWISE, provider = { TopwiseBlueHelper() }, replace = true)
+        BrandRegistry.register(MposReaderDevice.ANFU, provider = { AnfuBlueHelper() }, replace = true)
+    }
+
+    /** Core vendor menyimpan "device terakhir" lewat [Prefs] (lateinit); tanpa ini connect ANFU gagal setelah terhubung. */
+    private fun initVendorPrefs(context: Context) {
+        if (runCatching { Prefs }.isFailure) {
+            Prefs = context.getSharedPreferences(PREFERENCE_NAME, Context.MODE_PRIVATE)
+        }
     }
 
     private fun hasBluetoothAdapter(context: Context): Boolean {

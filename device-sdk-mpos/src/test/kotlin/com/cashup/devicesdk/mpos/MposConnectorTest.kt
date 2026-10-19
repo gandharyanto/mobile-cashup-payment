@@ -30,6 +30,7 @@ class MposConnectorTest {
         val context = mockk<Context> {
             every { applicationContext } returns this
             every { getSystemService(Context.BLUETOOTH_SERVICE) } returns manager
+            every { getSharedPreferences(any(), any()) } returns mockk(relaxed = true)
         }
 
         val sdk = MposConnector.tryConnect(context)

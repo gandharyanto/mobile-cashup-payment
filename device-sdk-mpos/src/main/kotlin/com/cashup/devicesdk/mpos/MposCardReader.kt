@@ -24,7 +24,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 
-/** Reader mPOS Bluetooth eksternal (Newland/Topwise). Perlu [selectDevice] sebelum [transact]. */
+/** Reader mPOS Bluetooth eksternal (Newland/Topwise/ANFU). Perlu [selectDevice] sebelum [transact]. */
 class MposCardReader internal constructor(
     private val context: Context,
     private val connectionManager: DeviceConnectionManager,
