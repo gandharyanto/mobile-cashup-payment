@@ -71,8 +71,14 @@ class ScanQrFragment : Fragment(R.layout.fragment_scan_qr) {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { state ->
-                    if (state is ProvisioningUiState.Processing) {
-                        findNavController().navigate(R.id.to_processing)
+                    // Processing dipancarkan ulang di tiap langkah ceremony; emisi
+                    // berikutnya bisa tiba sebelum navigasi pertama selesai, saat
+                    // destination aktif sudah processingFragment.
+                    val nav = findNavController()
+                    if (state is ProvisioningUiState.Processing &&
+                        nav.currentDestination?.id == R.id.scanQrFragment
+                    ) {
+                        nav.navigate(R.id.to_processing)
                     }
                 }
             }

@@ -8,3 +8,5 @@ local.properties
 .superpowers/
 aarlib/*.aar
 .kotlin/
+keystore/
+keystore.properties

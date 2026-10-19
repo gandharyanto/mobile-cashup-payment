@@ -11,6 +11,13 @@ interface CardPaymentDependencies {
     fun isTransactionAllowed(): Boolean = true
 
     suspend fun cardReader(): CardReader
+
+    /**
+     * Menyiapkan reader eksternal (connect, key, AID/CAPK) di latar belakang sebelum Bayar. Aman dipanggil berulang
+     * dan tidak melakukan apa-apa untuk terminal EDC bawaan.
+     */
+    fun prepareReader() = Unit
+
     suspend fun authorize(
         card: CardTransactionData,
         amount: BigDecimal,

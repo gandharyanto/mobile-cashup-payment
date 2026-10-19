@@ -10,7 +10,7 @@ import com.cashup.devicesdk.TerminalKeyMaterial
 import com.cashup.devicesdk.CardTransactionData
 import java.math.BigDecimal
 
-/** Builds the encrypted card payload with the same DUKPT variants as edc-mobile. */
+/** Builds the card payload: track, PIN and EMV data encrypted with DUKPT; amount and tip in plain. */
 internal class CardPayloadFactory(private val keys: DukptKeyProvider) {
     fun build(deviceId: String, keySetVersion: Int, card: CardDefinition,
               amount: BigDecimal, tip: BigDecimal, pin: String?): CardPayloadRequest {
@@ -56,26 +56,20 @@ internal class CardPayloadFactory(private val keys: DukptKeyProvider) {
         val counter = keys.nextCounter() // persist before any encryption or HTTP request
         val index = Dukpt.ksnIndex(counter)
         val track = requireNotNull(keys.load("TRACK")) { "Key TRACK belum terpasang" }
-        val amountKey = requireNotNull(keys.load("AMOUNT")) { "Key AMOUNT belum terpasang" }
         val pinKey = if (pinBlock != null && pinKsn == null) {
             requireNotNull(keys.load("PIN")) { "Key PIN belum terpasang" }
         } else null
         val emvKey = if (iccData != null) requireNotNull(keys.load("EMV")) { "Key EMV belum terpasang" } else null
         try {
             fun ksn(material: TerminalKeyMaterial) = Dukpt.composeKsn(material.ksn, index)
-            fun encryptAmount(value: BigDecimal): String {
-                val digits = value.toBigInteger().toString().padStart(12, '0').padToBlock()
-                return Dukpt.encryptData(digits.toByteArray(Charsets.US_ASCII), ksn(amountKey), amountKey.ipek).toHex()
-            }
             return CardPayloadRequest(
                 keySetVersion = keySetVersion,
                 track2Enc = Dukpt.encryptData(track2.padToBlock().toByteArray(Charsets.US_ASCII),
                     ksn(track), track.ipek).toHex(),
                 track2Len = track2.length,
                 trackKsnIndex = index,
-                baseAmountEnc = encryptAmount(amount),
-                amountKsnIndex = index,
-                tipAmountEnc = tip.takeIf { it.signum() > 0 }?.let(::encryptAmount),
+                baseAmount = amount,
+                tipAmount = tip.takeIf { it.signum() > 0 },
                 pinblockEnc = pinBlock?.let {
                     if (pinKsn != null) it.toHex()
                     else Dukpt.encryptPinBlock(it, ksn(pinKey!!), pinKey.ipek).toHex()
@@ -93,7 +87,7 @@ internal class CardPayloadFactory(private val keys: DukptKeyProvider) {
                 emvKsnIndex = iccData?.let { index },
             )
         } finally {
-            track.zeroize(); amountKey.zeroize(); pinKey?.zeroize(); emvKey?.zeroize()
+            track.zeroize(); pinKey?.zeroize(); emvKey?.zeroize()
         }
     }
 }

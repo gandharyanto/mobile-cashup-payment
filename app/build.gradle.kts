@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     kotlin("android")
@@ -20,12 +22,29 @@ android {
 
     buildFeatures { viewBinding = true }
 
+    // Debug dan release memakai keystore yang sama: ANDROID_ID (nomor seri HP)
+    // dihitung per sertifikat signing, jadi keystore berbeda = serial berbeda.
+    // Tanpa keystore.properties, build jatuh ke debug.keystore bawaan.
+    val keystoreFile = rootProject.file("keystore.properties")
+    val cashupSigning = if (keystoreFile.exists()) {
+        val props = Properties()
+        keystoreFile.inputStream().use { props.load(it) }
+        signingConfigs.create("cashup") {
+            storeFile = rootProject.file(props.getProperty("storeFile"))
+            storePassword = props.getProperty("storePassword")
+            keyAlias = props.getProperty("keyAlias")
+            keyPassword = props.getProperty("keyPassword")
+        }
+    } else null
+
     buildTypes {
         debug {
+            if (cashupSigning != null) signingConfig = cashupSigning
             // Jurnal provisioning hanya diisi di debug; lihat AppContainer.
             buildConfigField("boolean", "PROVISIONING_JOURNAL", "true")
         }
         release {
+            if (cashupSigning != null) signingConfig = cashupSigning
             isMinifyEnabled = false
             buildConfigField("boolean", "PROVISIONING_JOURNAL", "false")
         }
@@ -62,7 +81,7 @@ dependencies {
     implementation(project(":cdcp-core"))
     implementation(project(":device-sdk-edcsdk"))
     implementation(project(":feature-card-payment"))
-    implementation(project(":device-sdk-factory"))
+    implementation(project(":reader-session"))
     implementation(project(":notification-core"))
     implementation(project(":qris-core"))
     implementation(project(":feature-qris"))

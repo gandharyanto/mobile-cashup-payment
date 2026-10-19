@@ -1,5 +1,7 @@
 package com.cashup.cdcp
 
+import java.math.BigDecimal
+
 /** Wire contract of the reference app's POST /v1/cdcp/sales. */
 data class CardPayloadRequest(
     val keySetVersion: Int,
@@ -9,10 +11,9 @@ data class CardPayloadRequest(
     val trackKsnIndex: String? = null,
     val pinblockEnc: String? = null,
     val pinKsnIndex: String? = null,
-    val baseAmountEnc: String,
-    val baseAmountHash: String? = null,
-    val amountKsnIndex: String? = null,
-    val tipAmountEnc: String? = null,
+    /** Nominal dan tip dikirim apa adanya (plain), bukan DUKPT: backend mengambilnya langsung dari body. */
+    val baseAmount: BigDecimal,
+    val tipAmount: BigDecimal? = null,
     val emvReqEnc: String? = null,
     val emvReqLen: Int? = null,
     val emvKsnIndex: String? = null,

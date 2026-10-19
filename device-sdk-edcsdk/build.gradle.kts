@@ -34,13 +34,13 @@ dependencies {
 
     // AAR vendor hasil build edc-sdk. Selalu implementation, tidak pernah api:
     // tipe vendor tidak boleh bocor melewati module ini.
-    implementation(group = "", name = "core-release_1.0.63", ext = "aar")
+    implementation(group = "", name = "core-release_1.0.63-compat", ext = "aar")
     implementation(group = "", name = "logger-release_1.0.2", ext = "aar")
     implementation(group = "", name = "pax-release-core_1.0.63", ext = "aar")
     implementation(group = "", name = "sunmi-release-core_1.0.63", ext = "aar")
     implementation(group = "", name = "centerm-release-core_1.0.63", ext = "aar")
     implementation(group = "", name = "nexgo-release-core_1.0.63", ext = "aar")
-    implementation(group = "", name = "topwize-release-core_1.0.63", ext = "aar")
+    implementation(group = "", name = "topwize-release-core_1.0.63-compat", ext = "aar")
     implementation(group = "", name = "szanfu-release-core_1.0.63", ext = "aar")
 
     testImplementation("junit:junit:4.13.2")

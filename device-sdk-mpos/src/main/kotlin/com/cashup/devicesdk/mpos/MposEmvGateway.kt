@@ -28,6 +28,12 @@ internal interface MposEmvGateway {
     fun start(amountMinorUnits: Long, callback: EmvCallback)
     fun stop()
     fun selectApplet(index: Int)
+
+    /**
+     * Menahan transaksi sampai reader siap menerima kartu. [onPreparing] dipanggil kalau reader
+     * perlu disiapkan lebih dulu. Melempar kalau reader tidak kunjung siap.
+     */
+    suspend fun awaitReady(onPreparing: () -> Unit = {}) = Unit
 }
 
 /** Adapter EMV di atas [DeviceSession] mPOS yang sudah terhubung (lihat [MposCardReader]). */

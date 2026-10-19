@@ -22,6 +22,12 @@ class VendorMposLinkTest {
         context = mockk(relaxed = true),
         connectionManager = mockk<DeviceConnectionManager> { coEvery { scan(Channel.MPOS) } returns listOf(candidate) },
         anfuReader = { reader },
+        savedReaders = object : SavedReaderStore {
+            private var saved: SavedReader? = null
+            override fun get() = saved
+            override fun save(reader: SavedReader) { saved = reader }
+        },
+        prepareReader = { },
     )
 
     @Test

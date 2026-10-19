@@ -4,9 +4,12 @@ import com.cashup.devicesdk.CardTransactionData
 import com.cashup.devicesdk.CardType
 import com.cashup.devicesdk.DukptKeyProvider
 import com.cashup.devicesdk.TerminalKeyMaterial
+import com.google.gson.Gson
+import com.google.gson.JsonObject
 import java.math.BigDecimal
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -36,7 +39,7 @@ class CardPayloadFactoryTest {
             "device-id", 2, card, BigDecimal("10000"), BigDecimal.ZERO,
         )
 
-        assertEquals(listOf("TRACK", "AMOUNT", "PIN", "EMV"), loaded)
+        assertEquals(listOf("TRACK", "PIN", "EMV"), loaded)
         assertNotNull(payload.emvReqEnc)
         assertEquals("00001", payload.emvKsnIndex)
         assertEquals(card.iccData!!.length, payload.emvReqLen)
@@ -77,6 +80,49 @@ class CardPayloadFactoryTest {
 
         assertEquals("0102030405060708", payload.pinblockEnc)
         assertEquals("0000A", payload.pinKsnIndex)
-        assertEquals(listOf("TRACK", "AMOUNT"), loaded)
+        assertEquals(listOf("TRACK"), loaded)
+    }
+
+    private val keys = object : DukptKeyProvider {
+        override fun nextCounter() = 1
+        override fun load(purpose: String) = TerminalKeyMaterial(
+            purpose,
+            ByteArray(16) { 0x11 },
+            byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0x98.toByte(), 0x76, 0x54, 0x32, 0x10, 0xE0.toByte(), 0, 0),
+        )
+    }
+
+    private fun payload(amount: String, tip: String) = CardPayloadFactory(keys).build(
+        "device-id", 2,
+        CardTransactionData(track2 = "4111111111111111D2812101", cardType = CardType.CHIP),
+        BigDecimal(amount), BigDecimal(tip),
+    )
+
+    @Test fun `amount and tip are sent as plain numbers`() {
+        val payload = payload("100000", "5000")
+
+        assertEquals(BigDecimal("100000"), payload.baseAmount)
+        assertEquals(BigDecimal("5000"), payload.tipAmount)
+    }
+
+    @Test fun `a zero tip is left out`() {
+        assertNull(payload("100000", "0").tipAmount)
+    }
+
+    @Test fun `the card object carries plain baseAmount and tipAmount and no encrypted amount`() {
+        val card = Gson().toJsonTree(payload("100000", "5000")).asJsonObject
+
+        assertEquals(100000, card.get("baseAmount").asInt)
+        assertEquals(5000, card.get("tipAmount").asInt)
+        listOf("baseAmountEnc", "tipAmountEnc", "amountKsnIndex", "baseAmountHash").forEach {
+            assertTrue("$it tidak boleh ada", !card.has(it))
+        }
+    }
+
+    @Test fun `the track is still encrypted`() {
+        val card: JsonObject = Gson().toJsonTree(payload("100000", "0")).asJsonObject
+
+        assertTrue(card.get("track2Enc").asString.isNotBlank())
+        assertTrue(!card.has("tipAmount"))
     }
 }

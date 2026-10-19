@@ -8,16 +8,16 @@ import com.cashup.app.BuildConfig
 import com.cashup.cdcp.SaleRepository
 import com.cashup.common.logging.NoOpPaymentLogger
 import com.cashup.common.logging.PaymentLogger
+import com.cashup.devicesdk.SerialNumberProvider
 import com.cashup.devicesdk.edcsdk.EdcSdkScanner
-import com.cashup.devicesdk.edcsdk.EdcSdkSerialNumberProvider
 import com.cashup.devicesdk.edcsdk.EdcSdkTerminalKeyInstaller
 import com.cashup.devicesdk.edcsdk.EdcSdkDukptKeyProvider
-import com.cashup.devicesdk.factory.DeviceSdkFactory
 import com.cashup.devicesdk.CardReader
 import com.cashup.devicesdk.CardTransactionData
 import com.cashup.common.network.ApiResult
 import com.cashup.cdcp.SaleResponse
 import com.cashup.feature.cardpayment.CardPaymentDependencies
+import com.cashup.reader.ReaderSession
 import com.cashup.feature.qris.QrisDependencies
 import com.cashup.notification.MqttNotificationTransport
 import com.cashup.notification.PaymentStatusWaiter
@@ -98,19 +98,11 @@ class AppContainer(context: Context) : CardPaymentDependencies {
 
     val deviceSigner = StoredDeviceSigner(stateStore, ed25519)
 
-    val serialNumbers = EdcSdkSerialNumberProvider(appContext)
+    // SN di-hardcode sementara; provider EDC/ANDROID_ID dikembalikan lewat
+    // FallbackSerialNumberProvider(EdcSdkSerialNumberProvider, AndroidIdSerialNumberProvider).
+    val serialNumbers = SerialNumberProvider { HARDCODED_SERIAL_NUMBER }
 
     val vendorScanner = EdcSdkScanner(appContext)
-
-    /**
-     * Pemilihan CardReader multi-vendor (EDC built-in atau mPOS Bluetooth).
-     * `connect()`-nya suspend dan melakukan I/O nyata -- panggil dari
-     * coroutine scope pemanggil (mis. viewModelScope alur sale), bukan di
-     * sini. Scanner/SerialNumberProvider/TerminalKeyInstaller/DukptKeyProvider
-     * TIDAK lewat sini (spec §5/§8) -- tetap wiring langsung ke
-     * device-sdk-edcsdk seperti di atas.
-     */
-    val deviceSdkFactory = DeviceSdkFactory(appContext)
 
     fun isProvisioned(): Boolean {
         val identity = stateStore.identity() ?: return false
@@ -153,8 +145,14 @@ class AppContainer(context: Context) : CardPaymentDependencies {
         appContext.packageManager.getApplicationInfo(appContext.packageName, 0).enabled
     }.getOrDefault(false)
 
-    override suspend fun cardReader(): CardReader =
-        requireNotNull(deviceSdkFactory.connect().cardReader) { "SDK device tidak menyediakan card reader" }
+    /** Reader untuk T6D (EDC bawaan) dan ANFU (mPOS): satu pintu, dipakai splash dan layar pembayaran. */
+    val readerSession = ReaderSession.create(appContext)
+
+    override suspend fun cardReader(): CardReader = readerSession.cardReader()
+
+    override fun prepareReader() {
+        readerSession.prepareInBackground()
+    }
 
     override suspend fun authorize(
         card: CardTransactionData,
@@ -194,5 +192,6 @@ class AppContainer(context: Context) : CardPaymentDependencies {
 
     private companion object {
         const val KEY_TAG = "CashupKeyStore"
+        const val HARDCODED_SERIAL_NUMBER = "P653200052862"
     }
 }

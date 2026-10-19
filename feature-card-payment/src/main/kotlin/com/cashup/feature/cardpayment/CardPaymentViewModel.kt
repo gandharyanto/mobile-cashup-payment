@@ -121,7 +121,10 @@ class CardPaymentViewModel(private val dependencies: CardPaymentDependencies) : 
                 val devices = selected.pairedDevices()
                 when (devices.size) {
                     0 -> return fail("Reader mPOS tidak ditemukan")
-                    1 -> if (!selected.selectDevice(devices.single().id)) return fail("Reader tidak dapat dihubungkan")
+                    1 -> {
+                        mutableState.value = mutableState.value.copy(message = "Menghubungkan dan menyiapkan reader…")
+                        if (!selected.selectDevice(devices.single().id)) return fail("Reader tidak dapat dihubungkan")
+                    }
                     else -> {
                         mutableState.value = mutableState.value.copy(
                             stage = PaymentStage.SELECT_READER,
@@ -147,6 +150,7 @@ class CardPaymentViewModel(private val dependencies: CardPaymentDependencies) : 
                 override fun onEvent(event: CardTransactionEvent) {
                     val next = when (event) {
                         CardTransactionEvent.Connecting -> PaymentStage.CONNECTING to "Menghubungkan SDK vendor…"
+                        CardTransactionEvent.PreparingReader -> PaymentStage.CONNECTING to "Menyiapkan reader…"
                         CardTransactionEvent.WaitingForCard -> PaymentStage.WAITING_CARD to "Masukkan atau tempel kartu Anda"
                         is CardTransactionEvent.CardDetected -> PaymentStage.WAITING_CARD to "Kartu terbaca. Jangan lepaskan kartu."
                         CardTransactionEvent.PinRequested -> PaymentStage.PIN to "Masukkan PIN pada pinpad"

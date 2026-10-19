@@ -35,7 +35,7 @@ dependencies {
     // AAR vendor dari edc-sdk (Task 1). Selalu implementation, tidak pernah
     // api: tipe com.lib.core.*/com.lib.device.* tidak boleh bocor melewati
     // module ini.
-    implementation(group = "", name = "core-release_1.0.63", ext = "aar")
+    implementation(group = "", name = "core-release_1.0.63-compat", ext = "aar")
     implementation(group = "", name = "logger-release_1.0.2", ext = "aar")
     implementation(group = "", name = "other-release-core_1.0.63", ext = "aar")
     implementation(group = "", name = "newland-mpos-release-core_1.0.63", ext = "aar")

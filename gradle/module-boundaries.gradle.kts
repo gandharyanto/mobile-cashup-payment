@@ -22,17 +22,20 @@ val allowedProjectDeps: Map<String, Set<String>> = mapOf(
     // adapter vendor sekaligus.
     ":device-sdk-factory" to setOf(":device-sdk-api", ":device-sdk-edcsdk", ":device-sdk-mpos"),
 
+    // Orkestrasi reader untuk T6D (EDC bawaan) dan ANFU (mPOS): satu modul, lewat factory -- tidak melihat adapter vendor.
+    ":reader-session" to setOf(":device-sdk-api", ":device-sdk-factory"),
+
     ":provisioning-core" to setOf(":common-core", ":device-sdk-api", ":signing-core"),
     ":cdcp-core" to setOf(":common-core", ":device-sdk-api", ":signing-core"),
     ":qris-core" to setOf(":common-core", ":signing-core", ":notification-core"),
     ":feature-qris" to setOf(":common-core", ":qris-core"),
-    ":feature-card-payment" to setOf(":common-core", ":device-sdk-api", ":cdcp-core"),
+    ":feature-card-payment" to setOf(":common-core", ":device-sdk-api", ":cdcp-core", ":reader-session"),
 
     // Shell -- wiring saja. device-sdk-edcsdk tetap ada di sini untuk
     // TerminalKeyInstaller/DukptKeyProvider/Scanner/SerialNumberProvider, yang
     // TIDAK lewat device-sdk-factory (spec §5/§8 -- di luar scope factory ini).
     ":app" to setOf(
-        ":provisioning-core", ":cdcp-core", ":device-sdk-edcsdk", ":device-sdk-factory",
+        ":provisioning-core", ":cdcp-core", ":device-sdk-edcsdk", ":reader-session",
         ":feature-card-payment", ":notification-core", ":qris-core", ":feature-qris",
     ),
 )

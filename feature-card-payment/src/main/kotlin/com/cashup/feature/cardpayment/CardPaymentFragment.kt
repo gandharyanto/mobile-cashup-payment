@@ -1,5 +1,7 @@
 package com.cashup.feature.cardpayment
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
@@ -11,7 +13,9 @@ import android.text.style.StyleSpan
 import android.view.View
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -21,6 +25,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.cashup.feature.cardpayment.databinding.FragmentCardPaymentBinding
+import com.cashup.reader.BluetoothPermissions
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
@@ -38,6 +43,14 @@ class CardPaymentFragment : Fragment(R.layout.fragment_card_payment) {
     private val calculator = SimpleCalculator()
     private var previousStatusBarColor: Int? = null
     private var previousLightStatusBar: Boolean? = null
+    private var pendingPayment: Pair<String, String>? = null
+
+    // Hasil izin tidak memblokir pembayaran: terminal EDC bawaan tidak butuh
+    // Bluetooth. Kalau reader mPOS dipakai dan izin ditolak, scan kosong dan
+    // alur menampilkan "Reader mPOS tidak ditemukan".
+    private val requestBluetooth = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { startPendingPayment() }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val binding = FragmentCardPaymentBinding.bind(view)
@@ -90,7 +103,9 @@ class CardPaymentFragment : Fragment(R.layout.fragment_card_payment) {
             if (amount <= 0) {
                 Toast.makeText(requireContext(), R.string.card_payment_invalid_amount, Toast.LENGTH_SHORT).show()
             } else {
-                viewModel.start(amount.toString(), "0")
+                pendingPayment = amount.toString() to "0"
+                val missing = missingBluetoothPermissions()
+                if (missing.isEmpty()) startPendingPayment() else requestBluetooth.launch(missing)
             }
         }
         binding.secondaryAction.setOnClickListener {
@@ -122,7 +137,30 @@ class CardPaymentFragment : Fragment(R.layout.fragment_card_payment) {
                 viewModel.state.collect { render(binding, it) }
             }
         }
+
+        // Menyiapkan reader eksternal (connect, key, AID/CAPK) selagi nominal diketik, supaya Bayar tidak menunggu.
+        // Diulang tiap menit: sesi key/AID/CAPK vendor kedaluwarsa 10 menit, dan penyegarannya (puluhan detik) jauh
+        // lebih baik terjadi di sini daripada saat Bayar. Tanpa izin Bluetooth tidak ada yang dilakukan; izin
+        // diminta saat Bayar, bukan di sini.
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                while (true) {
+                    if (viewModel.state.value.stage == PaymentStage.ENTRY && missingBluetoothPermissions().isEmpty()) {
+                        dependencies.prepareReader()
+                    }
+                    delay(READER_REFRESH_MILLIS)
+                }
+            }
+        }
     }
+
+    private fun startPendingPayment() {
+        val (amount, tip) = pendingPayment ?: return
+        pendingPayment = null
+        viewModel.start(amount, tip)
+    }
+
+    private fun missingBluetoothPermissions(): Array<String> = BluetoothPermissions.missing(requireContext())
 
     private fun render(binding: FragmentCardPaymentBinding, state: CardPaymentUiState) {
         val entry = state.stage == PaymentStage.ENTRY
@@ -218,6 +256,10 @@ class CardPaymentFragment : Fragment(R.layout.fragment_card_payment) {
             }
         }
         super.onDestroyView()
+    }
+
+    private companion object {
+        const val READER_REFRESH_MILLIS = 60_000L
     }
 
     private fun BigDecimal.rupiah(): String =

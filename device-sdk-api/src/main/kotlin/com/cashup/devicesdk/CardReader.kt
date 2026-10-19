@@ -25,6 +25,7 @@ data class CardAuthorization(
 
 sealed class CardTransactionEvent {
     data object Connecting : CardTransactionEvent()
+    data object PreparingReader : CardTransactionEvent()
     data object WaitingForCard : CardTransactionEvent()
     data class CardDetected(val cardType: CardType) : CardTransactionEvent()
     data object PinRequested : CardTransactionEvent()

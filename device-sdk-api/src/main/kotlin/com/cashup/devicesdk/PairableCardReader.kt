@@ -11,4 +11,10 @@ data class PairedDeviceInfo(val id: String, val name: String)
 interface PairableCardReader {
     suspend fun pairedDevices(): List<PairedDeviceInfo>
     suspend fun selectDevice(id: String): Boolean
+
+    /**
+     * Device yang diingat dari sesi sebelumnya, tanpa scan Bluetooth, atau null kalau belum ada.
+     * Menyambungkannya tetap lewat [selectDevice] -- dipakai splash untuk menyiapkan reader lebih awal.
+     */
+    suspend fun rememberedDevice(): PairedDeviceInfo? = null
 }

@@ -13,13 +13,24 @@ class EdcSdkDukptKeyProvider(context: Context) : DukptKeyProvider {
     private val vault = DuktpVaultCompat
     private val keyManager by lazy { KeyManager.getInstance(appContext) }
 
-    private fun slot(purpose: String): Int =
-        if (purpose == "PIN" && DeviceManager.systemKey != null) keyManager.keyIndex else vaultSlot(purpose)
+    /** Indeks slot modul aman vendor, atau null kalau tidak ada modul vendor yang aktif. */
+    private fun vendorKeyIndex(): Int? = if (DeviceManager.systemKey != null) keyManager.keyIndex else null
 
     override fun load(purpose: String): TerminalKeyMaterial? {
-        val slot = slot(purpose)
+        for (slot in dukptSlotCandidates(purpose, vendorKeyIndex())) {
+            val material = loadFromSlot(purpose, slot)
+            if (material != null) return material
+        }
+        return null
+    }
+
+    private fun loadFromSlot(purpose: String, slot: Int): TerminalKeyMaterial? {
         val ipek = vault.loadIpekForSet(appContext, slot) ?: return null
-        val ksn = vault.loadKsnForSet(appContext, slot) ?: run { ipek.fill(0); return null }
+        val ksn = vault.loadKsnForSet(appContext, slot)
+        if (ksn == null) {
+            ipek.fill(0)
+            return null
+        }
         return TerminalKeyMaterial(purpose, ipek, ksn)
     }
 
@@ -32,3 +43,15 @@ class EdcSdkDukptKeyProvider(context: Context) : DukptKeyProvider {
         return next.toInt()
     }
 }
+
+/**
+ * Slot yang dicoba untuk [purpose], berurutan. Hanya PIN yang bisa ada di modul vendor; selebihnya selalu vault.
+ *
+ * Modul vendor aktif (`DeviceManager.systemKey != null`) tidak berarti IPEK PIN dipasang ke sana: reader mPOS yang
+ * tersambung setelah provisioning (ANFU) ikut mengisi `systemKey`, sedangkan IPEK PIN hasil provisioning di HP ada di
+ * vault. Karena itu vault selalu menjadi cadangan.
+ */
+internal fun dukptSlotCandidates(purpose: String, vendorKeyIndex: Int?): List<Int> =
+    if (purpose == "PIN" && vendorKeyIndex != null) listOf(vendorKeyIndex, vaultSlot(purpose)).distinct()
+    else listOf(vaultSlot(purpose))
+

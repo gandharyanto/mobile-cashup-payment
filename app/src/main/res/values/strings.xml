@@ -51,4 +51,6 @@
     <string name="device_info_status_provisioned">Terprovisioning</string>
     <string name="device_info_status_not_provisioned">Belum terprovisioning</string>
     <string name="device_info_unknown">-</string>
+    <string name="gate_preparing_reader">Menghubungkan dan menyiapkan reader…</string>
+    <string name="gate_preparing_reader_hint">Mohon tunggu, bisa sampai satu menit. Setelah ini pembayaran langsung siap.</string>
 </resources>

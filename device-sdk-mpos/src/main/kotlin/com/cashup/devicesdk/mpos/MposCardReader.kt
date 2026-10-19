@@ -17,6 +17,8 @@ import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
@@ -39,9 +41,34 @@ class MposCardReader internal constructor(private val link: MposLink) : CardRead
 
     override suspend fun pairedDevices(): List<PairedDeviceInfo> = link.scan()
 
-    override suspend fun selectDevice(id: String): Boolean {
+    // Splash dan layar pembayaran bisa memanggil ini bersamaan; yang kedua menunggu yang pertama
+    // lalu langsung dapat reader yang sudah siap, bukan membuka koneksi kedua.
+    private val selectLock = Mutex()
+
+    override suspend fun rememberedDevice(): PairedDeviceInfo? = link.remembered()
+
+    override suspend fun selectDevice(id: String): Boolean = selectLock.withLock {
+        val current = gateway
+        if (current != null && link.isReady(id)) return@withLock refreshIfStale(current)
         gateway = link.select(id)
-        return gateway != null
+        gateway != null
+    }
+
+    /**
+     * Reader yang masih tersambung bisa punya sesi key/AID/CAPK yang kedaluwarsa (vendor menganggapnya hilang setelah
+     * 10 menit tanpa push, dan `startReadCard` akan mengirim ulang AID/CAPK satu per satu, sekitar 40 detik). Menyegarkannya
+     * di sini, sebelum transaksi dimulai, membuat Bayar tidak perlu menunggu. Dilewati kalau transaksi sedang berjalan.
+     */
+    private suspend fun refreshIfStale(current: MposEmvGateway): Boolean {
+        if (active != null) return true
+        return try {
+            current.awaitReady()
+            true
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (notReady: Exception) {
+            false
+        }
     }
 
     override suspend fun transact(
@@ -54,6 +81,14 @@ class MposCardReader internal constructor(private val link: MposLink) : CardRead
         check(active == null) { "Transaksi kartu lain masih berjalan" }
         completed.set(false)
         authorization = null
+
+        try {
+            gw.awaitReady { listener.onEvent(CardTransactionEvent.PreparingReader) }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (notReady: Exception) {
+            return CardReadResult.Failure(notReady.message ?: "Reader belum siap")
+        }
 
         return try {
             withTimeout(request.timeoutMillis) {
