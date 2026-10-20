@@ -39,7 +39,38 @@ Artefak: `cashup-sdk-device`, `cashup-sdk-payments` (bergantung ke device), dan 
 
 Aturan batas, diperiksa `checkModuleBoundaries` seperti sekarang: modul vendor hanya boleh melihat kontrak `device`; `payments` tidak boleh melihat modul vendor; aplikasi contoh hanya boleh bergantung ke `api`/`device`/`payments`.
 
+## 3a. Arsitektur seragam (Clean Architecture / ports & adapters)
+
+Semua kode, termasuk yang dipindah dari tiga repo, disusun ulang ke satu pola. Hari ini polanya berbeda-beda: `edc-sdk` memakai manager singleton (`DeviceManager`, `SDKManager`), `anfu-bridge` memakai pembungkus tipis, modul payment memakai repository + Retrofit, dan `prepaid-lib` memakai helper per bank. Setelah ini hanya ada satu bentuk.
+
+**Aturan ketergantungan: selalu ke dalam.** `api` → `data` → `domain` → `kernel`. Lapisan dalam tidak pernah mengenal lapisan luar.
+
+| Lapisan | Isi | Boleh bergantung ke | Android / vendor |
+|---|---|---|---|
+| `kernel` | `Result`/`CashupError`, `Money`, `Clock`, port `Logger` | tidak ada | tidak |
+| `<konteks>-domain` | entitas, use case, **port** (interface) | `kernel` | tidak (Kotlin/JVM murni) |
+| `<konteks>-data` | implementasi port: HTTP, MQTT, signing, storage, adapter vendor | `<konteks>-domain`, `kernel` | ya |
+| `api` | fasad publik, DTO publik, pemetaan error | domain semua konteks; merakit data lewat satu composition root | ya |
+| `example-*` | aplikasi contoh | `api` saja | ya |
+
+**Bounded context** (masing-masing punya sepasang `-domain` dan `-data`): `device` (reader, printer, scanner, key installer), `card` (sale CDCP), `qris`, `prepaid`, `provisioning`. Signing dan notification menjadi bagian `data` yang dipakai bersama lewat port di `kernel`/domain konteks terkait, bukan modul yang dilihat banyak konteks.
+
+**Device, bentuk seragam untuk setiap vendor.** Port `CardReader`, `Printer`, `Scanner`, `KeyInstaller`, `DeviceInfo` ada di `device-domain`. Setiap keluarga perangkat punya satu modul `device-adapter-<vendor>` yang mengimplementasikannya, dibangun di atas modul vendor mentah (`vendor-*`) lewat satu bridge setipis `anfu-bridge`. Modul vendor mentah tidak terlihat di luar adapternya. Topwize dan semua vendor lain mengikuti bentuk ini, jadi "Topwize belum sama dengan ANFU" terselesaikan oleh aturan, bukan oleh satu perbaikan.
+
+**Prepaid.** `prepaid-lib` dan `prepaid-core` adalah kode legacy (±134 file, helper per bank). Mereka tidak ditulis ulang di tahap ini. Dibungkus di `prepaid-data` sebagai adapter di belakang port `PrepaidCard` milik `prepaid-domain` (lapisan anti-korupsi): tipe lama tidak bocor ke atas, dan penulisan ulang per bank bisa dilakukan belakangan tanpa mengubah API.
+
+**Konvensi seragam** (diperiksa CI/`checkModuleBoundaries` bila bisa):
+- Penamaan modul `<konteks>-domain`, `<konteks>-data`, `device-adapter-<vendor>`, `vendor-<vendor>`.
+- Operasi I/O adalah `suspend` atau mengembalikan `Flow`; tidak ada callback publik.
+- Port tidak melempar exception: hasil berupa `Result<T, CashupError>`. Exception vendor diterjemahkan di batas adapter.
+- Satu hierarki `CashupError` untuk semua konteks.
+- Perakitan objek manual di satu composition root (`api`); tanpa framework DI di dalam SDK, supaya tidak memaksa partner memakai Hilt/Dagger/Koin.
+- Domain tidak mengimpor `android.*`, `com.lib.*`, `com.anfu.*`, atau library jaringan; aturan ini diperiksa di build.
+
 ## 4. Pemetaan source
+
+Nama modul sasaran di tabel ini mengikuti §3a; sub-modul `payments/` pada pohon §3 menjadi pasangan `<konteks>-domain`/`<konteks>-data`.
+
 
 | Dari | Ke | Catatan |
 |---|---|---|
@@ -68,9 +99,14 @@ sdk.provisioning.status() / activate(...)
 
 Aturan: tidak ada tipe `com.lib.*`, `com.anfu.*`, `com.cz.*` di API; tidak ada `CardTransactionData` mentah; semua gagal sebagai `CashupError` bertipe (bukan exception vendor). `sdk.payments` tidak ada di API bila modul tidak disertakan, bukan error saat runtime.
 
-## 6. Pembagian sumber: device dari `edc-sdk`, payment dari `mobile-cashup-payment`
+## 6. Pembagian sumber: device dari `edc-sdk`, payment dari `mobile-cashup-payment`, prepaid dari `mobile-prepaid-cashlez`
 
-Keputusan: dari `edc-sdk` hanya **modul device** yang dibawa. Semua payment (provisioning, signing, cdcp, qris, notification) datang dari `mobile-cashup-payment`. `cdcp-core`, `qris-core`, `prepaid-core`, `prepaid-lib` dan `common-general` milik `edc-sdk` tidak dibawa dan tidak dibandingkan, jadi tidak ada rekonsiliasi.
+Keputusan:
+- **Device**: dari `edc-sdk`, hanya modul device.
+- **Payment** (provisioning, signing, cdcp, qris, notification): dari `mobile-cashup-payment`. `cdcp-core`, `qris-core` dan `common-general` milik `edc-sdk` tidak dibawa dan tidak dibandingkan.
+- **Prepaid** (`prepaid-lib`, `prepaid-core`): dari `D:\gandha_cashup\projects\mobile-prepaid-cashlez`, bukan dari `edc-sdk`. Yang dibawa hanya dua modul itu (106 + 28 file) plus `pc-command-1.0.jar`; modul vendor dan aplikasi di repo itu (±30 vendor lain, `app*`) tidak dibawa. Prepaid bergantung ke `core` dan `logger`; `logger` identik di kedua repo.
+
+**`core` bercabang dan harus disatukan.** `mobile-prepaid-cashlez/core` dan `edc-sdk/core` memiliki 44 file source yang berbeda: `edc-sdk` punya `SDKManager`, `DukptKsn`, `DuktpVaultCompat`, `KcvUtil`, `device/*`, `CardMethod`, sedangkan versi prepaid punya aset EMV tambahan (`icTags.json`, parameter AID format baru) dan `DeviceManager`/`KeyManager`/`CardData` yang sudah berubah. Keputusan awal: **`core` dari `edc-sdk` menjadi satu-satunya `core`** (alur payment kita sudah memakainya dan teruji di perangkat), dan prepaid dikompilasi terhadapnya. Prepaid memakai `BaseRFCardHelper`, `BaseSamHelper`, `DeviceManager`, `ManagerException`, `Prefs`, `Network` dan fungsi ekstensi util dari `core`; apakah semuanya ada dan kompatibel di `core` `edc-sdk` baru bisa dipastikan saat kompilasi (pengecekan saya lewat nama file tidak meyakinkan untuk fungsi ekstensi). Hal yang hanya ada di `core` versi prepaid dipindahkan ke `core` bersama (bukan dibiarkan dua versi). Ini tahap 3b di §8 dan berisiko, karena perubahan `core` menyentuh semua vendor.
 
 Diperiksa di `build.gradle` `edc-sdk`: semua modul device hanya bergantung satu sama lain (`core`, `logger`, `other`, `emvlib`), tidak ke modul payment atau `common-general`. Jadi pemotongan ini tidak memutus dependensi.
 
@@ -90,7 +126,9 @@ Diperiksa di `build.gradle` `edc-sdk`: semua modul device hanya bergantung satu 
 1. Salin modul `mobile-cashup-payment` (§4) dan jalankan seluruh tes yang ada. Repo lama tidak diubah.
 2. Masukkan source `anfu-bridge` sebagai `sdk/vendor/anfu`; ganti jar dengan modul.
 3. Masukkan modul device `edc-sdk` satu per satu (urutan: `logger`, `core`, `other`, lalu modul vendor); ganti AAR dengan modul.
-4. Buat `topwize-bridge` setipis `anfu-bridge`, samakan perilaku dan daftar periksa §7.5.
+3b. Masukkan `prepaid-lib`/`prepaid-core` dari `mobile-prepaid-cashlez`; satukan `core` (§6) dan kompilasi prepaid terhadapnya. Berhenti dan laporkan bila ada API `core` yang hilang atau berubah arti.
+3c. Susun ulang semua modul ke pola §3a (`-domain`/`-data`/`device-adapter-*`), satu konteks per langkah, tes tetap hijau di tiap langkah. Prepaid dibungkus sebagai adapter di belakang port `PrepaidCard`.
+4. Buat `topwize-bridge` setipis `anfu-bridge`, samakan perilaku dan daftar periksa §7.5; masuk sebagai `device-adapter-topwize`.
 5. Bangun `sdk/api` (fasad, `KeyMode`, `CardCapture`, `PaymentResult`, `CashupError`) di atas modul internal.
 6. `example-endtoend` dan `example-device`; jalankan di perangkat nyata (T6D, ANFU, Topwize).
 7. Setelah Anda setuju: repo lama dirapikan menjadi app tipis yang memakai SDK. Repo lama tidak dihapus oleh saya.
