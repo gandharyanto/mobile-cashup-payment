@@ -50,8 +50,8 @@ Aturan batas, diperiksa `checkModuleBoundaries` seperti sekarang: modul vendor h
 | `feature-card-payment`, `feature-qris` (UI) | `example-endtoend` | UI bukan bagian SDK; menjadi contoh pemakaian |
 | `app` | `example-endtoend` | `AppContainer` menjadi contoh wiring |
 | `anfu-bridge` | `sdk/vendor/anfu` | source menggantikan `anfu-bridge_1.0.0.jar` |
-| `edc-sdk`: `core`, `logger`, `common-general`, modul vendor (`pax`, `sunmi`, `centerm`, `nexgo`, `topwize`, `newland`, `szanfu`, `ingenico`, `other`, `blue-reader`, `*-mpos`, `anfu-mpos`) | `sdk/vendor/*` | source menggantikan AAR hasil build |
-| `edc-sdk`: `app`, `app-edc` | dibuang atau menjadi contoh | aplikasi, bukan library |
+| `edc-sdk`, **hanya modul device**: `core`, `logger`, `other`, `blue-reader`, `pax`, `sunmi`, `centerm`, `nexgo`, `topwize`, `newland`, `szanfu`, `ingenico`, `anfu-mpos`, `newland-mpos`, `pax-mpos`, `topwise-mpos` | `sdk/vendor/*` | source menggantikan AAR hasil build; semuanya dibangun dari project ini |
+| `edc-sdk`, **tidak diambil**: `common-general`, `cdcp-core`, `qris-core`, `prepaid-core`, `prepaid-lib`, `app`, `app-edc` | tetap di `edc-sdk` | seluruh logika payment datang dari `mobile-cashup-payment`; `edc-sdk` tidak dipakai untuk payment |
 
 ## 5. API publik (`sdk/api`)
 
@@ -68,9 +68,13 @@ sdk.provisioning.status() / activate(...)
 
 Aturan: tidak ada tipe `com.lib.*`, `com.anfu.*`, `com.cz.*` di API; tidak ada `CardTransactionData` mentah; semua gagal sebagai `CashupError` bertipe (bukan exception vendor). `sdk.payments` tidak ada di API bila modul tidak disertakan, bukan error saat runtime.
 
-## 6. Bagian yang perlu direkonsiliasi
+## 6. Pembagian sumber: device dari `edc-sdk`, payment dari `mobile-cashup-payment`
 
-`edc-sdk` sudah punya `cdcp-core`, `qris-core`, `prepaid-core`, dan `prepaid-lib` yang tumpang tindih dengan modul repo ini. Aturan awal: **versi dari `mobile-cashup-payment` menjadi acuan** (sudah dipakai di app, punya signing, DUKPT, dan tes). Sebelum membuang versi `edc-sdk`, bandingkan dan pindahkan hal yang hanya ada di sana. `prepaid-*` belum dibahas dengan Anda; tidak dipindah sampai ada keputusan.
+Keputusan: dari `edc-sdk` hanya **modul device** yang dibawa. Semua payment (provisioning, signing, cdcp, qris, notification) datang dari `mobile-cashup-payment`. `cdcp-core`, `qris-core`, `prepaid-core`, `prepaid-lib` dan `common-general` milik `edc-sdk` tidak dibawa dan tidak dibandingkan, jadi tidak ada rekonsiliasi.
+
+Diperiksa di `build.gradle` `edc-sdk`: semua modul device hanya bergantung satu sama lain (`core`, `logger`, `other`, `emvlib`), tidak ke modul payment atau `common-general`. Jadi pemotongan ini tidak memutus dependensi.
+
+**Semua AAR vendor dibangun dari project ini.** Karena modul vendor menjadi modul Gradle di satu build, dependensi antar-modul memakai `project(...)`. Itu juga menghilangkan masalah AGP yang menolak AAR bergantung langsung pada `.aar` lokal. Biner di `aarlib/` yang tersisa hanya yang memang tidak punya source di `edc-sdk`: `emvlib`, `drawDisplay` (dan `kozen`, bila perangkatnya dipakai), yang dipasang sebagai dependensi koordinat (bukan `files()`).
 
 ## 7. Syarat keamanan dan rilis
 
@@ -85,7 +89,7 @@ Aturan: tidak ada tipe `com.lib.*`, `com.anfu.*`, `com.cz.*` di API; tidak ada `
 0. Buat `cashup-payment-sdk` (repo git baru), kerangka Gradle, `checkModuleBoundaries`.
 1. Salin modul `mobile-cashup-payment` (§4) dan jalankan seluruh tes yang ada. Repo lama tidak diubah.
 2. Masukkan source `anfu-bridge` sebagai `sdk/vendor/anfu`; ganti jar dengan modul.
-3. Masukkan modul vendor `edc-sdk` satu per satu; ganti AAR dengan modul; rekonsiliasi duplikat (§6).
+3. Masukkan modul device `edc-sdk` satu per satu (urutan: `logger`, `core`, `other`, lalu modul vendor); ganti AAR dengan modul.
 4. Buat `topwize-bridge` setipis `anfu-bridge`, samakan perilaku dan daftar periksa §7.5.
 5. Bangun `sdk/api` (fasad, `KeyMode`, `CardCapture`, `PaymentResult`, `CashupError`) di atas modul internal.
 6. `example-endtoend` dan `example-device`; jalankan di perangkat nyata (T6D, ANFU, Topwize).
@@ -96,6 +100,6 @@ Aturan: tidak ada tipe `com.lib.*`, `com.anfu.*`, `com.cz.*` di API; tidak ada `
 - **Lisensi.** Boleh tidaknya mendistribusikan ulang kode/biner vendor (PAX, Sunmi, Centerm, Nexgo, Topwize, Newland, Topwise, ANFU, Ingenico) ke partner eksternal. Harus dipastikan dengan tiap vendor sebelum rilis eksternal; tidak mempengaruhi tahap 0-6.
 - **Akses `edc-sdk`.** Repo `edc-sdk` ada di Bitbucket `cashlez-vapn`; saya perlu memastikan boleh disalin, dan sesuai catatan `session`, kunci SSH ke Bitbucket belum jalan di mesin ini (tidak mempengaruhi menyalin dari folder lokal).
 - **Riwayat git.** Default: salin tanpa riwayat, repo lama tetap menyimpannya. Bila riwayat harus ikut, diperlukan `git subtree`/`filter-repo` per modul.
-- **Ukuran.** `edc-sdk` ±190 MB; biner `.aar` lama (`*-debug`, versi 1.0.61-1.0.63) tidak dibawa. Perlu keputusan Git LFS atau tidak.
-- **`prepaid-*`.** Masuk SDK atau tidak.
+- **Ukuran.** Karena hanya modul device yang dibawa dan AAR-nya dibangun dari source, biner lama (`*-debug`, versi 1.0.61-1.0.63) tidak dibawa. Ukuran repo baru tinggal source ditambah beberapa biner tanpa source; Git LFS kemungkinan tidak perlu.
+- **Biner tanpa source.** `emvlib`, `drawDisplay` dan `kozen` tidak punya modul di `edc-sdk`; perlu dipastikan sumbernya (repo mana) dan lisensinya. Modul `other` bergantung ke `emvlib`.
 - **Repositori Gradle.** `edc-sdk` memakai `jcenter()`, `mavenLocal` di path pribadi, dan `jitpack`; di project baru dibersihkan.
