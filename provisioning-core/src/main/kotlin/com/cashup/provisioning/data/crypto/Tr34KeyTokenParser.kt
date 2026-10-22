@@ -8,16 +8,16 @@ import java.security.cert.X509Certificate
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
-import org.bouncycastle.asn1.ASN1InputStream
-import org.bouncycastle.asn1.ASN1OctetString
-import org.bouncycastle.asn1.ASN1Sequence
-import org.bouncycastle.asn1.ASN1Set
-import org.bouncycastle.asn1.ASN1TaggedObject
-import org.bouncycastle.asn1.cms.Attribute
-import org.bouncycastle.asn1.cms.CMSAttributes
-import org.bouncycastle.asn1.cms.ContentInfo
-import org.bouncycastle.asn1.cms.SignedData
-import org.bouncycastle.asn1.cms.SignerInfo
+import com.cashup.shaded.bouncycastle.asn1.ASN1InputStream
+import com.cashup.shaded.bouncycastle.asn1.ASN1OctetString
+import com.cashup.shaded.bouncycastle.asn1.ASN1Sequence
+import com.cashup.shaded.bouncycastle.asn1.ASN1Set
+import com.cashup.shaded.bouncycastle.asn1.ASN1TaggedObject
+import com.cashup.shaded.bouncycastle.asn1.cms.Attribute
+import com.cashup.shaded.bouncycastle.asn1.cms.CMSAttributes
+import com.cashup.shaded.bouncycastle.asn1.cms.ContentInfo
+import com.cashup.shaded.bouncycastle.asn1.cms.SignedData
+import com.cashup.shaded.bouncycastle.asn1.cms.SignerInfo
 
 class Tr34ParsingException(message: String) : Exception(message)
 
@@ -144,7 +144,7 @@ internal object Tr34KeyTokenParser {
     private fun reconstructRawEnvelopedData(sequenceBytes: ByteArray): ByteArray {
         val sequence = ASN1Sequence.getInstance(sequenceBytes)
         return sequence.objects.asSequence()
-            .map { (it as org.bouncycastle.asn1.ASN1Encodable).toASN1Primitive().encoded }
+            .map { (it as com.cashup.shaded.bouncycastle.asn1.ASN1Encodable).toASN1Primitive().encoded }
             .reduce { a, b -> a + b }
     }
 }

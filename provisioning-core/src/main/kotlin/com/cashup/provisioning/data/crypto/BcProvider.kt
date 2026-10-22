@@ -1,6 +1,7 @@
 package com.cashup.provisioning.crypto
 
-import org.bouncycastle.jce.provider.BouncyCastleProvider
+import com.cashup.shaded.bouncycastle.jce.provider.BouncyCastleProvider
+import java.security.Provider
 import java.security.Security
 
 /**
@@ -33,12 +34,38 @@ object BcProvider {
     @Volatile
     private var installed = false
 
+    private const val BKS_PROVIDER_NAME = "CashupBks"
+
+    /**
+     * Provider bawaan "BC" milik Android adalah satu-satunya penyedia KeyStore
+     * `BKS`, jenis default Android. OkHttp (lewat `SSLContext.init`) dan
+     * library TLS lain memintanya, dan gagal dengan
+     * `AssertionError: No System TLS ... BKS not found` kalau hilang. Selama
+     * jeda antara [Security.removeProvider] dan [Security.addProvider], thread
+     * lain bisa menabrak kondisi itu; karena itu BKS didaftarkan lewat provider
+     * terpisah SEBELUM "BC" bawaan dicopot, dan BC pengganti dibuat lebih dulu
+     * supaya jeda itu sependek mungkin.
+     */
+    private class BksProvider : Provider(
+        BKS_PROVIDER_NAME,
+        1.0,
+        "BKS KeyStore kept available while the built-in BC provider is replaced",
+    ) {
+        init {
+            put("KeyStore.BKS", "com.cashup.shaded.bouncycastle.jcajce.provider.keystore.bc.BcKeyStoreSpi\$Std")
+        }
+    }
+
     fun ensureInstalled() {
         if (installed) return
         synchronized(this) {
             if (installed) return
+            val replacement = BouncyCastleProvider()
+            if (Security.getProvider(BKS_PROVIDER_NAME) == null) {
+                Security.addProvider(BksProvider())
+            }
             Security.removeProvider(NAME)
-            Security.addProvider(BouncyCastleProvider())
+            Security.addProvider(replacement)
             installed = true
         }
     }

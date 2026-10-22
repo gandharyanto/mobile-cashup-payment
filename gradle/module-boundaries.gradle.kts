@@ -25,7 +25,9 @@ val allowedProjectDeps: Map<String, Set<String>> = mapOf(
     // Orkestrasi reader untuk T6D (EDC bawaan) dan ANFU (mPOS): satu modul, lewat factory -- tidak melihat adapter vendor.
     ":reader-session" to setOf(":device-sdk-api", ":device-sdk-factory"),
 
-    ":provisioning-core" to setOf(":common-core", ":device-sdk-api", ":signing-core"),
+    // BouncyCastle hasil relokasi; lihat bc-relocated/build.gradle.kts.
+    ":bc-relocated" to emptySet(),
+    ":provisioning-core" to setOf(":common-core", ":device-sdk-api", ":signing-core", ":bc-relocated"),
     ":cdcp-core" to setOf(":common-core", ":device-sdk-api", ":signing-core"),
     ":qris-core" to setOf(":common-core", ":signing-core", ":notification-core"),
     ":feature-qris" to setOf(":common-core", ":qris-core"),

@@ -1,6 +1,7 @@
 package com.cashup.devicesdk.edcsdk
 
 import android.content.Context
+import android.util.Log
 import com.cashup.devicesdk.CardTransactionData
 import com.cashup.devicesdk.CardType
 import com.lib.core.SDKManager
@@ -46,11 +47,14 @@ internal class RealEmvGateway(context: Context) : EmvGateway {
 
             override fun onPinEntry(code: Int) {
                 val cvm = CvmEnum.values().getOrNull(code) ?: CvmEnum.EMV_CVMFLAG_NO_CVM
+                // TEMP diagnostic (PIN pad never opens on TWP device): remove once root cause is known.
+                Log.w(TAG, "onPinEntry code=$code cvm=$cvm skip=${cvm == CvmEnum.EMV_CVMFLAG_NO_CVM || cvm == CvmEnum.EMV_CVMFLAG_SIGNATURE}")
                 if (cvm == CvmEnum.EMV_CVMFLAG_NO_CVM || cvm == CvmEnum.EMV_CVMFLAG_SIGNATURE) {
                     emv.skipPin()
                     return
                 }
                 callback.onPinRequested()
+                Log.w(TAG, "startPinInput begin")
                 emv.startPinInput(
                     PinConfig(
                         isKeyboardDefault = true,
@@ -63,7 +67,10 @@ internal class RealEmvGateway(context: Context) : EmvGateway {
                     object : PinInputListener {
                         override fun onDisplayPin(pin: String) = callback.onPinProgress(pin.length)
                         override fun onSuccess(pinBlock: ByteArray) = Unit
-                        override fun onError(code: Int) = callback.onError(code, "PIN gagal")
+                        override fun onError(code: Int) {
+                            Log.w(TAG, "PinInputListener.onError code=$code")
+                            callback.onError(code, "PIN gagal")
+                        }
                         override fun onTimeout() = callback.onError(PIN_TIMEOUT, "Waktu input PIN habis")
                         override fun onCancel() = callback.onError(PIN_CANCELLED, "Input PIN dibatalkan")
                     },
@@ -141,6 +148,7 @@ internal class RealEmvGateway(context: Context) : EmvGateway {
     }
 
     private companion object {
+        const val TAG = "EmvGateway"
         const val PIN_TIMEOUT = -10_002
         const val PIN_CANCELLED = -10_003
     }

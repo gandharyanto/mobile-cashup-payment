@@ -23,9 +23,9 @@ import javax.crypto.Cipher
 import javax.crypto.spec.OAEPParameterSpec
 import javax.crypto.spec.PSource
 import javax.security.auth.x500.X500Principal
-import org.bouncycastle.asn1.x500.X500Name
-import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder
-import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
+import com.cashup.shaded.bouncycastle.asn1.x500.X500Name
+import com.cashup.shaded.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder
+import com.cashup.shaded.bouncycastle.operator.jcajce.JcaContentSignerBuilder
 
 /** Digest MGF1 yang dipakai backend saat membungkus paket key. */
 enum class Mgf1Digest { SHA1, SHA256 }

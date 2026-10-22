@@ -39,6 +39,7 @@ android {
 
     buildTypes {
         debug {
+            applicationIdSuffix = ".dev"
             if (cashupSigning != null) signingConfig = cashupSigning
             // Jurnal provisioning hanya diisi di debug; lihat AppContainer.
             buildConfigField("boolean", "PROVISIONING_JOURNAL", "true")
