@@ -6,6 +6,7 @@ import com.cashup.devicesdk.KeyInstallOutcome
 import com.cashup.devicesdk.TerminalKeyInstallResult
 import com.cashup.devicesdk.TerminalKeyInstaller
 import com.cashup.devicesdk.TerminalKeyMaterial
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -39,7 +40,24 @@ class EdcSdkTerminalKeyInstaller internal constructor(
     override suspend fun install(
         materials: List<TerminalKeyMaterial>,
     ): TerminalKeyInstallResult = withContext(Dispatchers.IO) {
-        val vendorAvailable = gateway.hasVendorModule()
+        // Deteksi dulu, tulis kemudian. Kalau hardware vendor ada tapi modulnya tidak
+        // terjangkau, gagal di sini sebelum ada key yang tersentuh; jatuh ke vault
+        // akan melaporkan sukses padahal PED tidak pernah punya KSN.
+        val vendorState = try {
+            gateway.detectVendorModule()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Pesan exception vendor tidak diteruskan ke pengguna (ARC-05).
+            VendorModuleState.UNREACHABLE
+        }
+        if (vendorState == VendorModuleState.UNREACHABLE) {
+            return@withContext TerminalKeyInstallResult.Failed(
+                purpose = vendorSlotPurpose,
+                reason = "modul aman vendor tidak terjangkau",
+            )
+        }
+        val vendorAvailable = vendorState == VendorModuleState.READY
         val outcomes = mutableListOf<KeyInstallOutcome>()
 
         for (material in materials) {

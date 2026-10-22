@@ -4,7 +4,13 @@ import android.content.Context
 import android.os.Build
 import com.lib.core.DeviceManager
 import com.lib.core.KeyManager
+import com.lib.core.SDKManager
 import java.io.File
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Batas tipis di atas `KeyManager` milik `edc-sdk`, ada semata supaya logika
@@ -23,7 +29,13 @@ import java.io.File
  * Lihat spec §4.3.
  */
 internal interface KeyManagerGateway {
-    fun hasVendorModule(): Boolean
+    /**
+     * Mendeteksi modul aman vendor, dan menjalankan deteksi device sendiri kalau
+     * belum pernah jalan di proses ini. `DeviceManager.systemKey` baru terisi
+     * setelah `SDKManager.autoDetectDevice`; membacanya sebelum itu selalu null
+     * dan dulu membuat IPEK PIN diam-diam jatuh ke vault saja.
+     */
+    suspend fun detectVendorModule(): VendorModuleState
     fun writeToVendorModule(ipek: ByteArray, ksn: ByteArray): Boolean
     fun writeToVaultSlot(slot: Int, ipek: ByteArray, ksn: ByteArray): Boolean
 
@@ -40,12 +52,44 @@ internal interface KeyManagerGateway {
     fun clearAll()
 }
 
+/** Hasil [KeyManagerGateway.detectVendorModule]. */
+internal enum class VendorModuleState {
+    /** Tidak ada hardware vendor yang cocok; key memang hanya bisa masuk vault. */
+    ABSENT,
+
+    /** Hardware vendor terdeteksi dan modul amannya bisa ditulis. */
+    READY,
+
+    /** Hardware vendor terdeteksi (atau deteksi tidak selesai), tapi modul amannya tidak bisa dijangkau. */
+    UNREACHABLE,
+}
+
 internal class RealKeyManagerGateway(context: Context) : KeyManagerGateway {
 
     private val appContext = context.applicationContext
     private val keyManager by lazy { KeyManager.getInstance(appContext) }
 
-    override fun hasVendorModule(): Boolean = DeviceManager.systemKey != null
+    private val detectLock = Mutex()
+    private var ready = false
+
+    // Diserialkan dan hasil READY disimpan: `autoDetectDevice` tidak dijamin aman
+    // dipanggil bersamaan, dan percobaan ulang operator setelah timeout tidak boleh
+    // menumpuk deteksi baru di atas yang masih berjalan.
+    override suspend fun detectVendorModule(): VendorModuleState = detectLock.withLock {
+        if (ready && DeviceManager.systemKey != null) return@withLock VendorModuleState.READY
+        val connected = withTimeoutOrNull(DETECT_TIMEOUT_MS) {
+            suspendCancellableCoroutine<Boolean> { continuation ->
+                SDKManager.autoDetectDevice(appContext) { ok ->
+                    if (continuation.isActive) continuation.resume(ok)
+                }
+            }
+        } ?: return@withLock VendorModuleState.UNREACHABLE
+        when {
+            !connected -> VendorModuleState.ABSENT
+            DeviceManager.systemKey != null -> VendorModuleState.READY.also { ready = true }
+            else -> VendorModuleState.UNREACHABLE
+        }
+    }
 
     override fun writeToVendorModule(ipek: ByteArray, ksn: ByteArray): Boolean =
         keyManager.writeIPEK(ipek, ksn)
@@ -87,5 +131,6 @@ internal class RealKeyManagerGateway(context: Context) : KeyManagerGateway {
 
     private companion object {
         val VAULT_PREFS = listOf("duktp.vault", "KeyManager")
+        const val DETECT_TIMEOUT_MS = 10_000L
     }
 }

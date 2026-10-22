@@ -2,6 +2,7 @@ package com.cashup.provisioning.domain
 
 import android.util.Base64
 import com.cashup.common.network.ApiResult
+import com.cashup.devicesdk.KeyBacking
 import com.cashup.devicesdk.TerminalKeyInstallResult
 import com.cashup.devicesdk.TerminalKeyInstaller
 import com.cashup.devicesdk.SerialNumberProvider
@@ -131,6 +132,16 @@ class ProvisionDeviceUseCase(
             }
             installed as TerminalKeyInstallResult.Installed
 
+            // Online PIN hanya bisa jalan kalau IPEK PIN ada di modul aman vendor (PED
+            // yang memberi KSN dan mengenkripsi PIN, SEC-PCI-04). Backing lain berarti
+            // PIN akan gagal di terminal; tolak sebelum aktivasi supaya backend tidak
+            // mencatat key set aktif yang tidak bisa dipakai.
+            val pinBacking = installed.outcomes.singleOrNull { it.purpose == PIN_PURPOSE }?.backing
+            if (pinBacking != KeyBacking.VENDOR_SECURE_MODULE) {
+                rollbackDukpt()
+                return fail(KEY_INSTALL_FAILED, "Key PIN tidak masuk ke modul aman perangkat")
+            }
+
             val proof = "$orderId:$expectedVersion:${encrypted.activationChallenge}".toByteArray(Charsets.UTF_8)
             val signature = Base64.encodeToString(keys.signActivation(proof), Base64.NO_WRAP)
             advance(ProvisioningStep.ACTIVATE)
@@ -172,6 +183,7 @@ class ProvisionDeviceUseCase(
         const val CHALLENGE_EMPTY = "CHALLENGE_EMPTY"
         const val PACKAGE_INVALID = "PACKAGE_INVALID"
         const val KEY_INSTALL_FAILED = "KEY_INSTALL_FAILED"
+        private const val PIN_PURPOSE = "PIN"
         const val PROTOCOL_VIOLATION = "PROTOCOL_VIOLATION"
         const val UNEXPECTED_ERROR = "UNEXPECTED_ERROR"
     }
