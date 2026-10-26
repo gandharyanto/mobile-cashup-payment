@@ -17,6 +17,31 @@ dependencyResolutionManagement {
         // menolak dependensi berkas .aar lokal di dalam project yang sendirinya
         // membangun AAR.
         flatDir { dirs("$rootDir/aarlib") }
+
+        // Maven privat CashUp, hanya dipasang saat cashup.sdk.source=maven.
+        // URL dan kredensial dari Gradle properties atau environment, bukan dari repo.
+        if (providers.gradleProperty("cashup.sdk.source").orNull == "maven") {
+            val mavenUrl = providers.gradleProperty("CASHUP_MAVEN_URL").orElse(providers.environmentVariable("CASHUP_MAVEN_URL"))
+            val mavenUser = providers.gradleProperty("CASHUP_MAVEN_USERNAME").orElse(providers.environmentVariable("CASHUP_MAVEN_USERNAME"))
+            val mavenToken = providers.gradleProperty("CASHUP_MAVEN_TOKEN").orElse(providers.environmentVariable("CASHUP_MAVEN_TOKEN"))
+            // Hanya group yang dibutuhkan module vendor device; selain itu tidak boleh dari JitPack.
+            maven("https://jitpack.io") {
+                content {
+                    includeGroup("com.github.hannesa2")
+                    includeGroup("com.github.yuriy-budiyev")
+                    includeGroup("com.github.AppDevNext.Logcat")
+                    includeGroup("com.github.felHR85")
+                }
+            }
+            maven {
+                name = "CashUpPrivate"
+                url = uri(mavenUrl.orNull ?: "https://pkg.cashup.id/repositories/cashup/cashup-sdk")
+                credentials {
+                    username = mavenUser.orNull
+                    password = mavenToken.orNull
+                }
+            }
+        }
     }
 }
 rootProject.name = "mobile-cashup-payment"
