@@ -77,37 +77,24 @@ android {
     }
 }
 
-// Sumber SDK CashUp: "local" = module project repo ini, "maven" = Maven privat.
-// Group id artifact = nama artifact; device-sdk memuat ReaderSession dan mPOS.
-val sdkSource = providers.gradleProperty("cashup.sdk.source").orElse("local").get()
-require(sdkSource == "local" || sdkSource == "maven") {
-    "cashup.sdk.source must be 'local' or 'maven', was '$sdkSource'"
-}
+// SDK CashUp datang dari Maven privat (lihat settings.gradle.kts). Group id = nama artifact;
+// device-sdk memuat ReaderSession dan mPOS.
 val sdkVersion = providers.gradleProperty("cashup.sdk.version").orElse("0.1.0").get()
 val emvlibVersion = providers.gradleProperty("cashup.sdk.emvlibVersion").orElse("1.0.2").get()
 
-// Nama module lokal -> nama artifact Maven.
-val cashupSdkModules = mapOf(
-    "provisioning-core" to "provisioning-core",
-    "cdcp-core" to "cdcp-core",
-    "device-sdk-edcsdk" to "device-sdk-edc",
-    "feature-card-payment" to "feature-card-payment",
-    "reader-session" to "device-sdk",
-    "notification-core" to "notification-core",
-    "qris-core" to "qris-core",
-    "feature-qris" to "feature-qris",
-)
-
 dependencies {
-    cashupSdkModules.forEach { (module, artifact) ->
-        if (sdkSource == "maven") {
-            implementation("$artifact:$artifact:$sdkVersion")
-        } else {
-            implementation(project(":$module"))
-        }
-    }
+    listOf(
+        "provisioning-core",
+        "cdcp-core",
+        "device-sdk-edc",
+        "feature-card-payment",
+        "device-sdk",
+        "notification-core",
+        "qris-core",
+        "feature-qris",
+    ).forEach { artifact -> implementation("$artifact:$artifact:$sdkVersion") }
     // Biner EMV vendor tanpa source; tidak ada di POM module mana pun, jadi app wajib mendeklarasikan.
-    if (sdkSource == "maven") implementation("com.lib.emv:emvlib-aar:$emvlibVersion")
+    implementation("com.lib.emv:emvlib-aar:$emvlibVersion")
 
     implementation("androidx.core:core-ktx:1.10.1")
     implementation("androidx.appcompat:appcompat:1.6.1")
