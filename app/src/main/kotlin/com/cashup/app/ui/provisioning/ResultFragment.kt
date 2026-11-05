@@ -22,6 +22,7 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
 
         when (val state = viewModel.state.value) {
             is ProvisioningUiState.Success -> {
+                binding.statusIcon.setImageResource(R.drawable.ic_status_success)
                 binding.title.setText(if (state.identityOnly) R.string.result_identity_refreshed else R.string.result_success_title)
                 binding.detail.text = buildString {
                     append(getString(R.string.result_serial, state.serialNumber))
@@ -45,6 +46,7 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
             }
 
             is ProvisioningUiState.Failure -> {
+                binding.statusIcon.setImageResource(R.drawable.ic_status_error)
                 binding.title.setText(R.string.result_failure_title)
                 val hint = hintFor(state.code)
                 binding.detail.text = if (hint != 0) buildString {

@@ -10,3 +10,4 @@ aarlib/*.aar
 .kotlin/
 keystore/
 keystore.properties
+config.properties

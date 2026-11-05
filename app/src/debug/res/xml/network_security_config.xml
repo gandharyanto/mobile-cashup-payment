@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  Debug builds only: cleartext allowed for the development hosts on the Tailnet / office LAN.
+  Keep in step with CLEARTEXT_HOSTS in app/build.gradle.kts. Production backends must be HTTPS.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.90.46</domain>
+        <domain includeSubdomains="false">100.114.27.64</domain>
+        <domain includeSubdomains="false">avatar.bakso.site</domain>
+        <domain includeSubdomains="false">czavatar.staging.cashlez.com</domain>
+    </domain-config>
+</network-security-config>

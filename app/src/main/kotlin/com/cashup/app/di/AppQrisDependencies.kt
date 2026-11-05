@@ -1,15 +1,15 @@
 package com.cashup.app.di
 
 import android.util.Log
-import com.cashup.common.network.ApiResult
 import com.cashup.feature.qris.QrisDependencies
+import com.cashup.kernel.CashupResult
+import com.cashup.kernel.Money
 import com.cashup.notification.PaymentNotificationTransport
-import com.cashup.qris.GeneratedQr
-import com.cashup.qris.PayApp
-import com.cashup.qris.QrisGateway
-import com.cashup.qris.QrisPaymentResult
-import com.cashup.qris.QrisPaymentTracker
-import java.math.BigDecimal
+import com.cashup.qris.domain.GeneratedQr
+import com.cashup.qris.domain.PayApp
+import com.cashup.qris.domain.QrisGateway
+import com.cashup.qris.domain.QrisPaymentResult
+import com.cashup.qris.domain.QrisPaymentTracker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +45,7 @@ class AppQrisDependencies(
                     throw e
                 } catch (e: Exception) {
                     // Push hanyalah percepatan; tanpa MQTT tracker tetap jalan lewat polling 3 dtk.
-                    Log.w(TAG, "MQTT connect gagal, memakai polling: ${e.message}")
+                    Log.w(TAG, "MQTT connect gagal, memakai polling: ${e.javaClass.simpleName}")
                 }
             }
         }
@@ -53,9 +53,9 @@ class AppQrisDependencies(
 
     private val connectLock = Mutex()
 
-    override suspend fun payApps(): ApiResult<List<PayApp>> = gateway.payApps()
+    override suspend fun payApps(): CashupResult<List<PayApp>> = gateway.payApps()
 
-    override suspend fun generate(qrisHostId: Int, amount: BigDecimal, attemptId: String): ApiResult<GeneratedQr> =
+    override suspend fun generate(qrisHostId: Int, amount: Money, attemptId: String): CashupResult<GeneratedQr> =
         gateway.generate(qrisHostId, amount, attemptId)
 
     override suspend fun track(qr: GeneratedQr, expirySeconds: Int): QrisPaymentResult =

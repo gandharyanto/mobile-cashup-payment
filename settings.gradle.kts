@@ -54,18 +54,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "mobile-cashup-payment"
 
-include(":common-core")
-include(":device-sdk-api")
-include(":signing-core")
-include(":device-sdk-edcsdk")
-include(":device-sdk-mpos")
-include(":device-sdk-factory")
-include(":reader-session")
-include(":bc-relocated")
-include(":provisioning-core")
-include(":cdcp-core")
-include(":feature-card-payment")
-include(":notification-core")
-include(":qris-core")
-include(":feature-qris")
 include(":app")

@@ -1,7 +1,7 @@
 package com.cashup.app.ui.provisioning
 
-import com.cashup.devicesdk.KeyBacking
-import com.cashup.devicesdk.KeyInstallOutcome
+import com.cashup.provisioning.domain.KeyBacking
+import com.cashup.provisioning.domain.InstalledKey
 import com.cashup.provisioning.domain.ProvisioningStep
 import com.cashup.provisioning.domain.ProvisioningOutcome
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +31,7 @@ class ProvisioningViewModelTest {
     private fun successOutcome() = ProvisioningOutcome.Success(
         serialNumber = "PAX-A920-0012938",
         orderId = "o-1",
-        installed = listOf(KeyInstallOutcome("PIN", KeyBacking.VENDOR_SECURE_MODULE)),
+        installed = listOf(InstalledKey("PIN", KeyBacking.VENDOR_SECURE_MODULE)),
         journalText = "OK REDEEM",
     )
 

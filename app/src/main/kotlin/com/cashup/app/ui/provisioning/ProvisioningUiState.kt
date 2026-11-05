@@ -1,6 +1,6 @@
 package com.cashup.app.ui.provisioning
 
-import com.cashup.devicesdk.KeyInstallOutcome
+import com.cashup.provisioning.domain.InstalledKey
 import com.cashup.provisioning.domain.ProvisioningStep
 
 /**
@@ -30,7 +30,7 @@ sealed interface ProvisioningUiState {
     data class Success(
         val serialNumber: String,
         val orderId: String,
-        val installed: List<KeyInstallOutcome>,
+        val installed: List<InstalledKey>,
         val journalText: String,
         val identityOnly: Boolean = false,
     ) : ProvisioningUiState

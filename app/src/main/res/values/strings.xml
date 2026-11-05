@@ -5,6 +5,11 @@
     <string name="home_environment">UAT</string>
     <string name="app_name">Cashup Payment</string>
 
+    <string name="provisioning_header_title">Aktivasi Perangkat</string>
+    <string name="provisioning_header_subtitle">Provisioning key dan identitas terminal</string>
+    <string name="scan_dev_tools_label">Alat uji tanda tangan</string>
+    <string name="scan_dev_message_hint">Pesan untuk signature Ed25519</string>
+    <string name="scan_dev_sign_action">Sign Ed25519</string>
     <string name="scan_title">Pindai QR Provisioning</string>
     <string name="serial_loading">Serial number: memuat…</string>
     <string name="serial_value">Serial number: %1$s</string>

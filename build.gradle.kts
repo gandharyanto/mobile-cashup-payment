@@ -9,5 +9,3 @@ allprojects {
     group = "com.cashup"
     version = "0.1.0"
 }
-
-apply(from = "gradle/module-boundaries.gradle.kts")

@@ -1,15 +1,17 @@
 package com.cashup.app.di
 
-import com.cashup.common.network.ApiResult
+import com.cashup.kernel.CashupResult
+import com.cashup.kernel.Money
 import com.cashup.notification.PaymentNotificationTransport
 import com.cashup.notification.PaymentStatusWaiter
 import com.cashup.notification.RawNotification
-import com.cashup.qris.GeneratedQr
-import com.cashup.qris.PayApp
-import com.cashup.qris.QrisGateway
-import com.cashup.qris.QrisPaymentResult
-import com.cashup.qris.QrisPaymentTracker
-import java.math.BigDecimal
+import com.cashup.qris.data.GsonPushParser
+import com.cashup.qris.data.NotificationQrisSignalSource
+import com.cashup.qris.domain.GeneratedQr
+import com.cashup.qris.domain.PayApp
+import com.cashup.qris.domain.QrisGateway
+import com.cashup.qris.domain.QrisPaymentResult
+import com.cashup.qris.domain.QrisPaymentTracker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
@@ -33,15 +35,15 @@ class AppQrisDependenciesTest {
     }
 
     private object NoopGateway : QrisGateway {
-        override suspend fun payApps(): ApiResult<List<PayApp>> = ApiResult.Success(emptyList())
-        override suspend fun generate(qrisHostId: Int, amount: BigDecimal, attemptId: String): ApiResult<GeneratedQr> = error("unused")
-        override suspend fun inquiry(transactionId: String): ApiResult<QrisPaymentResult> = error("unused")
+        override suspend fun payApps(): CashupResult<List<PayApp>> = CashupResult.Success(emptyList())
+        override suspend fun generate(qrisHostId: Int, amount: Money, attemptId: String): CashupResult<GeneratedQr> = error("unused")
+        override suspend fun inquiry(transactionId: String): CashupResult<QrisPaymentResult> = error("unused")
     }
 
     private fun deps(transport: FakeTransport, deviceId: String? = "dev-1", allowed: Boolean = true) =
         AppQrisDependencies(
             gateway = NoopGateway,
-            tracker = QrisPaymentTracker(NoopGateway, PaymentStatusWaiter(transport), transport),
+            tracker = QrisPaymentTracker(NoopGateway, NotificationQrisSignalSource(PaymentStatusWaiter(transport), transport), GsonPushParser()),
             transport = transport,
             deviceId = { deviceId },
             transactionAllowed = { allowed },
@@ -82,7 +84,7 @@ class AppQrisDependenciesTest {
         val transport = SlowTransport()
         val deps = AppQrisDependencies(
             gateway = NoopGateway,
-            tracker = QrisPaymentTracker(NoopGateway, PaymentStatusWaiter(FakeTransport()), FakeTransport()),
+            tracker = QrisPaymentTracker(NoopGateway, NotificationQrisSignalSource(PaymentStatusWaiter(FakeTransport()), FakeTransport()), GsonPushParser()),
             transport = transport,
             deviceId = { "dev-1" },
             transactionAllowed = { true },
@@ -106,7 +108,7 @@ class AppQrisDependenciesTest {
         }
         val deps = AppQrisDependencies(
             gateway = NoopGateway,
-            tracker = QrisPaymentTracker(NoopGateway, PaymentStatusWaiter(FakeTransport()), FakeTransport()),
+            tracker = QrisPaymentTracker(NoopGateway, NotificationQrisSignalSource(PaymentStatusWaiter(FakeTransport()), FakeTransport()), GsonPushParser()),
             transport = transport,
             deviceId = { "dev-1" },
             transactionAllowed = { true },

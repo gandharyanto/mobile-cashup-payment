@@ -1,0 +1,4 @@
+# Copy to config.properties (git-ignored) and fill in. Debug builds only.
+# Use LAB TEST keys only (hex, 16 or 24 bytes). Never put production keys here.
+newland.kek=
+newland.dataEncryptKey=

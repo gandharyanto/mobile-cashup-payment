@@ -23,4 +23,8 @@
 
     <!-- Header -->
     <dimen name="home_header_min_height">64dp</dimen>
+
+    <!-- Provisioning cards -->
+    <dimen name="card_corner_radius">12dp</dimen>
+    <dimen name="screen_padding">16dp</dimen>
 </resources>

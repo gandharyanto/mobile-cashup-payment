@@ -7,7 +7,7 @@ import com.cashup.feature.cardpayment.CardPaymentDependenciesOwner
 import com.cashup.feature.qris.QrisDependencies
 import com.cashup.feature.qris.QrisDependenciesOwner
 
-class CashupApp : Application(), CardPaymentDependenciesOwner, QrisDependenciesOwner {
+open class CashupApp : Application(), CardPaymentDependenciesOwner, QrisDependenciesOwner {
     lateinit var container: AppContainer
         private set
 

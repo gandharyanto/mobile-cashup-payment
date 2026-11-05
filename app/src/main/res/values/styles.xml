@@ -12,6 +12,40 @@
         <item name="android:includeFontPadding">false</item>
     </style>
 
+    <style name="Cashup.Title" parent="">
+        <item name="android:textSize">18sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:fontFamily">@font/instrument_sans_semibold</item>
+    </style>
+
+    <style name="Cashup.Body" parent="">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:fontFamily">@font/instrument_sans_regular</item>
+    </style>
+
+    <style name="Cashup.Label" parent="">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:fontFamily">@font/instrument_sans_semibold</item>
+    </style>
+
+    <style name="Cashup.Card" parent="">
+        <item name="android:background">@drawable/bg_card</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:padding">16dp</item>
+    </style>
+
+    <style name="Cashup.Button" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/brand_primary</item>
+        <item name="android:textColor">@color/light_100</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/instrument_sans_semibold</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minHeight">50dp</item>
+        <item name="cornerRadius">@dimen/mode_selector_corner_radius</item>
+    </style>
+
     <style name="TopRoundedCard" parent="">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSizeTopLeft">16dp</item>
