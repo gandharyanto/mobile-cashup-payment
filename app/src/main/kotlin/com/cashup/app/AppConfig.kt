@@ -18,10 +18,9 @@ class AppConfig(context: Context) {
         set(value) = prefs.edit().putString(KEY_BASE_URL, value.trimEnd('/')).apply()
 
     /**
-     * Host/port broker MQTT payment-status. Plain TCP, tanpa TLS, port 1883 --
-     * keputusan eksplisit user (bukan port 8883/TLS yang direkomendasikan
-     * dokumen konektivitas broker dev), lihat
-     * docs/superpowers/specs/2026-09-28-notification-core-mqtt-design.md §1.
+     * Host/port broker MQTT payment-status (staging). TLS (`mqtts`) di port 41883; sertifikat
+     * server ditandatangani CA privat yang dibundel di res/raw/mqtt_ca.crt.
+     * Spec awal (plain TCP 1883): docs/superpowers/specs/2026-09-28-notification-core-mqtt-design.md §1.
      */
     var mqttHost: String
         get() = prefs.getString(KEY_MQTT_HOST, DEFAULT_MQTT_HOST) ?: DEFAULT_MQTT_HOST
@@ -38,8 +37,7 @@ class AppConfig(context: Context) {
 
         const val KEY_MQTT_HOST = "mqtt_host"
         const val KEY_MQTT_PORT = "mqtt_port"
-        const val DEFAULT_MQTT_HOST = "192.168.90.46" // office LAN
-//        const val DEFAULT_MQTT_HOST = "100.114.27.64" // tailscale
-        const val DEFAULT_MQTT_PORT = 1883
+        const val DEFAULT_MQTT_HOST = "message-broker-stagdrc.cashlez.com"
+        const val DEFAULT_MQTT_PORT = 41883
     }
 }

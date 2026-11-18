@@ -5,6 +5,7 @@ import android.util.Log
 import android.util.Base64
 import com.cashup.app.AppConfig
 import com.cashup.app.BuildConfig
+import com.cashup.app.R
 import com.cashup.cdcp.data.SaleRepository
 import com.cashup.cdcp.data.toSaleCard
 import com.cashup.cdcp.domain.SaleOutcome
@@ -26,6 +27,7 @@ import com.cashup.reader.ReaderSession
 import com.cashup.feature.qris.QrisDependencies
 import com.cashup.notification.MqttNotificationTransport
 import com.cashup.notification.PaymentStatusWaiter
+import com.cashup.notification.TlsTrust
 import com.cashup.qris.data.GsonPushParser
 import com.cashup.qris.data.NotificationQrisSignalSource
 import com.cashup.qris.data.QrisRepository
@@ -145,7 +147,9 @@ class AppContainer(context: Context) : CardPaymentDependencies {
         val gateway = QrisRepository.create(
             config.baseUrl, deviceSigner, debugLogging = BuildConfig.DEBUG, transport = transportPolicy,
         )
-        val transport = MqttNotificationTransport(config.mqttHost, config.mqttPort)
+        // Broker staging memakai sertifikat CA privat (mkcert); dipercaya hanya untuk soket MQTT ini.
+        val mqttTls = appContext.resources.openRawResource(R.raw.mqtt_ca).use { TlsTrust.socketFactoryFor(it) }
+        val transport = MqttNotificationTransport(config.mqttHost, config.mqttPort, mqttTls)
         AppQrisDependencies(
             gateway = gateway,
             tracker = QrisPaymentTracker(
