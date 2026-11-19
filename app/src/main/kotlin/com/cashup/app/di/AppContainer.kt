@@ -112,10 +112,15 @@ class AppContainer(context: Context) : CardPaymentDependencies {
     val deviceSigner = StoredDeviceSigner(stateStore, ed25519)
 
     // EDC terminal: serial hardware dari SDK vendor. HP biasa (tidak ada SDK vendor): ANDROID_ID.
-    val serialNumbers: SerialNumberProvider = FallbackSerialNumberProvider(
-        primary = EdcSdkSerialNumberProvider(appContext),
-        fallback = AndroidIdSerialNumberProvider(appContext),
-    )
+    // TEMP (debug builds only): serial dipaksa ke unit uji. BuildConfig.DEBUG menjamin release tetap memakai serial hardware.
+    val serialNumbers: SerialNumberProvider = if (BuildConfig.DEBUG) {
+        SerialNumberProvider { DEBUG_SERIAL_OVERRIDE }
+    } else {
+        FallbackSerialNumberProvider(
+            primary = EdcSdkSerialNumberProvider(appContext),
+            fallback = AndroidIdSerialNumberProvider(appContext),
+        )
+    }
 
     val vendorScanner = EdcSdkScanner(appContext)
 
@@ -240,5 +245,6 @@ class AppContainer(context: Context) : CardPaymentDependencies {
 
     private companion object {
         const val KEY_TAG = "CashupKeyStore"
+        const val DEBUG_SERIAL_OVERRIDE = "P653200052395"
     }
 }

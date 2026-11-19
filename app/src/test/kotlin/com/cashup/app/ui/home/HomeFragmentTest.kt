@@ -18,4 +18,13 @@ class HomeFragmentTest {
         assertEquals(true, simpleSelected)
         assertEquals(false, posSelected)
     }
+
+    @Test
+    fun `mode selector shows only on the transaction destination`() {
+        assertEquals(true, showsModeSelector(com.cashup.app.R.id.nav_home))
+        assertEquals(false, showsModeSelector(com.cashup.app.R.id.nav_history))
+        assertEquals(false, showsModeSelector(com.cashup.app.R.id.nav_features))
+        assertEquals(false, showsModeSelector(com.cashup.app.R.id.nav_merchant_info))
+        assertEquals(false, showsModeSelector(com.cashup.app.R.id.nav_qris))
+    }
 }
