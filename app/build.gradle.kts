@@ -177,7 +177,11 @@ dependencies {
         "notification-core",
         "qris-core",
         "feature-qris",
-    ).forEach { artifact -> implementation("$artifact:$artifact:$sdkVersion") }
+    ).forEach { artifact ->
+        // Per-artifact override (cashup.sdk.version.<artifact>) so one SDK module can move alone.
+        val version = providers.gradleProperty("cashup.sdk.version.$artifact").orElse(sdkVersion).get()
+        implementation("$artifact:$artifact:$version")
+    }
     // Biner EMV vendor tanpa source; tidak ada di POM module mana pun, jadi app wajib mendeklarasikan.
     implementation("com.lib.emv:emvlib-aar:$emvlibVersion")
 

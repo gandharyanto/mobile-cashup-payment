@@ -7,9 +7,12 @@ import com.cashup.kernel.Money
 import com.cashup.notification.PaymentNotificationTransport
 import com.cashup.qris.domain.GeneratedQr
 import com.cashup.qris.domain.PayApp
+import com.cashup.qris.domain.QrisCancelResult
 import com.cashup.qris.domain.QrisGateway
+import com.cashup.qris.domain.QrisHistoryPage
 import com.cashup.qris.domain.QrisPaymentResult
 import com.cashup.qris.domain.QrisPaymentTracker
+import com.cashup.qris.domain.QrisRefundResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -60,6 +63,16 @@ class AppQrisDependencies(
 
     override suspend fun track(qr: GeneratedQr, expirySeconds: Int): QrisPaymentResult =
         tracker.track(qr, expirySeconds)
+
+    // attemptId is the Idempotency-Key and must reach the gateway unchanged (ARC-04).
+    override suspend fun cancel(transactionId: String, attemptId: String): CashupResult<QrisCancelResult> =
+        gateway.cancel(transactionId, attemptId)
+
+    override suspend fun refund(transactionId: String, attemptId: String): CashupResult<QrisRefundResult> =
+        gateway.refund(transactionId, attemptId)
+
+    override suspend fun history(cursor: String?, limit: Int): CashupResult<QrisHistoryPage> =
+        gateway.history(cursor, limit)
 
     private companion object {
         const val TAG = "QrisDependencies"
