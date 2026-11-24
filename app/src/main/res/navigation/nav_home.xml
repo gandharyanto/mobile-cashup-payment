@@ -10,7 +10,7 @@
 
     <fragment
         android:id="@+id/nav_history"
-        android:name="com.cashup.feature.qris.QrisHistoryFragment" />
+        android:name="com.cashup.app.ui.home.HistoryFragment" />
 
     <fragment
         android:id="@+id/nav_features"

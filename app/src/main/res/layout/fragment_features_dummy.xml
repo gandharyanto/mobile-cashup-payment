@@ -3,16 +3,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/light_100"
-    android:gravity="center"
     android:orientation="vertical"
     android:padding="24dp">
 
-    <TextView
-        android:id="@+id/tvFeaturesPlaceholder"
-        android:layout_width="wrap_content"
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnFeatureSettlement"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fontFamily="@font/instrument_sans_semibold"
-        android:text="@string/home_features_placeholder"
-        android:textColor="#252D63"
-        android:textSize="16sp" />
+        android:text="@string/features_settlement" />
 </LinearLayout>

@@ -6,9 +6,15 @@ import android.util.Base64
 import com.cashup.app.AppConfig
 import com.cashup.app.BuildConfig
 import com.cashup.app.R
+import com.cashup.cdcp.data.CardActionRepository
+import com.cashup.cdcp.data.CardSettlementRepository
+import com.cashup.cdcp.data.CardTransactionRepository
 import com.cashup.cdcp.data.SaleRepository
 import com.cashup.cdcp.data.toSaleCard
+import com.cashup.cdcp.domain.CardActionResult
+import com.cashup.cdcp.domain.CardTransactionPage
 import com.cashup.cdcp.domain.SaleOutcome
+import com.cashup.cdcp.domain.SettlementAttempt
 import com.cashup.cdcp.domain.SaleRequest
 import com.cashup.common.logging.NoOpPaymentLogger
 import com.cashup.common.logging.PaymentLogger
@@ -96,16 +102,30 @@ class AppContainer(context: Context) : CardPaymentDependencies {
         runCatching {
             val rsaInfo = rsa.ensureKeyPair()
             Log.i(KEY_TAG, "RSA identity ready at app startup: location=${rsaInfo.location}")
-            if (BuildConfig.DEBUG) Log.i(KEY_TAG, "RSA PUBLIC_KEY_BASE64=${rsaInfo.publicKeySpkiBase64}")
+            if (BuildConfig.DEBUG) Log.i(
+                KEY_TAG,
+                "RSA PUBLIC_KEY_BASE64=${rsaInfo.publicKeySpkiBase64}"
+            )
         }.onFailure { failure ->
-            Log.e(KEY_TAG, "RSA identity initialization failed at app startup: ${failure.message}", failure)
+            Log.e(
+                KEY_TAG,
+                "RSA identity initialization failed at app startup: ${failure.message}",
+                failure
+            )
         }
         runCatching {
             val ed25519PublicKey = ed25519.ensureKeyPair()
-            Log.i(KEY_TAG, "Ed25519 identity ready at app startup: storage=${ed25519.storageDescription()}")
+            Log.i(
+                KEY_TAG,
+                "Ed25519 identity ready at app startup: storage=${ed25519.storageDescription()}"
+            )
             if (BuildConfig.DEBUG) Log.i(KEY_TAG, "ED25519 PUBLIC_KEY_BASE64=$ed25519PublicKey")
         }.onFailure { failure ->
-            Log.e(KEY_TAG, "Ed25519 identity initialization failed at app startup: ${failure.message}", failure)
+            Log.e(
+                KEY_TAG,
+                "Ed25519 identity initialization failed at app startup: ${failure.message}",
+                failure
+            )
         }
     }
 
@@ -113,13 +133,13 @@ class AppContainer(context: Context) : CardPaymentDependencies {
 
     // EDC terminal: serial hardware dari SDK vendor. HP biasa (tidak ada SDK vendor): ANDROID_ID.
     // TEMP (debug builds only): serial dipaksa ke unit uji. BuildConfig.DEBUG menjamin release tetap memakai serial hardware.
-    val serialNumbers: SerialNumberProvider = if (BuildConfig.DEBUG) {
-        SerialNumberProvider { DEBUG_SERIAL_OVERRIDE }
-    } else {
+    val serialNumbers: SerialNumberProvider = if (DEBUG_SERIAL_OVERRIDE == "") {
         FallbackSerialNumberProvider(
             primary = EdcSdkSerialNumberProvider(appContext),
             fallback = AndroidIdSerialNumberProvider(appContext),
         )
+    } else {
+        SerialNumberProvider { DEBUG_SERIAL_OVERRIDE }
     }
 
     val vendorScanner = EdcSdkScanner(appContext)
@@ -127,7 +147,7 @@ class AppContainer(context: Context) : CardPaymentDependencies {
     fun isProvisioned(): Boolean {
         val identity = stateStore.identity() ?: return false
         return identity.devicePublicKey == ed25519.ensureKeyPair() &&
-            stateStore.dukpt()?.deviceId == identity.deviceId
+                stateStore.dukpt()?.deviceId == identity.deviceId
     }
 
     fun activeDeviceId(): String? = stateStore.identity()?.deviceId
@@ -138,22 +158,55 @@ class AppContainer(context: Context) : CardPaymentDependencies {
 
     fun signEd25519Base64(message: String): String =
         ed25519.sign(message.toByteArray(Charsets.UTF_8)).let { signature ->
-            check(ed25519.verify(message.toByteArray(Charsets.UTF_8), signature)) { "Ed25519 self verification failed" }
+            check(
+                ed25519.verify(
+                    message.toByteArray(Charsets.UTF_8),
+                    signature
+                )
+            ) { "Ed25519 self verification failed" }
             Base64.encodeToString(signature, Base64.NO_WRAP)
         }
+
     fun activeKeySetVersion(): Int? = stateStore.dukpt()?.keySetVersion
 
     val saleRepository: SaleRepository by lazy {
-        SaleRepository.create(config.baseUrl, deviceSigner, EdcSdkDukptKeyProvider(appContext),
-            debugLogging = BuildConfig.DEBUG, transport = transportPolicy)
+        SaleRepository.create(
+            config.baseUrl, deviceSigner, EdcSdkDukptKeyProvider(appContext),
+            debugLogging = BuildConfig.DEBUG, transport = transportPolicy
+        )
+    }
+
+    private val cardTransactionRepository: CardTransactionRepository by lazy {
+        CardTransactionRepository.create(
+            config.baseUrl, deviceSigner,
+            debugLogging = BuildConfig.DEBUG, transport = transportPolicy
+        )
+    }
+
+    private val cardActionRepository: CardActionRepository by lazy {
+        CardActionRepository.create(
+            config.baseUrl, deviceSigner,
+            debugLogging = BuildConfig.DEBUG, transport = transportPolicy
+        )
+    }
+
+    private val cardSettlementRepository: CardSettlementRepository by lazy {
+        CardSettlementRepository.create(
+            config.baseUrl, deviceSigner,
+            debugLogging = BuildConfig.DEBUG, transport = transportPolicy
+        )
     }
 
     val qrisDependencies: QrisDependencies by lazy {
         val gateway = QrisRepository.create(
-            config.baseUrl, deviceSigner, debugLogging = BuildConfig.DEBUG, transport = transportPolicy,
+            config.baseUrl,
+            deviceSigner,
+            debugLogging = BuildConfig.DEBUG,
+            transport = transportPolicy,
         )
         // Broker staging memakai sertifikat CA privat (mkcert); dipercaya hanya untuk soket MQTT ini.
-        val mqttTls = appContext.resources.openRawResource(R.raw.mqtt_ca).use { TlsTrust.socketFactoryFor(it) }
+        val mqttTls = appContext.resources.openRawResource(R.raw.mqtt_ca)
+            .use { TlsTrust.socketFactoryFor(it) }
         val transport = MqttNotificationTransport(config.mqttHost, config.mqttPort, mqttTls)
         AppQrisDependencies(
             gateway = gateway,
@@ -189,9 +242,41 @@ class AppContainer(context: Context) : CardPaymentDependencies {
         idempotencyKey: String,
     ): CashupResult<SaleOutcome> {
         val deviceId = requireNotNull(activeDeviceId()) { "Identitas device belum tersedia" }
-        val keySetVersion = requireNotNull(activeKeySetVersion()) { "Key DUKPT provisioning belum aktif" }
-        return saleRepository.sale(SaleRequest(deviceId, keySetVersion, card.toSaleCard(), amount, tip), idempotencyKey)
+        val keySetVersion =
+            requireNotNull(activeKeySetVersion()) { "Key DUKPT provisioning belum aktif" }
+        return saleRepository.sale(
+            SaleRequest(
+                deviceId,
+                keySetVersion,
+                card.toSaleCard(),
+                amount,
+                tip
+            ), idempotencyKey
+        )
     }
+
+    override suspend fun cardTransactions(
+        cursor: String?,
+        limit: Int,
+        fromMillis: Long?,
+        toMillis: Long?,
+    ): CashupResult<CardTransactionPage> =
+        cardTransactionRepository.history(cursor, limit, fromMillis, toMillis)
+
+    override suspend fun voidTransaction(
+        invoiceNumber: String,
+        attemptId: String,
+    ): CashupResult<CardActionResult> = cardActionRepository.void(invoiceNumber, attemptId)
+
+    override suspend fun reverseTransaction(
+        invoiceNumber: String,
+        attemptId: String,
+    ): CashupResult<CardActionResult> = cardActionRepository.reversal(invoiceNumber, attemptId)
+
+    override suspend fun settle(
+        acquirerHostCode: String?,
+        attemptId: String,
+    ): CashupResult<SettlementAttempt> = cardSettlementRepository.settle(acquirerHostCode, attemptId)
 
     fun provisionDeviceUseCase(): ProvisionDeviceUseCase {
         val repository = ProvisioningHttp.create(
@@ -241,10 +326,11 @@ class AppContainer(context: Context) : CardPaymentDependencies {
     private fun kdhPublicKeys(): List<ByteArray> = decodeKeys(BuildConfig.KDH_PUBLIC_KEYS)
 
     private fun decodeKeys(spec: String): List<ByteArray> =
-        spec.split(',').map { it.trim() }.filter { it.isNotEmpty() }.map { Base64.decode(it, Base64.DEFAULT) }
+        spec.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+            .map { Base64.decode(it, Base64.DEFAULT) }
 
     private companion object {
         const val KEY_TAG = "CashupKeyStore"
-        const val DEBUG_SERIAL_OVERRIDE = "P653200052395"
+        const val DEBUG_SERIAL_OVERRIDE = "" //CIMB P653200052395
     }
 }

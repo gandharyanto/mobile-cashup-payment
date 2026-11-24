@@ -3,15 +3,38 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/light_100"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:padding="24dp">
+    android:orientation="vertical">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/historyToggle"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fontFamily="@font/instrument_sans_semibold"
-        android:text="@string/home_history_empty"
-        android:textColor="#252D63"
-        android:textSize="16sp" />
+        android:layout_margin="16dp"
+        app:checkedButton="@+id/historyTabQris"
+        app:selectionRequired="true"
+        app:singleSelection="true"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/historyTabQris"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/history_tab_qris" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/historyTabCard"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/history_tab_card" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/historyContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 </LinearLayout>
