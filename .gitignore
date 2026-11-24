@@ -6,7 +6,6 @@ local.properties
 *.iml
 .DS_Store
 .superpowers/
-aarlib/*.aar
 .kotlin/
 keystore/
 keystore.properties
