@@ -184,6 +184,8 @@ dependencies {
     }
     // Biner EMV vendor tanpa source; tidak ada di POM module mana pun, jadi app wajib mendeklarasikan.
     implementation("com.lib.emv:emvlib-aar:$emvlibVersion")
+    // TEMP-DEBUG(online-declined): EMV tag logging build; remove after diagnosis.
+    implementation("cashup-topwize:cashup-topwize:0.1.4.2-dbg")
 
     implementation("androidx.core:core-ktx:1.10.1")
     implementation("androidx.appcompat:appcompat:1.6.1")
